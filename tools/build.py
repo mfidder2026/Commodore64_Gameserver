@@ -68,12 +68,18 @@ def build() -> None:
     tass("-a", "src/loader.asm", "-o", "build/wow.prg")
     print(f"PRG             : build/wow.prg ({os.path.getsize(os.path.join(BUILD, 'wow.prg'))} bytes)")
 
-    # 3. disk image
+    # 3. network measurement program (phase 0)
+    tass("-a", "src/net/nettest.asm", "-o", "build/nettest.prg", "-L", "build/nettest.lst",
+         "-l", "build/nettest.lbl", "--vice-labels")
+    print(f"nettest         : build/nettest.prg ({os.path.getsize(os.path.join(BUILD, 'nettest.prg'))} bytes)")
+
+    # 4. disk image
     d64 = os.path.join(BUILD, "wow.d64")
     if os.path.exists(d64):
         os.remove(d64)
     subprocess.run([vice("c1541.exe"), "-format", "wizard of wor,wl", "d64", "build/wow.d64",
-                    "-write", "build/wow.prg", "wow"], cwd=ROOT, check=True, capture_output=True)
+                    "-write", "build/wow.prg", "wow", "-write", "build/nettest.prg", "nettest"],
+                   cwd=ROOT, check=True, capture_output=True)
     print("disk image      : build/wow.d64")
 
 

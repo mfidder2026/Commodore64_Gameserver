@@ -20,6 +20,9 @@
 ;   Ultimate side: reads are started with uci_push and finished
 ;   later with uci_poll, the C64 keeps running meanwhile
 ;
+; The including program provides the variables (see nettest.asm),
+; uci_ptr and net_rx_ptr must be zero page pointers.
+;
 ; Interface
 ;   uci_detect          C=0: Command Interface present
 ;   uci_reset           abort whatever is going on, back to idle
@@ -37,7 +40,7 @@
 	UCI_STATUS = $DF1C ; read: status
 	UCI_CMD = $DF1D ; write: command bytes
 	UCI_ID = $DF1D ; read: identification ($C9)
-	UCI_RESP = $DF1E ; read: response data
+	UCI_RESPDATA = $DF1E ; read: response data (64tass labels are case insensitive: uci_resp is the buffer)
 	UCI_STATDATA = $DF1F ; read: status data
 
 	; control register bits
@@ -198,7 +201,7 @@ _resp
 	CMP #<UCI_RESP_MAX
 	BCS _resp_done ; full - the rest is dropped by DATA_ACC
 +
-	LDA UCI_RESP
+	LDA UCI_RESPDATA
 	STA (uci_ptr),Y
 	INC uci_ptr
 	BNE +

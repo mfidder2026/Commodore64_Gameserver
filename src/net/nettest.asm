@@ -24,7 +24,13 @@
 ;
 ;============================================================
 
-	.include "uci.asm"
+	; text is printed with CHROUT: PETSCII, upper case letters $41-$5A
+	; (64tass' default encoding would turn upper case letters into shifted PETSCII)
+	.enc "petscii_upper"
+	.cdef " @", $20
+	.cdef "AZ", $41
+	.cdef "[[", $5B
+	.cdef "]]", $5D
 
 	PORT = 6464
 	PKT_SIZE = 16
@@ -50,6 +56,7 @@
 	; zero page
 	uci_ptr = $FB ; 2 bytes, used by uci.asm
 	str_ptr = $FD ; 2 bytes
+	net_rx_ptr = $F7 ; 2 bytes (RS232 buffer pointer, unused here), used by uci.asm
 
 ;============================================================
 
@@ -82,11 +89,12 @@ menu
 	JSR print_inline
 	.null 147, 5, "WOW-LAN NETTEST (UCI)", 13, 13
 	JSR uci_detect
-	BCC +
-	JSR print_inline
+	BCS +
+	JMP _found
++	JSR print_inline
 	.null "NO ULTIMATE COMMAND INTERFACE FOUND.", 13, "ENABLE IT IN THE ULTIMATE MENU:", 13, "C64 AND CARTRIDGE SETTINGS ->", 13, "COMMAND INTERFACE: ENABLED", 13
 	JMP *
-+
+_found
 	JSR uci_reset
 	JSR print_inline
 	.null "MY IP: "
@@ -437,10 +445,13 @@ _parse
 	; resync on the magic bytes
 	LDA stream
 	CMP #'W'
-	BNE _skip1
+	BNE _skip_byte
 	LDA stream+1
 	CMP #'L'
-	BNE _skip1
+	BEQ +
+_skip_byte
+	JMP _skip1
++
 
 	LDA stream+2
 	CMP #PKT_PING
@@ -1079,6 +1090,8 @@ div32 .proc
 	RTS
 .pend
 
+	.include "uci.asm"
+
 ;============================================================
 ;
 ; variables (not part of the PRG)
@@ -1095,7 +1108,8 @@ time_vars_page
 read_start	.fill 4 ; these four must stay in this page (time_since)
 write_start	.fill 4
 due_time	.fill 4
-	.cerror >* != >time_vars_page, "time variables cross a page"
+	.cerror (<time_vars_page) != 0, "time_vars_page must be page aligned (time_since indexes it with the low byte)"
+	.cerror (>*) != (>time_vars_page), "time variables cross a page"
 
 now		.fill 4
 delta		.fill 4
@@ -1145,7 +1159,6 @@ net_socket	.fill 1
 net_tx_len	.fill 1
 net_tx_buf	.fill PKT_SIZE
 net_read_max	.fill 1
-net_rx_ptr	.fill 2
 net_rx_len	.fill 1
 uci_resp	.fill UCI_RESP_MAX
 	.endv
