@@ -750,7 +750,11 @@ start
 	JSR copy_nmi_hander_to_ram
 	PTR_SET $0318, nmi_handler
 
+	.if TARGET_PRG
+	PTR_SET $0314, irq_vector ; NET: was PTR_SET $0314, irq_handler
+	.else
 	PTR_SET $0314, irq_handler
+	.fi
 
 	JSR init_sid_cia_mem
 	JSR reset_scores
@@ -775,7 +779,11 @@ init_stuff ; nmi handler jumps here
 	; The title screens
 
 display_high_scores_and_enemies
+	.if TARGET_PRG
+	JSR session_end ; NET: was JSR vic_init
+	.else
 	JSR vic_init
+	.fi
 
 	; high score + copyright
 	JSR clear_screen
@@ -794,7 +802,11 @@ display_high_scores_and_enemies
 
 
 start_game
+	.if TARGET_PRG
+	JSR session_start ; NET: was JSR reset_scores
+	.else
 	JSR reset_scores
+	.fi
 	JSR clear_screen
 
 start_dungeon
@@ -807,7 +819,11 @@ start_dungeon
 	BMI + ; skip if we have just started the game (dungeon = $ff)
 	JSR draw_dungeon
 +
+	.if TARGET_PRG
+	JSR select_dungeon_layout_det ; NET: was JSR select_dungeon_layout
+	.else
 	JSR select_dungeon_layout
+	.fi
 	JSR reset_per_dungeon_stuff
 
 	; GET READY ... GO
@@ -906,7 +922,11 @@ normal_gameplay_loop
 _no_radar_update
 
 	; move bullets
+	.if TARGET_PRG
+	JSR pass_hook_normal ; NET: was JSR move_bullets
+	.else
 	JSR move_bullets
+	.fi
 
 	; check if game is over
 	LDA game_status
@@ -937,7 +957,11 @@ _no_game_over
 	BPL _actor_not_dead ; it's not dead
 	; actor is dead, no further processing is needed for it
 	; this short busy loop is probably here to keep the game from being to fast with just a few (or a single) monsters
+	.if TARGET_PRG
+	LDY #$01 ; NET: was LDY #$20 - the pace comes from the tick cost model now, this delay only wastes time
+	.else
 	LDY #$20
+	.fi
 -	DEY
 	BNE -
 	BEQ normal_gameplay_loop ; always branch
@@ -1071,7 +1095,11 @@ _handle_movement
 	ORA actor_heading_y
 	BNE + ; keep heading as-is
 _set_random_heading
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$01
 	TAY
 	LDA heading_tbl,Y
@@ -1808,7 +1836,11 @@ handle_launch
 	JSR print_2x1_letter
 
 	; check if joystick is pushed up
+	.if TARGET_PRG
+	LDA net_joy,X ; NET: was LDA CIA1_JOY_KEY1,X
+	.else
 	LDA CIA1_JOY_KEY1,X
+	.fi
 	AND #$01
 	BEQ start_launch
 	JMP return_01 ; stay waiting in the cage
@@ -2091,7 +2123,11 @@ _no_coll_y
 
 	; check if joystick is pushed into any direction
 	TAX
+	.if TARGET_PRG
+	LDA net_joy,X ; NET: was LDA CIA1_JOY_KEY1,X
+	.else
 	LDA CIA1_JOY_KEY1,X
+	.fi
 	AND #$0F
 	EOR #$0F
 	BNE _check_if_actor_was_moving ; yes, it is
@@ -2987,7 +3023,11 @@ read_joy_direction .proc
 	;  actor_heading_x: X direction ($ff: left / $00: center / $01: right)
 	;  actor_heading_y: X direction ($ff: up / $00: center / $01: down)
 
+	.if TARGET_PRG
+	LDA net_joy,X ; NET: was LDA CIA1_JOY_KEY1,X
+	.else
 	LDA CIA1_JOY_KEY1,X
+	.fi
 	LDX #$00
 	LDY #$00
 	; up
@@ -3294,7 +3334,11 @@ _dont_launch_p1
 	INC music_speed
 _end_of_timer_section
 
+	.if TARGET_PRG
+	JSR irq_hook ; NET: was JSR sfx.play
+	.else
 	JSR sfx.play
+	.fi
 	JSR jingles.play
 	LDA #$C8
 	STA VIC_D012
@@ -5553,13 +5597,21 @@ check_if_game_is_started .proc
 	STA irq_timer_sec ; let this check run for 5 seconds
 _check
 	; check fire button on port2
+	.if TARGET_PRG
+	LDA net_joy ; NET: was LDA CIA1_JOY_KEY1
+	.else
 	LDA CIA1_JOY_KEY1
+	.fi
 	LDX #STARTING_EXTRA_LIVES
 	AND #$10
 	BEQ _fire_pressed
 
 	; check fire button on port2
+	.if TARGET_PRG
+	LDA net_joy+1 ; NET: was LDA CIA1_JOY_KEY2
+	.else
 	LDA CIA1_JOY_KEY2
+	.fi
 	LDX #$FF
 	AND #$10
 	BEQ _fire_pressed
@@ -5582,7 +5634,11 @@ spawn_monster .proc
 
 _find_x_pos
 	; pick a random X position
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	EOR random_number
 	AND #$07
 	TAX
@@ -5610,7 +5666,11 @@ _find_x_pos
 
 _find_y_pos
 	; do the same for Y
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$07
 	TAX
 	LDA spawn_pos_y,X
@@ -5746,7 +5806,11 @@ worluk_gameplay_loop
 	STA actor_sprite_pos_offset
 
 	; move bullets
+	.if TARGET_PRG
+	JSR pass_hook_worluk ; NET: was JSR move_bullets
+	.else
 	JSR move_bullets
+	.fi
 
 	; check game over
 	LDA game_status
@@ -5860,7 +5924,11 @@ _set_sfx
 	LDA actor_heading_x
 	ORA actor_heading_y
 	BNE _end_of_moving
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$01
 	TAY
 	LDA heading_tbl,Y
@@ -5994,7 +6062,11 @@ wizard_gameplay_loop
 	STA actor_sprite_pos_offset
 
 	; move bullets
+	.if TARGET_PRG
+	JSR pass_hook_wizard ; NET: was JSR move_bullets
+	.else
 	JSR move_bullets
+	.fi
 
 	; show wizard's sprite
 	LDA VIC_D015
@@ -6117,14 +6189,22 @@ _handle_wizard
 	STA next_sfx_idx
 
 	; set wizard's heading toward a randomly chosen player
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$02
 	TAX
 	LDA VIC_S0X,X
 	STA monster_dest_x
 	LDA VIC_S0Y,X
 	STA monster_dest_y
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$01
 	STA monster_dest_9th
 	JSR calculate_monster_heading
@@ -6177,7 +6257,11 @@ _actually_move
 	BNE _end_movement
 
 _set_random_heading
+	.if TARGET_PRG
+	JSR rnd_d012 ; NET: was LDA VIC_D012
+	.else
 	LDA VIC_D012
+	.fi
 	AND #$01
 	TAY
 	LDA heading_tbl,Y
@@ -6872,6 +6956,9 @@ kernal_ioinit_prg
 	JSR KERNAL_IOINIT
 	LDA #MEMCFG_NORMAL
 	STA $01
-	RTS
+	JMP net_game_init
+
+	.include "net/game_net.asm"
+	.cerror * > $D000, "the network code must end below $D000"
 
 	.fi

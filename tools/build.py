@@ -123,11 +123,7 @@ def build() -> None:
                     "-t", "normal", "-n", "WIZARD OF WOR"], cwd=ROOT, check=True, capture_output=True)
 
     # 2. RAM based version packed into a PRG
-    tass("-a", "-D", "TARGET_PRG=1", "src/wizard_of_wor.asm", "-b", "-o", "build/wow_payload.bin",
-         "-L", "build/wow.lst", "-l", "build/wow.lbl", "--vice-labels")
-    layout_check()
-    tass("-a", "src/loader.asm", "-o", "build/wow.prg")
-    print(f"PRG             : build/wow.prg ({os.path.getsize(os.path.join(BUILD, 'wow.prg'))} bytes)")
+    build_game("wow")
 
     # 3. network measurement program (phase 0)
     tass("-a", "src/net/nettest.asm", "-o", "build/nettest.prg", "-L", "build/nettest.lst",
@@ -148,7 +144,21 @@ def build() -> None:
     print("disk image      : build/wow.d64")
 
 
-def layout_check() -> None:
+def build_game(name: str, *defines: str, check: bool = True) -> None:
+    """Assembles the PRG version (TARGET_PRG=1 plus extra -D defines) into build/<name>.prg."""
+    args = ["-a", "-D", "TARGET_PRG=1"]
+    for d in defines:
+        args += ["-D", d]
+    tass(*args, "src/wizard_of_wor.asm", "-b", "-o", "build/wow_payload.bin",
+         "-L", f"build/{name}.lst", "-l", f"build/{name}.lbl", "--vice-labels")
+    if check:
+        layout_check(f"build/{name}.lbl")
+    tass("-a", "src/loader.asm", "-o", f"build/{name}.prg")
+    print(f"PRG             : build/{name}.prg ({os.path.getsize(os.path.join(BUILD, name + '.prg'))} bytes)"
+          + (f"  [{' '.join(defines)}]" if defines else ""))
+
+
+def layout_check(lblfile: str = "build/wow.lbl") -> None:
     """The PRG image must keep the layout of the original 16K image: only same-size patches are allowed there.
     (The sprite data block contains code, so any shift silently corrupts sprites.)"""
     with open(os.path.join(BUILD, "wow_cart.bin"), "rb") as f:
@@ -163,7 +173,7 @@ def layout_check() -> None:
             else:
                 ranges.append([i, i])
     labels = {}
-    with open(os.path.join(BUILD, "wow.lbl")) as f:
+    with open(os.path.join(ROOT, lblfile)) as f:
         for line in f:
             parts = line.split()
             if len(parts) == 3:
@@ -198,7 +208,14 @@ def shot(mcycles: int) -> str:
 if __name__ == "__main__":
     build()
     action = sys.argv[1] if len(sys.argv) > 1 else ""
-    if action == "run":
+    if action == "profile":
+        build_game("wow_profile", "PROFILE=1", check=False)
+    elif action == "dettest":
+        build_game("wow_dettest", "DETTEST=1", check=False)
+        build_game("wow_dettest_fast", "DETTEST=1", "DETTEST_FAST=1", check=False)
+    elif action == "speedtest":
+        build_game("wow_speedtest", "DETTEST=1", "SPEEDTEST=1", check=False)
+    elif action == "run":
         run()
     elif action == "shot":
         shot(int(sys.argv[2]) if len(sys.argv) > 2 else 60)
