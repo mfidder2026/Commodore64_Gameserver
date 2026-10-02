@@ -22,6 +22,11 @@
 ; Time is measured with CIA2 timer A+B chained into a 32 bit
 ; cycle counter (no interrupts enabled on CIA2).
 ;
+; Two builds: NET_RRNET=0 for the Ultimate (UCI), NET_RRNET=1
+; for VICE / RR-Net (ip65, UDP only). With RR-Net a "read" only
+; completes when a datagram arrived, so READ EMPTY stays 0 and
+; READ DATA shows the time between datagrams.
+;
 ;============================================================
 
 	; text is printed with CHROUT: PETSCII, upper case letters $41-$5A
@@ -32,7 +37,14 @@
 	.cdef "[[", $5B
 	.cdef "]]", $5D
 
+	.weak
+NET_RRNET = 0 ; 0: Ultimate (UCI), 1: RR-Net (ip65)
+	.endweak
+
 	PORT = 6464
+	MODE_UDP = 1
+	MODE_TCP = 2
+	MODE_LISTEN = 3
 	PKT_SIZE = 16
 	PKT_PING = 1
 	PKT_PONG = 2
@@ -57,6 +69,8 @@
 	uci_ptr = $FB ; 2 bytes, used by uci.asm
 	str_ptr = $FD ; 2 bytes
 	net_rx_ptr = $F7 ; 2 bytes (RS232 buffer pointer, unused here), used by uci.asm
+	net_parse_ptr = $F9 ; 2 bytes, used by net_rrnet.asm
+	; the ip65 blob of the RR-Net build uses $50-$5E (BASIC work area, unused while this program runs)
 
 ;============================================================
 
@@ -68,8 +82,10 @@
 start
 	JSR init_timer
 	JSR init_irq
+	.if !NET_RRNET
 	LDA #2
 	STA uci_timeout_secs
+	.fi
 	LDA #$FF
 	STA net_socket
 	LDA #$00
@@ -84,6 +100,76 @@ start
 	BNE +
 	LDA #102
 +	STA cyc_per_tenth
+
+	.if NET_RRNET
+
+menu
+	JSR print_inline
+	.null 147, 5, "WOW-LAN NETTEST (RR-NET)", 13, 13, "MY IP (RETURN = DHCP): "
+	JSR read_line
+	LDA host_len
+	BNE _static
+	LDA $D012 ; some last MAC byte
+	JSR net_detect
+	BCC +
+	JMP _no_card
++
+	JSR print_inline
+	.null "DHCP... "
+	JSR net_dhcp
+	BCC _have_ip
+	JSR print_inline
+	.null "FAILED", 13, "PRESS A KEY"
+-	JSR GETIN
+	BEQ -
+	JMP menu
+_static
+	LDX #<host_input
+	LDY #>host_input
+	JSR parse_ip
+	BCC +
+	JMP menu
++
+	LDA parsed_ip+3 ; last MAC byte = last ip byte, unique per machine
+	JSR net_detect
+	BCC +
+	JMP _no_card
++
+	LDX #3
+-	LDA parsed_ip,X
+	STA net_ipcfg,X
+	STA net_ipcfg+8,X
+	LDA #255
+	STA net_ipcfg+4,X
+	DEX
+	BPL -
+	LDA #0
+	STA net_ipcfg+7 ; netmask 255.255.255.0
+	LDA #1
+	STA net_ipcfg+11 ; gateway x.x.x.1
+	JSR net_set_ip
+_have_ip
+	JSR print_inline
+	.null 13, "MY IP: "
+	JSR net_get_ip
+	LDX #0
+	JSR print_ip
+	LDA #MODE_UDP
+	STA mode
+	JSR ask_peer
+	JSR net_open
+	BCC +
+	JMP menu
++
+	JSR print_inline
+	.null "UDP PORT 6464 OPEN", 13
+	JMP run_test
+_no_card
+	JSR print_inline
+	.null 13, "NO RR-NET FOUND.", 13, "VICE: SETTINGS -> CARTRIDGE ->", 13, "ETHERNET CARTRIDGE, MODE RR-NET", 13, "(OR START VICE WITH -ETHERNETCART -RRNET)", 13
+	JMP *
+
+	.else
 
 menu
 	JSR print_inline
@@ -103,7 +189,7 @@ _found
 	JSR print_inline
 	.null "?", 13
 	JMP _menu_items
-+	LDX #$00
++	LDX #0
 	JSR print_ip
 	JSR print_inline
 	.null 13
@@ -120,7 +206,7 @@ _menu_items
 	JMP _listen
 
 _udp
-	LDA #NET_CMD_OPEN_UDP
+	LDA #MODE_UDP
 	STA mode
 	JSR ask_peer
 	JSR print_inline
@@ -130,7 +216,7 @@ _udp
 	JMP _opened
 
 _tcp
-	LDA #NET_CMD_OPEN_TCP
+	LDA #MODE_TCP
 	STA mode
 	JSR ask_peer
 	JSR print_inline
@@ -140,7 +226,7 @@ _tcp
 	JMP _opened
 
 _listen
-	LDA #NET_CMD_LISTEN_START
+	LDA #MODE_LISTEN
 	STA mode
 	JSR print_inline
 	.null 13, 13, "LISTEN ON PORT 6464... "
@@ -189,6 +275,30 @@ _failed
 	BEQ -
 	JMP menu
 
+	.fi ; NET_RRNET
+
+; -----------------------------------------
+
+read_line .proc
+	; reads a line with the screen editor into host_input (zero terminated), length in host_len
+	LDX #$00
+-	JSR CHRIN
+	CMP #13
+	BEQ _done
+	CPX #net_host_size-1
+	BCS -
+	STA host_input,X
+	INX
+	BNE - ; always branches
+_done
+	LDA #$00
+	STA host_input,X
+	STX host_len
+	JSR print_inline
+	.null 13
+	RTS
+.pend
+
 ; -----------------------------------------
 
 ask_peer .proc
@@ -204,23 +314,9 @@ ask_peer .proc
 	.null "]"
 +	JSR print_inline
 	.null ": "
-	LDX #$00
--	JSR CHRIN
-	CMP #13
-	BEQ _done
-	CPX #net_host_size-1
-	BCS -
-	STA host_input,X
-	INX
-	BNE - ; always branches
-_done
-	STX tmp
-	JSR print_inline
-	.null 13
-	LDX tmp
+	JSR read_line
+	LDX host_len
 	BEQ _keep ; empty: keep the previous one
-	LDA #$00
-	STA host_input,X
 -	LDA host_input,X
 	STA net_host,X
 	DEX
@@ -301,11 +397,14 @@ _loop
 +	JMP _loop
 
 _quit
+	.if !NET_RRNET
 	; finish an outstanding read, then close
 	LDA read_pending
 	BEQ +
 	JSR uci_wait
-+	JSR net_close
++
+	.fi
+	JSR net_close
 	JMP menu
 .pend
 
@@ -313,6 +412,13 @@ _quit
 
 net_service .proc
 	; keeps one read outstanding; a due send goes first as soon as the interface is free
+	.if NET_RRNET
+	; RR-Net has no single command channel: a read only completes when data arrives, so send right away
+	LDA send_due
+	BEQ +
+	JSR _send
++
+	.fi
 	LDA read_pending
 	BEQ _idle
 	JSR net_read_poll
@@ -345,6 +451,10 @@ _error
 _idle
 	LDA send_due
 	BEQ _start_read
+	JSR _send
+	JMP _start_read
+
+_send
 	LDA #$00
 	STA send_due
 	; how long did the send wait for the interface?
@@ -353,7 +463,7 @@ _idle
 	JSR time_since
 	LDX #stat_send_wait
 	JSR stat_add
-	JSR send_ping
+	JMP send_ping
 
 _start_read
 	LDA #PKT_SIZE * 4
@@ -702,7 +812,7 @@ draw_labels .proc
 	JSR print_inline
 	.null "PEER "
 	LDA mode
-	CMP #NET_CMD_LISTEN_START
+	CMP #MODE_LISTEN
 	BNE +
 	JSR print_inline
 	.null "(LISTENING)"
@@ -732,8 +842,8 @@ draw_values .proc
 	JSR print_u8
 	JSR print_inline
 	.null " FRAMES  "
-	; statistic table, rows 9-13
-	LDA #9
+	; statistic table, rows 8-12
+	LDA #8
 	STA row
 	LDA #stat_rtt
 	STA stat_ofs
@@ -749,25 +859,25 @@ draw_values .proc
 	CMP #STAT_LEN * STAT_COUNT
 	BCC -
 	; counters
-	LDX #15
+	LDX #14
 	LDY #12
 	JSR goto
 	LDA pings_sent
 	LDX pings_sent+1
 	JSR print_u16_pad
-	LDX #16
+	LDX #15
 	LDY #12
 	JSR goto
 	LDA pongs_rcvd
 	LDX pongs_rcvd+1
 	JSR print_u16_pad
-	LDX #17
+	LDX #16
 	LDY #12
 	JSR goto
 	LDA pings_rcvd
 	LDX pings_rcvd+1
 	JSR print_u16_pad
-	LDX #18
+	LDX #17
 	LDY #12
 	JSR goto
 	LDX #3
@@ -776,13 +886,13 @@ draw_values .proc
 	DEX
 	BPL -
 	JSR print_ms
-	LDX #19
+	LDX #18
 	LDY #12
 	JSR goto
 	LDA errors
 	LDX errors+1
 	JSR print_u16_pad
-	LDX #20
+	LDX #19
 	LDY #12
 	JSR goto
 	JSR print_status
@@ -957,6 +1067,12 @@ print_host .proc
 .pend
 
 print_status .proc
+	.if NET_RRNET
+	JSR print_inline
+	.null "IP65 ERROR "
+	LDA ip65.ip65_error
+	JMP print_u8
+	.else
 	LDX #$00
 -	LDA uci_stat,X
 	BEQ +
@@ -965,12 +1081,13 @@ print_status .proc
 	CPX #24
 	BCC -
 +	RTS
+	.fi
 .pend
 
 print_ip .proc
-	; prints 4 bytes at uci_resp+X as a dotted ip
+	; prints 4 bytes at net_ipcfg+X as a dotted ip
 	LDY #4
--	LDA uci_resp,X
+-	LDA net_ipcfg,X
 	STX tmp
 	STY tmp+1
 	JSR print_u8
@@ -1090,7 +1207,14 @@ div32 .proc
 	RTS
 .pend
 
+	.if NET_RRNET
+	.include "net_rrnet.asm"
+	.cerror * > IP65_BLOB_START, "nettest code overlaps the ip65 blob"
+	* = IP65_BLOB_START
+	.binary "../../build/ip65_nettest.bin"
+	.else
 	.include "uci.asm"
+	.fi
 
 ;============================================================
 ;
@@ -1101,7 +1225,12 @@ div32 .proc
 	net_host_size = 32
 	stream_size = 64
 
+	.if NET_RRNET
+	.include "../../build/ip65_nettest.inc"
+	.cerror IP65_BSS_END > $C000, "ip65 buffers overlap the variables"
+	.else
 	.cerror * > $BF00, "program too long"
+	.fi
 
 	.virtual $C000
 time_vars_page
@@ -1144,7 +1273,29 @@ rtt_last	.fill 4
 stats		.fill STAT_LEN * STAT_COUNT
 
 host_input	.fill net_host_size
+host_len	.fill 1
+net_ipcfg	.fill 12 ; ip, netmask, gateway
 
+	; used by net_rrnet.asm
+net_peer_ip	.fill 4
+parsed_ip	.fill 4
+net_retries	.fill 1
+net_rx_held	.fill 1
+net_rx_copy_len	.fill 1
+net_rx_copy	.fill 128
+net_digits	.fill 1
+net_tmp		.fill 1
+
+	; used by both backends
+net_port	.fill 2
+net_host	.fill net_host_size
+net_socket	.fill 1
+net_tx_len	.fill 1
+net_tx_buf	.fill PKT_SIZE
+net_read_max	.fill 1
+net_rx_len	.fill 1
+
+	.if !NET_RRNET
 	; used by uci.asm
 uci_pending	.fill 1
 uci_resp_len	.fill 2
@@ -1153,12 +1304,6 @@ uci_code	.fill 1
 uci_tmo		.fill 3
 uci_timeout_secs .fill 1
 uci_stat	.fill UCI_STAT_MAX
-net_port	.fill 2
-net_host	.fill net_host_size
-net_socket	.fill 1
-net_tx_len	.fill 1
-net_tx_buf	.fill PKT_SIZE
-net_read_max	.fill 1
-net_rx_len	.fill 1
 uci_resp	.fill UCI_RESP_MAX
+	.fi
 	.endv

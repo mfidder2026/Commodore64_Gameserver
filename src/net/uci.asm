@@ -330,7 +330,7 @@ _expired
 ; -----------------------------------------
 
 net_get_ip .proc
-	; reply: 4 bytes ip, 4 bytes netmask, 4 bytes gateway in uci_resp; C=1 on error
+	; reply: 4 bytes ip, 4 bytes netmask, 4 bytes gateway -> net_ipcfg; C=1 on error
 	JSR uci_begin
 	BCS +
 	LDA #UCI_TARGET_NET
@@ -344,9 +344,17 @@ net_get_ip .proc
 	BCS +
 	LDA uci_resp_len
 	CMP #12
-	BCC + ; C=1
+	BCC _err
+	LDX #11
+-	LDA uci_resp,X
+	STA net_ipcfg,X
+	DEX
+	BPL -
 	LDA uci_code
 	CMP #$01 ; 00 = ok
+	RTS
+_err
+	SEC
 +	RTS
 .pend
 
