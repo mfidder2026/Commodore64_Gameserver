@@ -64,6 +64,7 @@ def build() -> None:
     # 2. RAM based version packed into a PRG
     tass("-a", "-D", "TARGET_PRG=1", "src/wizard_of_wor.asm", "-b", "-o", "build/wow_payload.bin",
          "-L", "build/wow.lst", "-l", "build/wow.lbl", "--vice-labels")
+    layout_check()
     tass("-a", "src/loader.asm", "-o", "build/wow.prg")
     print(f"PRG             : build/wow.prg ({os.path.getsize(os.path.join(BUILD, 'wow.prg'))} bytes)")
 
@@ -74,6 +75,36 @@ def build() -> None:
     subprocess.run([vice("c1541.exe"), "-format", "wizard of wor,wl", "d64", "build/wow.d64",
                     "-write", "build/wow.prg", "wow"], cwd=ROOT, check=True, capture_output=True)
     print("disk image      : build/wow.d64")
+
+
+def layout_check() -> None:
+    """The PRG image must keep the layout of the original 16K image: only same-size patches are allowed there.
+    (The sprite data block contains code, so any shift silently corrupts sprites.)"""
+    with open(os.path.join(BUILD, "wow_cart.bin"), "rb") as f:
+        cart = f.read()
+    with open(os.path.join(BUILD, "wow_payload.bin"), "rb") as f:
+        prg = f.read()[:len(cart)]
+    ranges: list[list[int]] = []
+    for i, (a, b) in enumerate(zip(cart, prg)):
+        if a != b:
+            if ranges and i - ranges[-1][1] <= 4:
+                ranges[-1][1] = i
+            else:
+                ranges.append([i, i])
+    labels = {}
+    with open(os.path.join(BUILD, "wow.lbl")) as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) == 3:
+                labels.setdefault(int(parts[1], 16), parts[2].lstrip("."))
+    def near(addr: int) -> str:
+        best = max((a for a in labels if a <= addr), default=None)
+        return f"{labels[best]}+{addr - best}" if best is not None else "?"
+    print(f"layout check    : {len(ranges)} patched area(s) in the original image")
+    for lo, hi in ranges:
+        print(f"                  ${0x8000 + lo:04X}-${0x8000 + hi:04X}  {near(0x8000 + lo)}")
+    if len(ranges) > 40:
+        sys.exit("layout check: too many differences - something shifted the original layout")
 
 
 def run() -> None:

@@ -734,18 +734,6 @@ next_sfx_idx		.byte ?
 
 	; end of header
 
-	.if TARGET_PRG
-	; NET: not reached by falling through - the boot vector in the header points to start
-kernal_ioinit_prg
-	; NET: IOINIT sets $01 to $37, which maps the BASIC ROM over $A000-$BFFF
-	; this wrapper must stay below $A000 so the RTS of IOINIT returns into RAM, then it switches the ROM off again
-	JSR KERNAL_IOINIT
-	LDA #MEMCFG_NORMAL
-	STA $01
-	RTS
-	.cerror * > $A000, "kernal_ioinit_prg must be below $A000"
-	.fi
-
 start
 
 	; various initialization routines
@@ -2551,17 +2539,23 @@ MV_init .proc
 	; Wizard of Wor is one of the very few games that support is to produce a few short sentences during the game like "get ready worrior" etc
 
 	; first detect if we have a Magic Voice installed
+	; NET: this routine lies inside the sprite data block that create_sprites copies (as part of 3 unused sprites),
+	; so any patch here must keep exactly the same size or all following sprites shift
+_detect
 	.if TARGET_PRG
 	; NET: no Magic Voice support in the PRG version - $C000 is RAM there
 	LDX #$01
 	BNE + ; always branches
-	.fi
+	.fill 9, $EA ; NOPs, keep the original size of 13 bytes
+	.else
 	LDX #$03
 -	LDA MV_COMPLETION_HOOK-1,X ; X is 1-based
 	CMP _MV_default_hook_code-1,X
 	BNE +
 	DEX
 	BNE -
+	.fi
+	.cerror * - _detect != 13, "Magic Voice detection must stay 13 bytes"
 +
 	STX is_MV_missing
 	BNE _no_magic_voice
@@ -6859,3 +6853,25 @@ word_len_tbl	.byte $05,$04,$06,$02,$04,$01,$02,$00,$03
 
 	; unused bytes
 	.byte $FF,$0C,$CB
+
+;============================================================
+;
+; NET: code for the PRG version, placed after the original
+; 16K image so the original layout stays exactly the same
+; (the sprite data block even contains code, see MV_init)
+;
+;============================================================
+
+	.if TARGET_PRG
+
+	.cerror * != $C000, "the original image must end at $BFFF"
+
+kernal_ioinit_prg
+	; IOINIT sets $01 to $37, which maps the BASIC ROM over $A000-$BFFF
+	; this wrapper must not be in $A000-$BFFF itself, so the RTS of IOINIT returns into RAM; then it switches the ROM off again
+	JSR KERNAL_IOINIT
+	LDA #MEMCFG_NORMAL
+	STA $01
+	RTS
+
+	.fi
