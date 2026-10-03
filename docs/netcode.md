@@ -51,5 +51,23 @@ Het spritedatablok dat `create_sprites` kopieert, bevat de code van `MV_init`. E
 |---|---|---|---|
 | VICE ↔ VICE (RR-Net, Npcap op WiFi-adapter) | 8,6 / 34–52 / 242–600 ms | ~2% | VICE-pcap-latency, niet representatief voor hardware |
 | VICE ↔ WSL (Hyper-V-switch) | – | 100% | Hyper-V laat frames met een vreemd MAC-adres niet door; werkt niet |
-| C64 Ultimate ↔ PC | *nog te meten* | | `docs/fase0_meten.md` |
+| C64 Ultimate ↔ PC, UDP (beide via WiFi-netwerk, 2026-10-03) | C64: 8,2 / 65 / 733 ms; PC: 8,4 / ~100 / 2168 ms | ~1% | zie hieronder |
 | C64 Ultimate ↔ VICE | *nog te meten* | | |
+
+### C64 Ultimate ↔ PC (test A, UDP), details
+
+| Meting | min | gem | max |
+|---|---|---|---|
+| READ DATA (read die data opleverde) | 1,3 ms | 17,3 ms | 174 ms |
+| READ EMPTY (read zonder data) | 35,9 ms | 49,5 ms | 190 ms |
+| WRITE (C64 wacht synchroon) | 1,3 ms | 1,7 ms | 3,3 ms |
+| SEND WAIT (send wacht op lopende read) | 1,2 ms | 39 ms | 177 ms |
+
+- De Ultimate verstuurt vanaf een willekeurige bronpoort (62511). Antwoorden naar de geleerde poort werkt.
+- Een read komt waarschijnlijk terug zodra er data binnenkomt (READ DATA gemiddeld 17 ms), en anders na ~36–50 ms.
+- Conclusies voor het spel:
+  - writes worden asynchroon (1,7 ms wachten past niet in de 7–8% vrije tijd per tick);
+  - na elke voltooide read eerst versturen, dan de volgende read;
+  - startwaarden: 60 ticks/s, input delay 4, elk pakket herhaalt de laatste 8 inputs.
+- De uitschieters (0,7–2,2 s) komen waarschijnlijk van WiFi. Met een kabel aan de Ultimate wordt dat naar verwachting minder.
+- Nog open: `--reply-port 6464` (kan een Ultimate ontvangen op een vaste poort? Nodig voor Ultimate↔Ultimate via UDP).
