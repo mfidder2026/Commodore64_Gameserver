@@ -70,4 +70,6 @@ Het spritedatablok dat `create_sprites` kopieert, bevat de code van `MV_init`. E
   - na elke voltooide read eerst versturen, dan de volgende read;
   - startwaarden: 60 ticks/s, input delay 4, elk pakket herhaalt de laatste 8 inputs.
 - De uitschieters (0,7–2,2 s) komen waarschijnlijk van WiFi. Met een kabel aan de Ultimate wordt dat naar verwachting minder.
-- Nog open: `--reply-port 6464` (kan een Ultimate ontvangen op een vaste poort? Nodig voor Ultimate↔Ultimate via UDP).
+- **Getest met `--reply-port 6464`: de Ultimate ontvangt UDP alleen op zijn eigen willekeurige bronpoort, niet op poort 6464** (pongs 0, terwijl de PC de pings van de C64 wel ontving).
+  - Ultimate ↔ VICE/RR-Net: UDP, met VICE als vaste kant (luistert op 6464, antwoordt naar de geleerde poort).
+  - Ultimate ↔ Ultimate: UDP kan niet (beide kanten hebben een onbekende poort). Daarvoor TCP: de host luistert (`LISTEN_*`), de ander verbindt. Test B moet uitwijzen of `LISTEN_*` werkt en hoe TCP zich gedraagt.
