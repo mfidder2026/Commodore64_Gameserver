@@ -48,7 +48,7 @@ def dump(port: int, name: str, lbl: dict[str, int]) -> tuple[int, int, list[int]
     vars_path = os.path.join(ROOT, "build", f"det_{name}_vars.bin").replace("\\", "/")
     start = lbl["det_log"]
     end = lbl["det_snap"] + 0x700 - 1
-    monitor(port, f's "{path}" 0 {start:04x} {end:04x}',
+    monitor(port, "bank ram", f's "{path}" 0 {start:04x} {end:04x}',
             f's "{vars_path}" 0 {lbl["det_sessions"]:04x} {lbl["det_loop_passes_hi"] + 2:04x}',
             f'screenshot "build/shot_det_{name}.png" 2')
     time.sleep(0.5)

@@ -6961,4 +6961,6 @@ kernal_ioinit_prg
 	.include "net/game_net.asm"
 	.cerror * > $D000, "the network code must end below $D000"
 
+	.include "net/netgame.asm" ; $4000-$7FFF: ip65, setup menu, network I/O, lockstep
+
 	.fi

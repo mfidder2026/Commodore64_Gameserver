@@ -1280,6 +1280,7 @@ net_ipcfg	.fill 12 ; ip, netmask, gateway
 
 	; used by net_rrnet.asm
 net_peer_ip	.fill 4
+net_peer_known	.fill 1
 parsed_ip	.fill 4
 net_retries	.fill 1
 net_rx_held	.fill 1

@@ -487,6 +487,35 @@ _push
 
 ; -----------------------------------------
 
+net_write_start .proc
+	; asynchronous write: pushes net_tx_len bytes from net_tx_buf and returns at once (finish with uci_poll)
+	; C=1 if the interface is not idle
+	LDA UCI_STATUS
+	AND #UCI_ST_STATE
+	BEQ +
+	SEC
+	RTS
++
+	LDA #UCI_TARGET_NET
+	STA UCI_CMD
+	LDA #NET_CMD_WRITE_SOCKET
+	STA UCI_CMD
+	LDA net_socket
+	STA UCI_CMD
+	LDX #$00
+-	CPX net_tx_len
+	BEQ +
+	LDA net_tx_buf,X
+	STA UCI_CMD
+	INX
+	BNE -
++	JSR uci_push
+	CLC
+	RTS
+.pend
+
+; -----------------------------------------
+
 net_read_start .proc
 	; starts an asynchronous read of up to net_read_max bytes, finish it with net_read_poll; C=1 if the interface is not idle
 	LDA UCI_STATUS

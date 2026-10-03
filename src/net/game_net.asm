@@ -55,6 +55,7 @@ PROFILE = 0
 DETTEST = 0
 DETTEST_FAST = 0 ; with DETTEST: the first monster killed in a dungeon brings the Worluk (covers the other loops)
 SPEEDTEST = 0 ; with DETTEST: keep the real time pacing and count idle time / resyncs (can the machine keep up?)
+NETBOT = 0 ; with DETTEST: network game test - setup menu as normal, the local player is a bot, the host starts by itself
 	.endweak
 
 	; CIA2 timers: timer A counts cycles from $FFFF, timer B counts its underflows -> 32 bit cycle counter
@@ -249,6 +250,10 @@ session_start .proc
 	.if DETTEST
 	INC det_sessions
 	.fi
+	LDA net_role
+	BEQ +
+	JSR proto_session_start ; network game: seeds from the host, input buffers (netgame.asm)
++
 	; pacing starts now
 	JSR get_cycles
 	LDX #3
@@ -261,9 +266,15 @@ session_start .proc
 
 session_end .proc
 	; title screen (display_high_scores_and_enemies), before vic_init
+	; the title screen passes here every 10 seconds, so the network state is only reset when a session really ended
+	LDA session_active
+	BEQ +
 	LDA #$00
 	STA session_active
-	JMP vic_init
+	LDA net_role
+	BEQ +
+	JSR proto_session_end
++	JMP vic_init
 .pend
 
 ;============================================================
@@ -320,6 +331,11 @@ _end
 
 irq_hook .proc
 	; called by the original IRQ handler (outside a session) instead of sfx.play
+	LDA net_role
+	BEQ _local
+	JSR proto_title_frame ; network game: the host's fire starts a game for both (netgame.asm)
+	JMP sfx.play
+_local
 	.if PROFILE
 	JSR prof_bot
 	.elsif DETTEST
@@ -469,11 +485,17 @@ cost_hi	.byte >COST_DEAD, >COST_DYING, >COST_MONSTER_IDLE, >COST_MONSTER_ACTS, >
 tick .proc
 	; one tick: wait for its time, get the inputs, run the game logic of one frame
 	JSR tick_wait
+	LDA net_role
+	BEQ _local
+	JSR proto_tick ; network game: lockstep inputs (netgame.asm)
+	JMP _inputs_done
+_local
 	.if DETTEST
 	JSR det_tick_bot
 	.else
 	JSR read_joysticks
 	.fi
+_inputs_done
 	JSR tick_frame_logic
 	INC tick_count
 	BNE +
@@ -809,6 +831,40 @@ det_tick_bot .proc
 _keep
 	RTS
 det_dirs .byte $EE,$ED,$EB,$E7 ; up, down, left, right with fire pressed
+.pend
+
+det_bot_value .proc
+	; network test: the bot input of actor det_ba for tick det_bt (16 bit) -> A
+	; a new direction / fire state every 16 ticks, different for both actors
+	LDA det_bt
+	LSR A
+	LSR A
+	LSR A
+	LSR A
+	STA det_tmp
+	LDA det_bt+1
+	ASL A
+	ASL A
+	ASL A
+	ASL A
+	ORA det_tmp ; bits 4-11 of the tick
+	STA det_tmp
+	LDA det_ba
+	ASL A
+	ASL A
+	ASL A
+	EOR det_tmp
+	ASL A
+	ADC #$3B
+	EOR det_tmp
+	STA det_tmp
+	AND #$03
+	TAY
+	LDA det_tick_bot.det_dirs,Y
+	BIT det_tmp
+	BPL + ; bit 7 clear: fire pressed
+	ORA #$10 ; release fire
++	RTS
 .pend
 
 det_log_tick .proc
@@ -1163,15 +1219,17 @@ pass_timer	.fill 1
 pass_prev_loop	.fill 1
 
 	.if DETTEST
-det_ptr = $FE ; 2 bytes zero page
+det_ptr = $FD ; 2 bytes zero page (shared with net_parse_ptr, which is only used in the setup menu)
 det_frame	.fill 1
 det_tmp		.fill 1
 det_sum		.fill 2
 det_sessions	.fill 1
 det_log_count	.fill 2
+det_bt		.fill 2
+det_ba		.fill 1
 det_loop_passes_lo .fill 3 ; passes per loop: normal, worluk, wizard
 det_loop_passes_hi .fill 3
-	.virtual $4000 ; free RAM in the game (VIC bank 0 ends at $3FFF)
+	.virtual $E000 ; RAM under the KERNAL ROM: written by the C64 (writes always reach the RAM), read by tools/dettest.py
 det_log		.fill DET_LOG_SIZE * 2
 det_snap	.fill $700 ; zero page, page 2, VIC ($200), screen ($300-$6FF)
 	.endv

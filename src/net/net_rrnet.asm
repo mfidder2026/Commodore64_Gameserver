@@ -20,6 +20,7 @@
 ;   net_set_ip          ip config from net_ipcfg (ip, netmask, gateway: 12 bytes)
 ;   net_get_ip          current config -> net_ipcfg
 ;   net_open            UDP "socket" to net_host (dotted ip), port net_port
+;   net_listen          UDP on net_port, the first sender becomes the peer (host)
 ;   net_close
 ;   net_write           net_tx_buf / net_tx_len, C=1: failed
 ;   net_read_start      (nothing to do)
@@ -104,8 +105,29 @@ net_open .proc
 	JSR IP65_JT_LISTEN
 	LDA #$01
 	STA net_socket
+	STA net_peer_known
 	CLC
 +	RTS
+.pend
+
+net_listen .proc
+	; host: receive on net_port from anybody; the first sender becomes the peer (ip and source port)
+	LDA net_port
+	STA ip65.udp_send_src_port
+	STA ip65.udp_send_dest_port
+	LDA net_port+1
+	STA ip65.udp_send_src_port+1
+	STA ip65.udp_send_dest_port+1
+	LDA #$00
+	STA ip65.glue_rx_ready
+	STA net_rx_held
+	STA net_peer_known
+	LDA net_port
+	LDX net_port+1
+	JSR IP65_JT_LISTEN
+	LDA #$01
+	STA net_socket
+	RTS
 .pend
 
 net_close .proc
@@ -178,6 +200,18 @@ net_take_rx .proc
 	BNE _out
 	LDA #$00
 	STA ip65.glue_rx_ready
+	LDA net_peer_known
+	BNE _check
+	; listening: the first sender becomes the peer
+	LDX #3
+-	LDA ip65.glue_rx_ip,X
+	STA net_peer_ip,X
+	STA ip65.udp_send_dest,X
+	DEX
+	BPL -
+	LDA #$01
+	STA net_peer_known
+_check
 	; only accept the peer
 	LDX #3
 -	LDA ip65.glue_rx_ip,X

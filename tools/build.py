@@ -24,6 +24,7 @@ WSL_DISTRO = os.environ.get("WSL_DISTRO", "Ubuntu-24.04")
 # md5 of the unmodified upstream source assembled as a cartridge
 # the cartridge build must keep matching this as long as all NET changes are PRG-only
 BASELINE_CART_MD5 = "c2c674a27896a389ff31cc0bb42292fc"
+IMAGE_BASE = 0x4000  # the PRG image starts here (src/loader.asm); the original game is at $8000
 
 
 def tass(*args: str) -> None:
@@ -146,6 +147,7 @@ def build() -> None:
 
 def build_game(name: str, *defines: str, check: bool = True) -> None:
     """Assembles the PRG version (TARGET_PRG=1 plus extra -D defines) into build/<name>.prg."""
+    build_ip65_blob("ip65_game", 0x4000, 0xEA)
     args = ["-a", "-D", "TARGET_PRG=1"]
     for d in defines:
         args += ["-D", d]
@@ -164,7 +166,7 @@ def layout_check(lblfile: str = "build/wow.lbl") -> None:
     with open(os.path.join(BUILD, "wow_cart.bin"), "rb") as f:
         cart = f.read()
     with open(os.path.join(BUILD, "wow_payload.bin"), "rb") as f:
-        prg = f.read()[:len(cart)]
+        prg = f.read()[0x8000 - IMAGE_BASE:0x8000 - IMAGE_BASE + len(cart)]
     ranges: list[list[int]] = []
     for i, (a, b) in enumerate(zip(cart, prg)):
         if a != b:
@@ -213,6 +215,8 @@ if __name__ == "__main__":
     elif action == "dettest":
         build_game("wow_dettest", "DETTEST=1", check=False)
         build_game("wow_dettest_fast", "DETTEST=1", "DETTEST_FAST=1", check=False)
+    elif action == "netbot":
+        build_game("wow_netbot", "DETTEST=1", "NETBOT=1", check=False)
     elif action == "speedtest":
         build_game("wow_speedtest", "DETTEST=1", "SPEEDTEST=1", check=False)
     elif action == "run":
