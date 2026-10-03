@@ -52,7 +52,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                 while (!string.IsNullOrEmpty(await reader.ReadLineAsync(ct))) { } // headers
                 var parts = requestLine.Split(' ');
                 if (parts.Length < 2) return;
-                var (method, path) = (parts[0], parts[1]);
+                var (method, path) = (parts[0], parts[1].Split('?')[0]); // the query (e.g. ?static) is for the page script
 
                 if (path == "/events")
                 {
@@ -223,8 +223,11 @@ function renderLog() {
     .map(e => `<tr class="${e.category === 'desync' || e.category === 'error' ? 'warn' : ''}"><td>${e.time}</td><td>${esc(e.category)}</td><td>${esc(e.text)}</td></tr>`).join('');
 }
 document.getElementById('filter').oninput = renderLog;
-const ev = new EventSource('/events');
-ev.onmessage = m => render(JSON.parse(m.data));
+fetch('/api/status').then(r => r.json()).then(render); // show the state at once, then live updates
+if (!location.search.includes('static')) { // /?static: one snapshot, no live connection (e.g. for screenshots)
+  const ev = new EventSource('/events');
+  ev.onmessage = m => render(JSON.parse(m.data));
+}
 </script></body></html>
 """;
 }

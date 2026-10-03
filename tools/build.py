@@ -6,7 +6,7 @@ Build script for Wizard of Wor LAN.
     python tools/build.py shot [N]   build, run N million cycles in VICE (warp) and save a screenshot
 
 64tass runs inside WSL (tools/64tass.sh fetches it on first use).
-VICE is taken from the VICE_DIR environment variable or the default path below.
+VICE and cc65: environment variables VICE_DIR / CC65_BIN, tools/paths.local.json, or the PATH (tools/paths.py).
 """
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 BUILD = os.path.join(ROOT, "build")
-VICE_DIR = os.environ.get("VICE_DIR", r"C:\Users\user\OneDrive\dev\c64\vice\bin")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from paths import VICE_DIR, CC65_BIN  # noqa: E402  (environment, tools/paths.local.json or the PATH)
 WSL_DISTRO = os.environ.get("WSL_DISTRO", "Ubuntu-24.04")
 
 # md5 of the unmodified upstream source assembled as a cartridge
@@ -39,7 +40,6 @@ def tass(*args: str) -> None:
         print(out)
 
 
-CC65_BIN = os.environ.get("CC65_BIN", r"C:\Users\user\OneDrive\dev\c64\cc65\bin")
 CC65_ASMINC = os.path.join(os.path.dirname(CC65_BIN), "asminc")
 IP65_DIR = os.path.join(ROOT, "third_party", "ip65")
 IP65_SOURCES = [os.path.join("ip65", f) for f in sorted(os.listdir(os.path.join(IP65_DIR, "ip65")))] + \

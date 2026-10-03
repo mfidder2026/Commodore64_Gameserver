@@ -1,3 +1,6 @@
 build/
 __pycache__/
 *.pyc
+tools/paths.local.json
+docs/C64_KICKASS_SKILL.md
+docs/c64_ka_syntax_checker.py

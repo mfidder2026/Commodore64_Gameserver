@@ -14,7 +14,8 @@ import subprocess
 import sys
 import time
 
-VICE_DIR = os.environ.get("VICE_DIR", r"C:\Users\user\OneDrive\dev\c64\vice\bin")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from paths import VICE_DIR  # noqa: E402  (environment, tools/paths.local.json or the PATH)
 
 
 def recv_all(s: socket.socket, wait: float = 0.6) -> str:
