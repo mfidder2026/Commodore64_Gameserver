@@ -17,6 +17,10 @@
 ;         player 2 (actor 0).
 ;   The Ultimate firmware cannot listen or open a fixed local
 ;   port (docs/netcode.md), so an Ultimate always joins.
+;   server  via the C64 Game Server (server/, UDP 6465): nickname,
+;         lobby on the title screen, the server pairs the players.
+;         Slot 0 = player 1 (actor 1), slot 1 = player 2 (actor 0).
+;         Needed for Ultimate <-> Ultimate. Protocol: server/docs/protocol.md
 ;   Each player uses joystick port 2 or the keyboard (W A S D +
 ;   SPACE) on his own machine.
 ;
@@ -52,6 +56,43 @@
 	ROLE_LOCAL = 0
 	ROLE_HOST = 1
 	ROLE_JOIN = 2
+	ROLE_SERVER = 3
+
+	SERVER_PORT = 6465
+	NICK_MAX = 8
+
+	; game server message types (server/docs/protocol.md)
+	SM_HELLO = $01
+	SM_WELCOME = $02
+	SM_REJECT = $03
+	SM_LOBBY = $04
+	SM_CHALLENGE = $05
+	SM_ACCEPT = $06
+	SM_DECLINE = $07
+	SM_START = $08
+	SM_START_ACK = $09
+	SM_OPPONENT_LEFT = $0A
+	SM_SESSION_END = $0B
+	SM_PING = $0C
+	SM_PONG = $0D
+	SM_CANCELLED = $0F
+	SM_INPUT = $80
+	SERVER_GAME_ID = 1 ; Wizard of Wor
+	SERVER_GAME_VERSION = 1
+
+	; lobby states (server role)
+	SRV_CONNECTING = 0
+	SRV_LOBBY = 1
+	SRV_CHALLENGED = 2
+	SRV_ACCEPTED = 3
+	SRV_STARTING = 4
+
+	; status line messages shown for a while on the title screen
+	MSG_NONE = 0
+	MSG_OPPONENT_LEFT = 1
+	MSG_DESYNC = 2
+	MSG_DECLINED = 3
+	MSG_NO_SERVER = 4
 
 	BACKEND_NONE = 0
 	BACKEND_UCI = 1
@@ -70,6 +111,7 @@
 	net_rx_ptr = $FB ; 2 bytes (received packet)
 	net_parse_ptr = $FD ; 2 bytes (net_rrnet.asm, setup menu only)
 	str_ptr = $02 ; 2 bytes, setup menu only (the game has not started yet)
+	str_ptr2 = $FD ; 2 bytes: setup menu and the status line (shares net_parse_ptr / det_ptr, never at the same time)
 
 	; KERNAL (setup menu only)
 	CHROUT = $FFD2
@@ -317,7 +359,11 @@ _busy
 
 proto_rx .proc
 	; handles the packet at net_rx_ptr / net_rx_len
-	LDA net_rx_len
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE +
+	JMP srv_rx
++	LDA net_rx_len
 	CMP #$04
 	BCS +
 	RTS
@@ -411,14 +457,24 @@ rx_start_ack .proc
 +	RTS
 .pend
 
+ldy_ofs .macro
+	; Y = \1 + in_ofs (the field offsets of INPUT differ by 2 between the direct and the server format)
+	LDA #\1
+	CLC
+	ADC in_ofs
+	TAY
+.endm
+
 rx_input .proc
-	; the peer's inputs: [3] game id, [4/5] newest tick, [6/7] checksum tick, [8/9] checksum, [10..25] inputs
-	LDA net_rx_len
-	CMP #10 + INPUT_WINDOW
-	BCC _ignore
-	LDA session_active
+	; the peer's inputs, offsets + in_ofs: [1] game / session id, [2/3] newest tick, [4/5] checksum tick,
+	; [6/7] checksum, [8..23] inputs  (direct: in_ofs = 2 after 'W' 'L' type, server: in_ofs = 0 after $80)
+	#ldy_ofs 8 + INPUT_WINDOW
+	CPY net_rx_len
+	BEQ +
+	BCS _ignore ; too short
++	LDA session_active
 	BEQ _ignore
-	LDY #3
+	#ldy_ofs 1
 	LDA (net_rx_ptr),Y
 	CMP session_game_id ; inputs of this session only
 	BEQ +
@@ -453,13 +509,15 @@ _ignore
 	SBC rx_tick+1
 	BMI _out ; first > remote_newest + 1: a hole (cannot happen with a window of 16)
 	; store all inputs
-	LDY #10
+	#ldy_ofs 8
+	LDX #INPUT_WINDOW
+	STX rx_count
 -	LDX rx_tick
 	LDA (net_rx_ptr),Y
 	STA remote_in,X
 	INC rx_tick
 	INY
-	CPY #10 + INPUT_WINDOW
+	DEC rx_count
 	BNE -
 	; remote_newest = max(remote_newest, rx_newest)
 	SEC
@@ -474,7 +532,7 @@ _ignore
 	STA remote_newest+1
 +
 	; compare the peer's checksum with ours for that tick
-	LDY #6
+	#ldy_ofs 4
 	LDA (net_rx_ptr),Y
 	STA rx_tick
 	INY
@@ -541,34 +599,46 @@ send_start_ack .proc
 .pend
 
 send_input .proc
-	; our inputs of ticks local_newest-15 .. local_newest
+	; our inputs of ticks local_newest-15 .. local_newest (field offsets + in_ofs, see rx_input)
+	LDA in_ofs
+	BEQ _server
 	LDA #PT_INPUT
 	LDX #10 + INPUT_WINDOW
 	JSR packet_header
-	LDA game_id
-	STA net_tx_buf+3
+	JMP _fields
+_server
+	LDA #SM_INPUT
+	STA net_tx_buf
+	LDA #8 + INPUT_WINDOW
+	STA net_tx_len
+_fields
+	LDX in_ofs
+	LDA session_game_id
+	STA net_tx_buf+1,X
 	LDA local_newest
-	STA net_tx_buf+4
+	STA net_tx_buf+2,X
 	LDA local_newest+1
-	STA net_tx_buf+5
+	STA net_tx_buf+3,X
 	LDA my_chk_tick
-	STA net_tx_buf+6
+	STA net_tx_buf+4,X
 	LDA my_chk_tick+1
-	STA net_tx_buf+7
+	STA net_tx_buf+5,X
 	LDA my_chk
-	STA net_tx_buf+8
+	STA net_tx_buf+6,X
 	LDA my_chk+1
-	STA net_tx_buf+9
+	STA net_tx_buf+7,X
+	#ldy_ofs 8
 	SEC
 	LDA local_newest
 	SBC #INPUT_WINDOW-1
 	TAX
-	LDY #10
+	LDA #INPUT_WINDOW
+	STA rx_count
 -	LDA local_in,X
 	STA net_tx_buf,Y
 	INX
 	INY
-	CPY #10 + INPUT_WINDOW
+	DEC rx_count
 	BNE -
 	JMP netio_send
 .pend
@@ -580,7 +650,11 @@ send_input .proc
 ;============================================================
 
 proto_title_frame .proc
-	JSR netio_poll
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE +
+	JMP srv_title_frame
++	JSR netio_poll
 	BCS +
 	JSR proto_rx
 +
@@ -679,6 +753,15 @@ proto_session_start .proc
 	DEX
 	BPL -
 	; player of this machine
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE _direct
+	LDX #1 ; server slot 0: player 1 = actor 1
+	LDA srv_slot
+	BEQ +
+	LDX #0 ; slot 1: player 2 = actor 0
+	BEQ + ; always branches
+_direct
 	LDX #1 ; host: player 1 = actor 1
 	LDA net_role
 	CMP #ROLE_HOST
@@ -697,7 +780,22 @@ proto_session_end .proc
 	STA start_state
 	STA start_received
 	STA start_acked
-	RTS
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE +
+	; game over: tell the server (it also notices when the inputs stop)
+	LDA #SM_SESSION_END
+	STA net_tx_buf
+	LDA session_game_id
+	STA net_tx_buf+1
+	LDA #1 ; reason: the game is over
+	STA net_tx_buf+2
+	LDA #3
+	STA net_tx_len
+	JSR netio_send
+	LDA #SRV_LOBBY
+	STA srv_state
++	RTS
 .pend
 
 ; -----------------------------------------
@@ -830,7 +928,12 @@ net_abort .proc
 	; back to the title screen (like RESTORE does), the connection stays
 	STA abort_reason
 	#log_event EV_ABORT, abort_reason
-	LDA #$00
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE +
+	LDA #SRV_LOBBY ; the server put us back into the lobby
+	STA srv_state
++	LDA #$00
 	STA session_active
 	JSR proto_session_end
 	LDX #$FF
@@ -921,7 +1024,7 @@ check_peer_checksum .proc
 	BPL -
 	RTS ; not (or no longer) known
 _found
-	LDY #8
+	#ldy_ofs 6
 	LDA (net_rx_ptr),Y
 	CMP chk_hist_lo,X
 	BNE _desync
@@ -936,6 +1039,609 @@ _desync
 	#log_event EV_DESYNC, rx_tick
 	RTS
 .pend
+
+;============================================================
+;
+; game server (role ROLE_SERVER), see server/docs/protocol.md
+;
+;============================================================
+
+srv_rx .proc
+	; a packet from the server
+	LDY #0
+	LDA (net_rx_ptr),Y
+	BMI _input ; $80-$FF: game messages
+	STA srv_type
+	LDA #0
+	STA srv_silence ; the server is alive
+	STA srv_silence+1
+	; dispatch through a table: type -> handler
+	LDX #0
+-	LDA _types,X
+	BEQ _unknown
+	CMP srv_type
+	BEQ +
+	INX
+	BNE - ; always branches
++	LDA _handlers_hi,X
+	PHA
+	LDA _handlers_lo,X
+	PHA
+	RTS ; jumps to the handler (address - 1 on the stack)
+_unknown
+	RTS
+_types		.byte SM_PING, SM_LOBBY, SM_CHALLENGE, SM_CANCELLED, SM_START, SM_SESSION_END, SM_OPPONENT_LEFT, SM_WELCOME, SM_REJECT, 0
+_handlers_lo	.byte <(_ping-1), <(_lobby-1), <(_challenge-1), <(_cancelled-1), <(srv_rx_start-1), <(_end-1), <(_left-1), <(_welcome-1), <(_reject-1)
+_handlers_hi	.byte >(_ping-1), >(_lobby-1), >(_challenge-1), >(_cancelled-1), >(srv_rx_start-1), >(_end-1), >(_left-1), >(_welcome-1), >(_reject-1)
+_input
+	LDA #0
+	STA srv_silence
+	STA srv_silence+1
+	JMP rx_input
+_ping
+	; answer with PONG and the same token
+	LDY #1
+	LDA (net_rx_ptr),Y
+	STA net_tx_buf+1
+	INY
+	LDA (net_rx_ptr),Y
+	STA net_tx_buf+2
+	LDA #SM_PONG
+	STA net_tx_buf
+	LDA #3
+	STA net_tx_len
+	JMP netio_send
+_lobby
+	LDY #1
+	LDA (net_rx_ptr),Y
+	STA srv_waiting
+	LDA srv_state
+	CMP #SRV_CONNECTING
+	BNE +
+	LDA #SRV_LOBBY ; LOBBY also confirms a repeated HELLO
+	STA srv_state
++	RTS
+_welcome
+	LDA #$01
+	STA net_connected
+	LDA srv_state
+	CMP #SRV_CONNECTING
+	BNE +
+	LDA #SRV_LOBBY
+	STA srv_state
++	RTS
+_reject
+	LDY #1
+	LDA (net_rx_ptr),Y
+	STA srv_reject
+	RTS
+_challenge
+	; [1] id, [2] length, [3..] nickname of the opponent
+	LDA session_active
+	BNE _out
+	LDY #1
+	LDA (net_rx_ptr),Y
+	STA srv_challenge
+	LDA srv_state
+	CMP #SRV_ACCEPTED
+	BNE +
+	JMP srv_send_accept ; repeated challenge after our ACCEPT: answer again
++	CMP #SRV_STARTING
+	BEQ _out
+	INY
+	LDA (net_rx_ptr),Y
+	CMP #NICK_MAX+1
+	BCC +
+	LDA #NICK_MAX
++	STA opp_len
+	LDX #0
+-	CPX opp_len
+	BEQ +
+	INY
+	LDA (net_rx_ptr),Y
+	STA opp_nick,X
+	INX
+	BNE - ; always branches
++	LDA #SRV_CHALLENGED
+	STA srv_state
+_out
+	RTS
+_cancelled
+	LDA session_active
+	BNE _out
+	LDA #SRV_LOBBY
+	STA srv_state
+	LDA #MSG_DECLINED
+	JMP srv_message
+_end
+	; [1] session, [2] reason
+	LDA session_active
+	BEQ _out
+	LDY #1
+	LDA (net_rx_ptr),Y
+	CMP session_game_id
+	BNE _out
+	INY
+	LDA (net_rx_ptr),Y
+	CMP #2 ; desync
+	BNE +
+	LDA #MSG_DESYNC
+	JSR srv_message
++	LDA #3
+	STA abort_requested ; proto_tick leaves the session
+	RTS
+_left
+	LDA session_active
+	BEQ _out
+	LDA #MSG_OPPONENT_LEFT
+	JSR srv_message
+	LDA #3
+	STA abort_requested
+	RTS
+.pend
+
+srv_rx_start .proc
+	; START: [1] session, [2] slot, [3] players, [4] parameter length, [5..8] seed random, seed rnd, input delay, tick rate
+	LDY #1
+	LDA (net_rx_ptr),Y
+	STA srv_start_session
+	LDA session_active
+	BNE _ack ; already playing: only confirm again
+	LDA srv_state
+	CMP #SRV_STARTING
+	BEQ _ack
+	LDA srv_start_session
+	STA game_id ; proto_session_start copies it to session_game_id
+	INY
+	LDA (net_rx_ptr),Y
+	STA srv_slot
+	LDY #5
+	LDA (net_rx_ptr),Y
+	STA start_seed_random
+	INY
+	LDA (net_rx_ptr),Y
+	BNE +
+	LDA #$01 ; an LFSR state of 0 would stay 0
++	STA start_seed_rnd
+	LDA #SRV_STARTING
+	STA srv_state
+	LDA #$01
+	STA start_received ; the title screen starts the game
+_ack
+	LDA #SM_START_ACK
+	STA net_tx_buf
+	LDA srv_start_session
+	STA net_tx_buf+1
+	LDA #2
+	STA net_tx_len
+	JMP netio_send
+.pend
+
+srv_send_accept .proc
+	LDA #SM_ACCEPT
+	BNE srv_send_answer ; always branches
+.pend
+
+srv_send_decline .proc
+	LDA #SM_DECLINE
+	; fall through
+.pend
+
+srv_send_answer .proc
+	STA net_tx_buf
+	LDA srv_challenge
+	STA net_tx_buf+1
+	LDA #2
+	STA net_tx_len
+	JMP netio_send
+.pend
+
+srv_send_hello .proc
+	LDA #SM_HELLO
+	STA net_tx_buf
+	LDA #1 ; protocol version
+	STA net_tx_buf+1
+	LDA #SERVER_GAME_ID
+	STA net_tx_buf+2
+	LDA #SERVER_GAME_VERSION
+	STA net_tx_buf+3
+	LDA my_nick_len
+	STA net_tx_buf+4
+	LDX #0
+-	CPX my_nick_len
+	BEQ +
+	LDA my_nick,X
+	STA net_tx_buf+5,X
+	INX
+	BNE - ; always branches
++	TXA
+	CLC
+	ADC #5
+	STA net_tx_len
+	JMP netio_send
+.pend
+
+srv_message .proc
+	; A = message shown on the status line for about 4 seconds
+	STA srv_msg
+	LDA #240
+	STA srv_msg_timer
+	RTS
+.pend
+
+; -----------------------------------------
+
+srv_title_frame .proc
+	; title screen in the lobby: network, answering a challenge, the status line, starting the game
+	JSR netio_poll
+	BCS +
+	JSR proto_rx
++
+	; no answer from the server for ~10 s: say HELLO again (the server may have restarted)
+	INC srv_silence
+	BNE +
+	INC srv_silence+1
++	LDA srv_silence+1
+	CMP #3 ; 768 frames
+	BCC _alive
+	LDA srv_silence
+	AND #$1F
+	BNE +
+	JSR srv_send_hello
+	LDA #MSG_NO_SERVER
+	JSR srv_message
++	LDA #SRV_CONNECTING
+	STA srv_state
+_alive
+	LDA #$FF
+	STA net_joy
+	STA net_joy+1
+	LDA srv_state
+	CMP #SRV_CHALLENGED
+	BNE _not_challenged
+	; FIRE (joystick port 2 or SPACE) accepts, N declines
+	JSR read_keyboard
+	AND CIA1_JOY_KEY1
+	AND #$10
+	BNE +
+	LDA #SRV_ACCEPTED
+	STA srv_state
+	JSR srv_send_accept
+	JMP _draw
++	JSR key_n_pressed
+	BCC _draw
+	LDA #SRV_LOBBY
+	STA srv_state
+	JSR srv_send_decline
+	JMP _draw
+_not_challenged
+	LDA start_received
+	BEQ _draw
+	LDA #$EF ; START from the server: fire on port 2 = a 2 player game in the original title loop
+	STA net_joy
+_draw
+	LDA srv_msg_timer
+	BEQ +
+	DEC srv_msg_timer
++	JMP srv_draw_status
+.pend
+
+key_n_pressed .proc
+	; C=1 if N is pressed (keyboard column 4, row 7); rows held low by joystick port 1 are ignored
+	LDA #$FF
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	EOR #$FF
+	STA kb_mask
+	LDA #%11101111
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	ORA kb_mask
+	LDX #$FF
+	STX CIA1_JOY_KEY1
+	ASL A ; row 7 -> C (0 = pressed)
+	BCS +
+	SEC
+	RTS
++	CLC
+	RTS
+.pend
+
+; -----------------------------------------
+; the status line: the bottom row of the title screen, written every frame (the title screens clear the
+; screen now and then); characters of the game's own character set (encoding "charrom")
+
+	STATUS_ROW = $0400 + 24 * 40
+	STATUS_COLOR = $D800 + 24 * 40
+
+srv_draw_status .proc
+	LDX #39
+	LDA #$00 ; space
+-	STA status_buf,X
+	DEX
+	BPL -
+	LDA #0
+	STA status_pos
+	LDA srv_msg_timer
+	BEQ _state
+	LDX srv_msg
+	LDA msg_lo-1,X
+	LDY msg_hi-1,X
+	JSR status_text
+	JMP _show
+_state
+	LDX srv_state
+	LDA state_lo,X
+	LDY state_hi,X
+	JSR status_text
+	LDA srv_state
+	CMP #SRV_LOBBY
+	BNE +
+	LDA srv_waiting
+	JSR status_number
+	LDA #<txt_in_lobby
+	LDY #>txt_in_lobby
+	JSR status_text
+	JMP _show
++	CMP #SRV_CHALLENGED
+	BNE +
+	JSR status_nick
+	LDA #<txt_fire
+	LDY #>txt_fire
+	JSR status_text
+	JMP _show
++	CMP #SRV_ACCEPTED
+	BNE _show
+	JSR status_nick
+_show
+	LDX #39
+-	LDA status_buf,X
+	STA STATUS_ROW,X
+	LDA #1 ; white, hires
+	STA STATUS_COLOR,X
+	DEX
+	BPL -
+	RTS
+.pend
+
+status_text .proc
+	; appends the text at A (lo) / Y (hi), terminated by $FF (in the game's character set $00 is a space)
+	STA str_ptr2
+	STY str_ptr2+1
+	LDY #0
+-	LDA (str_ptr2),Y
+	CMP #$FF
+	BEQ +
+	LDX status_pos
+	CPX #40
+	BCS +
+	STA status_buf,X
+	INC status_pos
+	INY
+	BNE -
++	RTS
+.pend
+
+status_nick .proc
+	; appends the opponent's nickname (ASCII A-Z 0-9 -> game characters)
+	LDX #0
+-	CPX opp_len
+	BEQ +
+	LDA opp_nick,X
+	JSR ascii_to_game
+	LDY status_pos
+	STA status_buf,Y
+	INC status_pos
+	INX
+	BNE - ; always branches
++	RTS
+.pend
+
+status_number .proc
+	; appends A as a decimal number (0-99) and a space
+	LDY #0
+-	CMP #10
+	BCC +
+	SBC #10
+	INY
+	BNE - ; always branches
++	PHA
+	TYA
+	BEQ +
+	CLC
+	ADC #CHAR_0
+	LDX status_pos
+	STA status_buf,X
+	INC status_pos
++	PLA
+	CLC
+	ADC #CHAR_0
+	LDX status_pos
+	STA status_buf,X
+	INC status_pos
+	INC status_pos ; space
+	RTS
+.pend
+
+ascii_to_game .proc
+	; ASCII 'A'-'Z' / '0'-'9' -> code in the game's character set
+	CMP #'A'
+	BCC _digit
+	SEC
+	SBC #'A'
+	CLC
+	ADC #CHAR_A
+	RTS
+_digit
+	SEC
+	SBC #'0'
+	CLC
+	ADC #CHAR_0
+	RTS
+.pend
+
+	CHAR_A = $69 ; encoding "charrom" of the original source: a-z = $69-$82, 0-9 = $83-$8C, space = $00
+	CHAR_0 = $83
+
+	.enc "charrom"
+txt_connecting	.text "connecting to the server", $FF
+txt_waiting	.text "waiting for an opponent  ", $FF
+txt_in_lobby	.text "in the lobby", $FF
+txt_challenge	.text "challenge from ", $FF
+txt_fire	.text "  fire play  n no", $FF
+txt_accepted	.text "waiting for ", $FF
+txt_starting	.text "starting", $FF
+txt_left	.text "your opponent left", $FF
+txt_desync	.text "desync  the game was stopped", $FF
+txt_declined	.text "no game  back to the lobby", $FF
+txt_no_server	.text "no answer from the server", $FF
+	.enc "setup"
+
+state_lo	.byte <txt_connecting, <txt_waiting, <txt_challenge, <txt_accepted, <txt_starting
+state_hi	.byte >txt_connecting, >txt_waiting, >txt_challenge, >txt_accepted, >txt_starting
+msg_lo		.byte <txt_left, <txt_desync, <txt_declined, <txt_no_server
+msg_hi		.byte >txt_left, >txt_desync, >txt_declined, >txt_no_server
+
+; -----------------------------------------
+
+setup_server .proc
+	; play via the C64 Game Server: own ip (RR-Net), nickname, server ip, HELLO
+	LDA net_backend
+	CMP #BACKEND_RRNET
+	BNE +
+	JSR setup_my_ip_rrnet
+	BCC +
+	JMP wait_key_menu
++
+_nick
+	JSR print_inline
+	.null 13, 13, "YOUR NAME (A-Z, 0-9, MAX 8): "
+	JSR read_line
+	LDX host_len
+	BEQ _nick
+	CPX #NICK_MAX+1
+	BCS _nick
+	DEX
+-	LDA host_input,X
+	CMP #'0'
+	BCC _nick
+	CMP #'9'+1
+	BCC +
+	CMP #'A'
+	BCC _nick
+	CMP #'Z'+1
+	BCS _nick
++	STA my_nick,X ; PETSCII upper case letters and digits are ASCII
+	DEX
+	BPL -
+	LDA host_len
+	STA my_nick_len
+
+	JSR print_inline
+	.null 13, "IP OF THE GAME SERVER: "
+	JSR read_line
+	LDA host_len
+	BNE +
+	JMP net_setup.net_menu
++	LDX host_len
+-	LDA host_input,X
+	STA net_host,X
+	DEX
+	BPL -
+	LDA #<SERVER_PORT
+	STA net_port
+	LDA #>SERVER_PORT
+	STA net_port+1
+	LDA #ROLE_SERVER
+	STA net_role
+	LDA #0 ; server packets: type, then the fields
+	STA in_ofs
+	STA srv_reject
+	STA srv_msg_timer
+	STA srv_silence
+	STA srv_silence+1
+	LDA #SRV_CONNECTING
+	STA srv_state
+	LDA net_backend
+	CMP #BACKEND_UCI
+	BNE _rr
+	LDA #uci.NET_CMD_OPEN_UDP
+	JSR uci.net_open
+	JMP _opened
+_rr
+	#rr_call rr.net_open
+_opened
+	BCC +
+	JSR print_inline
+	.null "CANNOT OPEN THE CONNECTION", 13
+	JMP wait_key_menu
++	JSR print_inline
+	.null "CALLING THE SERVER", 13, "(ANY KEY = BACK)", 13
+	LDA #0
+	STA hello_timer
+	STA hello_timer+1
+_loop
+	JSR GETIN
+	BEQ +
+	JMP net_setup.net_menu
++	; HELLO about every half second
+	JSR get_cycles
+	LDA cycles+2
+	CMP hello_timer
+	BEQ +
+	STA hello_timer
+	INC hello_timer+1
+	LDA hello_timer+1
+	AND #$07
+	BNE +
+	JSR srv_send_hello
+	LDA #'.'
+	JSR CHROUT
++	JSR netio_poll
+	BCS _loop
+	JSR proto_rx
+	LDA srv_reject
+	BNE _rejected
+	LDA srv_state
+	CMP #SRV_CONNECTING
+	BEQ _loop
+	JSR print_inline
+	.null 13, "CONNECTED. THE SERVER WILL FIND AN OPPONENT;", 13, "ACCEPT ON THE TITLE SCREEN WITH FIRE.", 13
+	JMP start_after_key
+_rejected
+	JSR print_inline
+	.null 13, "THE SERVER SAYS NO: "
+	LDX srv_reject
+	CPX #6
+	BCC +
+	LDX #0
++	LDA reject_lo,X
+	LDY reject_hi,X
+	JSR print_string
+	JMP wait_key_menu
+.pend
+
+print_string .proc
+	; prints the zero terminated string at A (lo) / Y (hi)
+	STA str_ptr2
+	STY str_ptr2+1
+	LDY #0
+-	LDA (str_ptr2),Y
+	BEQ +
+	JSR CHROUT
+	INY
+	BNE -
++	RTS
+.pend
+
+rej_0	.null "?"
+rej_1	.null "THE NAME IS IN USE"
+rej_2	.null "WRONG VERSION"
+rej_3	.null "UNKNOWN GAME"
+rej_4	.null "THE SERVER IS FULL"
+rej_5	.null "INVALID NAME"
+reject_lo	.byte <rej_0, <rej_1, <rej_2, <rej_3, <rej_4, <rej_5
+reject_hi	.byte >rej_0, >rej_1, >rej_2, >rej_3, >rej_4, >rej_5
 
 ;============================================================
 ;
@@ -963,6 +1669,8 @@ net_setup .proc
 	STA net_port
 	LDA #>GAME_PORT
 	STA net_port+1
+	LDA #2 ; direct packets: 'W' 'L' type, then the fields
+	STA in_ofs
 	LDA #$80
 	STA netio_kernal
 	.if (PROFILE || DETTEST) && !NETBOT
@@ -1006,7 +1714,7 @@ _items
 +	LDA net_backend
 	BEQ +
 	JSR print_inline
-	.null "3  JOIN A NETWORK GAME", 13
+	.null "3  JOIN A NETWORK GAME", 13, "4  PLAY VIA A GAME SERVER", 13
 +	JSR print_inline
 	.null 13, "CHOICE? "
 -	JSR GETIN
@@ -1016,6 +1724,8 @@ _items
 	BEQ -
 	CMP #'3'
 	BEQ _join
+	CMP #'4'
+	BEQ _server
 	CPX #BACKEND_RRNET
 	BNE -
 	CMP #'2'
@@ -1027,6 +1737,8 @@ _local
 	JMP start_the_game
 _join
 	JMP setup_join
+_server
+	JMP setup_server
 .pend
 
 ; -----------------------------------------
@@ -1371,6 +2083,24 @@ remote_newest	.word 0
 rx_newest	.word 0
 rx_tick		.word 0
 rx_next		.word 0
+rx_count	.byte 0
+in_ofs		.byte 2 ; INPUT field offset: 2 direct ('W' 'L' type), 0 server (type)
+srv_state	.byte 0
+srv_type	.byte 0
+srv_waiting	.byte 0
+srv_challenge	.byte 0
+srv_slot	.byte 0
+srv_start_session .byte 0
+srv_reject	.byte 0
+srv_msg		.byte 0
+srv_msg_timer	.byte 0
+srv_silence	.word 0
+my_nick		.fill NICK_MAX
+my_nick_len	.byte 0
+opp_nick	.fill NICK_MAX
+opp_len		.byte 0
+status_buf	.fill 40
+status_pos	.byte 0
 wait_start	.word 0
 wait_last_send	.word 0
 wait_elapsed	.word 0
