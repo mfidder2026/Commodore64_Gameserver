@@ -17,7 +17,8 @@
 ;         player 2 (actor 0).
 ;   The Ultimate firmware cannot listen or open a fixed local
 ;   port (docs/netcode.md), so an Ultimate always joins.
-;   Each player uses joystick port 2 on his own machine.
+;   Each player uses joystick port 2 or the keyboard (W A S D +
+;   SPACE) on his own machine.
 ;
 ; Protocol (UDP, every packet starts with 'W' 'L' type)
 ;   HELLO      join -> host   version
@@ -604,9 +605,10 @@ _host
 	RTS
 +	LDA start_state
 	BNE _starting
-	; fire on the local joystick (port 2) starts a new game for both
+	; fire on the local joystick (port 2) or SPACE starts a new game for both
 	.if !NETBOT ; (the network test starts by itself)
-	LDA CIA1_JOY_KEY1
+	JSR read_keyboard
+	AND CIA1_JOY_KEY1
 	AND #$10
 	BNE _out
 	.fi
@@ -725,8 +727,9 @@ proto_tick .proc
 	STA det_ba
 	JSR det_bot_value ; network test: a bot plays the local player
 	.else
-	LDA CIA1_JOY_KEY1
-	ORA #$E0 ; only joystick bits
+	JSR read_keyboard ; W A S D + SPACE, together with joystick port 2
+	AND CIA1_JOY_KEY1
+	ORA #$E0 ; only the joystick bits
 	.fi
 	LDX local_newest
 	STA local_in,X
@@ -994,7 +997,7 @@ net_menu
 	.null "NO NETWORK HARDWARE FOUND", 13, "(ULTIMATE: ENABLE THE COMMAND INTERFACE)", 13
 _items
 	JSR print_inline
-	.null 13, 13, "1  LOCAL GAME (2 JOYSTICKS)", 13
+	.null 13, "CONTROLS: JOYSTICK PORT 2 OR W A S D + SPACE", 13, "(LOCAL GAME: KEYS / PORT 1 = PLAYER 1)", 13, 13, "1  LOCAL GAME", 13
 	LDA net_backend
 	CMP #BACKEND_RRNET
 	BNE +
@@ -1095,7 +1098,7 @@ setup_host .proc
 	LDA net_connected
 	BEQ -
 	JSR print_inline
-	.null 13, "PLAYER 2 IS HERE.", 13, "YOU ARE PLAYER 1 (YELLOW), JOYSTICK PORT 2.", 13, "PRESS FIRE ON THE TITLE SCREEN TO START.", 13
+	.null 13, "PLAYER 2 IS HERE.", 13, "YOU ARE PLAYER 1 (YELLOW).", 13, "PRESS FIRE ON THE TITLE SCREEN TO START.", 13
 	JMP start_after_key
 .pend
 
@@ -1162,7 +1165,7 @@ _loop
 	LDA net_connected
 	BEQ _loop
 	JSR print_inline
-	.null 13, "CONNECTED.", 13, "YOU ARE PLAYER 2 (BLUE), JOYSTICK PORT 2.", 13, "THE HOST STARTS THE GAME.", 13
+	.null 13, "CONNECTED.", 13, "YOU ARE PLAYER 2 (BLUE).", 13, "THE HOST STARTS THE GAME.", 13
 	JMP start_after_key
 .pend
 

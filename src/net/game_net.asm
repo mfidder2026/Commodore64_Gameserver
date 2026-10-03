@@ -348,10 +348,73 @@ _local
 
 read_joysticks .proc
 	; local play: both joysticks (port 2 -> actor 0, port 1 -> actor 1, as in the original)
+	; the keyboard (W A S D + SPACE) also controls actor 1 (player 1), so one joystick is enough for two players
+	JSR read_keyboard ; also leaves the CIA with no keyboard column selected
+	AND CIA1_JOY_KEY2
+	STA net_joy+1
 	LDA CIA1_JOY_KEY1
 	STA net_joy
+	RTS
+.pend
+
+read_keyboard .proc
+	; W A S D + SPACE as a joystick byte in A (active low: bit 0 up, 1 down, 2 left, 3 right, 4 fire)
+	; the keyboard matrix shares its row lines with joystick port 1: rows that are low while no column is selected
+	; come from that joystick, so they are ignored here (moving joystick 1 does not look like keys)
+	; changes A and X, leaves $DC00 = $FF (no column selected)
+	LDA #$FF
+	STA CIA1_JOY_KEY1
 	LDA CIA1_JOY_KEY2
-	STA net_joy+1
+	EOR #$FF ; 1 = row held low by joystick port 1
+	STA kb_mask
+	LDX #$FF ; result: nothing pressed
+
+	LDA #%11111101 ; column 1: W (row 1), A (row 2), S (row 5)
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	ORA kb_mask
+	STA kb_row
+	AND #%00000010 ; W
+	BNE +
+	TXA
+	AND #%11111110 ; up
+	TAX
++	LDA kb_row
+	AND #%00000100 ; A
+	BNE +
+	TXA
+	AND #%11111011 ; left
+	TAX
++	LDA kb_row
+	AND #%00100000 ; S
+	BNE +
+	TXA
+	AND #%11111101 ; down
+	TAX
++
+	LDA #%11111011 ; column 2: D (row 2)
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	ORA kb_mask
+	AND #%00000100 ; D
+	BNE +
+	TXA
+	AND #%11110111 ; right
+	TAX
++
+	LDA #%01111111 ; column 7: SPACE (row 4)
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	ORA kb_mask
+	AND #%00010000 ; SPACE
+	BNE +
+	TXA
+	AND #%11101111 ; fire
+	TAX
++
+	LDA #$FF
+	STA CIA1_JOY_KEY1
+	TXA
 	RTS
 .pend
 
@@ -1217,6 +1280,8 @@ pass_actor	.fill 1
 pass_type	.fill 1
 pass_timer	.fill 1
 pass_prev_loop	.fill 1
+kb_mask		.fill 1
+kb_row		.fill 1
 
 	.if DETTEST
 det_ptr = $FD ; 2 bytes zero page (shared with net_parse_ptr, which is only used in the setup menu)
