@@ -73,3 +73,16 @@ Het spritedatablok dat `create_sprites` kopieert, bevat de code van `MV_init`. E
 - **Getest met `--reply-port 6464`: de Ultimate ontvangt UDP alleen op zijn eigen willekeurige bronpoort, niet op poort 6464** (pongs 0, terwijl de PC de pings van de C64 wel ontving).
   - Ultimate ↔ VICE/RR-Net: UDP, met VICE als vaste kant (luistert op 6464, antwoordt naar de geleerde poort).
   - Ultimate ↔ Ultimate: UDP kan niet (beide kanten hebben een onbekende poort). Daarvoor TCP: de host luistert (`LISTEN_*`), de ander verbindt. Test B moet uitwijzen of `LISTEN_*` werkt en hoe TCP zich gedraagt.
+
+### Test B en de firmwarebron (2026-10-03)
+
+- `LISTEN_START` op de C64 Ultimate geeft **`21,UNKNOWN COMMAND`**.
+- De firmwarebron bevestigt dit (GideonZ/1541ultimate master, `software/io/network/network_target.cc`):
+  - Er zijn alleen `IDENTIFY`, `GET/SET_INTERFACE`, `GET_NETADDR`, `GET/SET_IPADDR`, `OPEN_TCP`, `OPEN_UDP`, `CLOSE`, `READ` en `WRITE`. **Luisteren bestaat niet.**
+  - `OPEN_UDP` en `OPEN_TCP` doen `socket()` + `connect()`, zonder `bind()`. De lokale poort is altijd willekeurig, en een UDP-socket accepteert alleen pakketten van het ene adres en de ene poort waarmee hij verbonden is.
+  - `READ` gebruikt `SO_RCVTIMEO` van 40 ms en komt direct terug zodra er data is. Dat verklaart READ EMPTY (~36–50 ms) en READ DATA.
+- **Gevolg: twee Ultimates met standaardfirmware kunnen niet rechtstreeks met elkaar verbinden.** Geen van beide kan luisteren of een vaste poort openen.
+- Wel mogelijk:
+  - Ultimate ↔ RR-Net (VICE of hardware) via UDP;
+  - Ultimate ↔ Ultimate met een firmware-uitbreiding (UDP op een vaste lokale poort, of een TCP-listener);
+  - Ultimate ↔ Ultimate via een derde machine.

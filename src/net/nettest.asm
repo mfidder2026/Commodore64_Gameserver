@@ -1088,11 +1088,11 @@ print_ip .proc
 	; prints 4 bytes at net_ipcfg+X as a dotted ip
 	LDY #4
 -	LDA net_ipcfg,X
-	STX tmp
-	STY tmp+1
+	STX ip_idx ; not tmp: u16_to_digits uses tmp
+	STY ip_cnt
 	JSR print_u8
-	LDX tmp
-	LDY tmp+1
+	LDX ip_idx
+	LDY ip_cnt
 	INX
 	DEY
 	BEQ +
@@ -1274,6 +1274,8 @@ stats		.fill STAT_LEN * STAT_COUNT
 
 host_input	.fill net_host_size
 host_len	.fill 1
+ip_idx		.fill 1
+ip_cnt		.fill 1
 net_ipcfg	.fill 12 ; ip, netmask, gateway
 
 	; used by net_rrnet.asm
