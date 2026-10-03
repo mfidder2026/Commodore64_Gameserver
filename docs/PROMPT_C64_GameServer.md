@@ -1,6 +1,15 @@
 # Prompt voor AI-developer: Commodore 64 Game Server (eerste game: Wizard of Wor)
 
 > Kopieer alles onder de streep naar je AI-developer.
+>
+> **Bijgewerkt 2026-10-03** na het onderzoek in `docs/gameserver_onderzoek.md`:
+> - UDP als speltransport;
+> - de server is relay plus controle, niet de lockstep-coördinator;
+> - gemeten waarden in plaats van de waarden uit de SDK;
+> - de server draait ook op Linux/Raspberry Pi;
+> - de spelpoort is 6465.
+>
+> De implementatie staat in `server/`.
 
 ---
 
@@ -8,7 +17,9 @@
 
 Je bent een ervaren backend-ontwikkelaar met kennis van netwerkcode voor games en van de beperkingen van 8-bit clients. Je bouwt de **Commodore 64 Game Server**: een server op **Windows** in het **LAN** waar C64's verbinding mee maken om tegen elkaar te spelen.
 
-Aanleiding: twee C64 Ultimates kunnen niet rechtstreeks met elkaar communiceren. Ze kunnen wel allebei een **uitgaande TCP-verbinding** openen. De server zit er dus altijd tussen: beide spelers verbinden met de server en de server geeft de speldata door.
+Aanleiding: twee C64 Ultimates kunnen niet rechtstreeks met elkaar communiceren. De firmware kan niet luisteren en geen vaste lokale poort openen. Ze kunnen wel allebei **uitgaand** verbinden met een vast adres en een vaste poort (UDP en TCP). De server zit er dus altijd tussen: beide spelers verbinden met de server en de server geeft de speldata door.
+
+Ultimate ↔ VICE en VICE ↔ VICE werken ook zonder server (direct via UDP). De server is nodig voor Ultimate ↔ Ultimate, en biedt een lobby.
 
 De server is een **platform voor meerdere games**. De eerste game is **Wizard of Wor** (2 spelers, deterministic lockstep). Latere games moeten toegevoegd kunnen worden zonder de kern aan te passen.
 
@@ -16,21 +27,24 @@ Buiten scope: de C64-code zelf. Jij levert de server, het protocol en een testcl
 
 ## Harde randvoorwaarden
 
-- **Geen HTTPS, TLS of andere encryptie**, nergens. De C64 kan dat niet aan. Ook geen HTTP, JSON of tekstprotocollen richting de C64: alleen een compact binair protocol over kale TCP.
+- **Geen HTTPS, TLS of andere encryptie**, nergens. De C64 kan dat niet aan. Ook geen HTTP, JSON of tekstprotocollen richting de C64: alleen een compact binair protocol over **UDP**.
 - **Alleen LAN.** Geen accounts, geen wachtwoorden, geen internetfunctionaliteit. Vermeld in de README dat de server niet aan internet gehangen mag worden.
-- **De clients zijn traag en klein.** Bekend van de C64 Ultimate (UCI-netwerkinterface):
-  - een read zonder data kost ~42-45 ms, een read met data 4-21 ms, een write 3-7 ms;
-  - de client leest nooit meer dan 512 bytes per keer;
-  - de client pollt asynchroon en reageert dus niet direct.
-  
-  Gevolgen voor de server: berichten klein houden (maximaal 255 bytes), data bundelen in plaats van veel losse berichtjes sturen, **`TCP_NODELAY` aan**, ruime timeouts, en partial reads correct afhandelen (TCP is een stream).
-- De tweede client is **VICE met RR-Net en de ip65-stack**: één TCP-verbinding tegelijk en kleine buffers.
+- **De clients zijn traag en klein.** Gemeten op een C64 Ultimate (UCI-netwerkinterface, firmwarebron gecontroleerd):
+  - een read komt terug zodra er data is (1–17 ms), anders na de time-out van 40 ms; dat is wachttijd, geen CPU-tijd;
+  - een write duurt ~1,7 ms;
+  - RTT naar een PC is minimaal 8 ms, met uitschieters tot 2 s over WiFi; pakketverlies ~1%;
+  - de client leest nooit meer dan 512 bytes per keer en pollt asynchroon.
+
+  Gevolgen voor de server: berichten klein houden (maximaal 255 bytes), ruime timeouts, en verloren pakketten opvangen door te herhalen tot er een antwoord komt.
+- **Waarom UDP en geen TCP:** de Ultimate zet geen `TCP_NODELAY` op zijn eigen sockets (Nagle plus delayed ACK geeft haperingen tot 200 ms), en ip65 (VICE/RR-Net) wacht bij TCP op de ACK van elk pakket en blokkeert de C64 zolang. UDP werkt op beide zonder die problemen.
+- **UDP-afhandeling:** de server leert per client het IP-adres en de bronpoort uit de pakketten, en antwoordt daarheen. De Ultimate verstuurt vanaf een willekeurige poort.
+- De tweede client is **VICE met RR-Net en de ip65-stack**.
 - De server mag nooit crashen op ongeldige of onvolledige data van een client. Valideer lengte en type, en verbreek bij onzin alleen die ene verbinding.
 
 ## Technische keuzes (wijk alleen af met onderbouwing)
 
-- **C# / .NET 8**, opgeleverd als één self-contained `.exe` voor Windows, zonder installatie van extra software.
-- **Spelpoort:** TCP 6464 (instelbaar).
+- **C# / .NET 8**, opgeleverd als één self-contained `.exe` voor Windows, zonder installatie van extra software. Ook te publiceren voor `linux-arm64` (Raspberry Pi), zodat de server op een andere machine dan VICE kan draaien.
+- **Spelpoort:** UDP 6465 (instelbaar). 6464 blijft vrij voor direct spelen zonder server.
 - **Serverinterface:** een ingebouwd webdashboard over gewoon **HTTP** op poort 8080 (instelbaar), te openen in een browser op de server of elders in het LAN. Live bijwerken via Server-Sent Events of een onversleutelde WebSocket.
 - Configuratie in één leesbaar bestand (`server.json`): poorten, timeouts en instellingen per game.
 - Geen database. De status staat in het geheugen, het log gaat naar een bestand.
@@ -49,7 +63,7 @@ Ontwerp sessies voor N spelers, ook al heeft Wizard of Wor er twee.
 
 ## Verloop voor de speler
 
-1. De speler voert op de C64 zijn **nickname** en het IP-adres van de server in, en verbindt.
+1. De speler voert op de C64 zijn **nickname** en het IP-adres van de server in, en verbindt. De C64 herhaalt `HELLO` tot er een antwoord komt.
 2. De C64 stuurt `HELLO` (protocolversie, `game_id`, gameversie, nickname). De server antwoordt met `WELCOME` of met `REJECT` plus een reden (naam al in gebruik, versie past niet, onbekende game, server vol).
 3. De speler **staat klaar** in de lobby van die game.
 4. Staat er een tweede speler klaar voor dezelfde game, dan stuurt de server beiden een `CHALLENGE` met de nickname van de tegenstander.
@@ -59,7 +73,7 @@ Ontwerp sessies voor N spelers, ook al heeft Wizard of Wor er twee.
 
 ## Protocol
 
-Binair, little-endian, length-prefixed: `[len][type][payload]`.
+Binair en little-endian. Eén UDP-datagram is één bericht: `[type][payload]`, met maximaal 255 bytes.
 
 - Types `$00-$7F` zijn van het **platform** en voor elke game gelijk: `HELLO`, `WELCOME`, `REJECT`, `CHALLENGE`, `ACCEPT`, `DECLINE`, `START`, `OPPONENT_LEFT`, `SESSION_END`, `PING`, `PONG`, `BYE`.
 - Types `$80-$FF` zijn **game-specifiek**. De kern geeft ze door aan de game-module van de sessie en kijkt er zelf niet in.
@@ -70,13 +84,13 @@ Werk dit uit in `docs/protocol.md`, met per bericht de exacte bytes en een voorb
 
 ## Game-module 1: Wizard of Wor
 
-Wizard of Wor draait op beide C64's dezelfde simulatie (deterministic lockstep). Over de lijn gaan alleen joystick-inputs. De **server is de lockstep-coördinator**, zodat beide C64's exact dezelfde clientcode draaien en er geen host/client-rol meer is.
+Wizard of Wor draait op beide C64's dezelfde simulatie (deterministic lockstep, al gebouwd en getest). Over de lijn gaan alleen joystick-inputs. De lockstep zit op de C64; de server is een **relay met controle**. Beide C64's draaien dezelfde clientcode, zonder host/client-rol: de server wijst de spelerslots toe.
 
-- `START` bevat: seed (16 bit), startdungeon, tick rate, input delay en het aantal ticks per pakket. Deze waarden komen uit `server.json` en zijn in het dashboard te zien.
-- Elke C64 stuurt `INPUT(tick, n, joy*n)`. Zodra de server voor een tick de input van beide spelers heeft, stuurt hij `TICKS(tick, n, {joyP1, joyP2}*n)` naar beiden.
-- Beide C64's sturen periodiek `CHECKSUM(tick, sum16)`. De server vergelijkt ze. Bij een verschil stuurt hij `DESYNC` naar beiden, logt hij het en eindigt de sessie.
-- `PAUSE` en `RESUME` gaan door naar de andere speler.
-- Blijft de input van een speler 10 seconden uit, dan eindigt de sessie.
+- `START` bevat: spelerslot, seed voor `random_number`, seed voor de LFSR en de input delay. Deze waarden komen uit `server.json` (seeds: willekeurig per sessie) en zijn in het dashboard te zien.
+- Elke C64 stuurt `INPUT`: sessie-id, nieuwste tick, checksumtick, checksum en de inputs van de laatste 16 ticks. De server stuurt het ongewijzigd door naar de tegenstander.
+- De server leest de checksumvelden mee. Hebben beide spelers een checksum voor dezelfde tick gestuurd en verschillen die, dan stuurt hij `SESSION_END` (reden desync) naar beiden, logt hij het en eindigt de sessie.
+- Pauze is niet nodig: in lockstep wacht de ander vanzelf.
+- Blijft de input van een speler 10 seconden uit, dan krijgt de ander `OPPONENT_LEFT` en eindigt de sessie.
 
 ## Serverinterface (dashboard)
 
@@ -113,10 +127,10 @@ Hiermee is de server volledig te testen zonder C64, en kan één echte C64 tegen
 
 ## Acceptatiecriteria
 
-- Twee bots vinden elkaar, accepteren en spelen 30 minuten een gesimuleerde Wizard of Wor-sessie zonder fouten. Alles is live te volgen in het dashboard.
+- Twee bots vinden elkaar, accepteren en spelen 30 minuten een gesimuleerde Wizard of Wor-sessie zonder fouten (lockstep en checksums kloppen). Alles is live te volgen in het dashboard.
 - Meerdere sessies draaien tegelijk zonder elkaar te beïnvloeden.
 - Uitval van een speler, een weigering, een timeout en ongeldige data worden netjes afgehandeld en gelogd. De server blijft draaien.
 - Een tweede game met transparante relay is toe te voegen met alleen een registratie. Toon dit aan met een voorbeeldgame.
-- Er zit nergens encryptie in, en de C64 hoeft alleen één TCP-verbinding te openen.
+- Er zit nergens encryptie in, en de C64 hoeft alleen één UDP-socket naar de server te openen.
 
 Begin met **Fase 1**. Lever eerst een kort plan op met de projectstructuur, de `IGameModule`-interface en een eerste versie van `docs/protocol.md`, en wacht op akkoord voordat je gaat bouwen.

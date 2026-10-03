@@ -6,7 +6,8 @@ Levend document. Alles wat hier staat is gemeten of uit de broncode afgeleid. Wa
 
 - **Commodore 64 Ultimate** via het Ultimate Command Interface (UCI, `$DF1C-$DF1F`). Driver: `src/net/uci.asm`.
 - **RR-Net (CS8900a)**, vooral voor VICE als tweede speler. Driver: ip65 (UDP) als blob, `src/net/ip65_glue.s` + `src/net/net_rrnet.asm`.
-- **Geen relay of server.** Direct peer-to-peer.
+- **Direct peer-to-peer** waar het kan: Ultimate ↔ VICE/RR-Net, en VICE ↔ VICE.
+- **Game server** (`server/`, .NET 8) voor Ultimate ↔ Ultimate: beide C64's verbinden met de server, die de speldata doorgeeft. Zie onder.
 
 ## Transport: UDP is primair
 
@@ -86,3 +87,13 @@ Het spritedatablok dat `create_sprites` kopieert, bevat de code van `MV_init`. E
   - Ultimate ↔ RR-Net (VICE of hardware) via UDP;
   - Ultimate ↔ Ultimate met een firmware-uitbreiding (UDP op een vaste lokale poort, of een TCP-listener);
   - Ultimate ↔ Ultimate via een derde machine.
+
+## Game server (Ultimate ↔ Ultimate)
+
+Twee Ultimates kunnen niet rechtstreeks verbinden (zie hierboven). Daarom is er een server in het LAN (`server/`, specificatie in `docs/PROMPT_C64_GameServer.md`, onderbouwing in `docs/gameserver_onderzoek.md`):
+
+- UDP op poort 6465. De server leert per client het adres en de bronpoort.
+- Een lobby met nicknames, uitdagen en accepteren. Daarna een sessie.
+- Wizard of Wor: de lockstep blijft op de C64. De server geeft `INPUT` ongewijzigd door, controleert de checksums en meldt uitval.
+- Protocol: `server/docs/protocol.md`.
+- VICE kan via pcap meestal niet de eigen PC bereiken: draai de server dan op een andere machine (bijvoorbeeld een Raspberry Pi), of speel tegen de bot.
