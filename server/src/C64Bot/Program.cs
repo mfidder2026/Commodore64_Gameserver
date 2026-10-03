@@ -109,6 +109,7 @@ internal sealed class Bot
     }
 
     private bool _silent;
+    private long _lastInputRx;
 
     private void Send(byte[] m)
     {
@@ -260,6 +261,7 @@ internal sealed class Bot
                 if (m[0] == MsgType.Start && m[1] == session) Send(Messages.StartAck(session));
                 else if (m[0] == 0x80 && m.Length == 24 && m[1] == session)
                 {
+                    _lastInputRx = Stopwatch.GetTimestamp();
                     int newest = Messages.U16(m, 2);
                     int first = newest - 15;
                     if (first > remoteNewest + 1) continue; // hole (cannot happen)
@@ -302,7 +304,9 @@ internal sealed class Bot
             local[localNewest & 0xFFFF] = BotInput(localNewest, slot, seedRandom);
             Send(InputPacket());
 
-            // wait for the opponent's input of tick t
+            // wait for the opponent's input of tick t; give up only when nothing at all came for 15 s
+            // (a C64 shows its transition screens between the dungeons for many seconds without new ticks,
+            // but keeps repeating its last INPUT meanwhile)
             var waitStart = Stopwatch.GetTimestamp();
             long lastSend = waitStart;
             while (remoteNewest < t)
@@ -310,7 +314,7 @@ internal sealed class Bot
                 if (!Pump()) break;
                 long now = Stopwatch.GetTimestamp();
                 if ((now - lastSend) * 1000 / Stopwatch.Frequency >= 20) { Send(InputPacket()); lastSend = now; }
-                if ((now - waitStart) / Stopwatch.Frequency >= 15) { ended = "waited 15 s for the opponent"; break; }
+                if ((now - Math.Max(waitStart, _lastInputRx)) / Stopwatch.Frequency >= 15) { ended = "nothing from the opponent for 15 s"; break; }
                 Thread.Sleep(1);
             }
             if (ended != null) break;

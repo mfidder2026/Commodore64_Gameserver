@@ -508,6 +508,8 @@ _ignore
 	LDA rx_next+1
 	SBC rx_tick+1
 	BMI _out ; first > remote_newest + 1: a hole (cannot happen with a window of 16)
+	LDA #$01
+	STA rx_alive ; for proto_tick: the peer is alive
 	; store all inputs
 	#ldy_ofs 8
 	LDX #INPUT_WINDOW
@@ -718,6 +720,11 @@ _out
 
 proto_session_start .proc
 	; seeds from the START packet, input buffers neutral
+	LDA #$01
+	STA net_busy
+	LDA #$00
+	STA ka_frames
+	STA rx_alive
 	LDA game_id
 	STA session_game_id
 	#log_event EV_SESSION_START, game_id
@@ -771,10 +778,14 @@ _direct
 	TXA
 	EOR #$01
 	STA remote_actor
+	LDA #$00
+	STA net_busy
 	RTS
 .pend
 
 proto_session_end .proc
+	LDA #$01
+	STA net_busy
 	#log_event EV_SESSION_END, game_id
 	LDA #0
 	STA start_state
@@ -795,13 +806,44 @@ proto_session_end .proc
 	JSR netio_send
 	LDA #SRV_LOBBY
 	STA srv_state
-+	RTS
++	LDA #$00
+	STA net_busy
+	RTS
 .pend
 
 ; -----------------------------------------
 
+net_session_irq .proc
+	; called by the raster IRQ during a session. Between the dungeons the game shows its transition screens
+	; (GET READY, DOUBLE SCORE ...) for many seconds without ticks, so nothing would be sent: the server would
+	; drop the C64 after 10 s. When no tick ran for ~1/3 s, the IRQ answers pings, handles packets and repeats
+	; the last INPUT every 10 frames. Never while the main program is inside the network code itself (net_busy).
+	INC ka_frames
+	BNE +
+	DEC ka_frames ; stays at 255
++	LDA net_busy
+	BNE _out
+	LDA ka_frames
+	CMP #20
+	BCC _out ; ticks are running: the main program does the network
+	JSR netio_poll
+	BCS +
+	JSR proto_rx
++	DEC ka_timer
+	BPL _out
+	LDA #10
+	STA ka_timer
+	JSR send_input
+_out
+	RTS
+.pend
+
 proto_tick .proc
 	; called by tick (game_net.asm) after the pacing wait: inputs for tick_count
+	LDA #$01
+	STA net_busy ; the IRQ keeps its hands off the network meanwhile
+	LDA #$00
+	STA ka_frames
 	; 1. state checksum every CHECK_EVERY ticks (the state before this tick's logic is the same on both machines)
 	LDA tick_count
 	AND #CHECK_EVERY-1
@@ -859,10 +901,21 @@ _wait
 	SBC tick_count
 	LDA remote_newest+1
 	SBC tick_count+1
-	BPL _ready
-	JSR netio_poll
+	BMI +
+	JMP _ready
++	JSR netio_poll
 	BCS +
 	JSR proto_rx
+	LDA rx_alive
+	BEQ _wait
+	; the peer sent inputs (perhaps only repeated ones from its transition screen): it is alive, wait on
+	LDA #$00
+	STA rx_alive
+	JSR get_cycles
+	LDA cycles+1
+	STA wait_start
+	LDA cycles+2
+	STA wait_start+1
 	JMP _wait
 +	JSR get_cycles
 	; resend every ~20 ms while waiting (the last packet may be lost)
@@ -895,8 +948,9 @@ _no_resend
 	LDA #1
 	JMP net_abort
 +	CMP #>WAIT_SHOW
-	BCC _wait
-	; flash the border while waiting (restored afterwards: the border color belongs to the game)
+	BCS +
+	JMP _wait
++	; flash the border while waiting (restored afterwards: the border color belongs to the game)
 	LDA wait_shown
 	BNE +
 	LDA VIC_D020
@@ -920,6 +974,9 @@ _ready
 	LDA remote_in,X
 	LDY remote_actor
 	STA net_joy,Y
+	LDA #$00
+	STA net_busy
+	STA ka_frames
 	RTS
 .pend
 
@@ -927,6 +984,8 @@ net_abort .proc
 	; A = reason (1: the peer is gone, 2: the host started another game)
 	; back to the title screen (like RESTORE does), the connection stays
 	STA abort_reason
+	LDA #$00
+	STA net_busy
 	#log_event EV_ABORT, abort_reason
 	LDA net_role
 	CMP #ROLE_SERVER
@@ -936,6 +995,9 @@ net_abort .proc
 +	LDA #$00
 	STA session_active
 	JSR proto_session_end
+	; like the NMI: with interrupts off (init_cset banks the char ROM in over the I/O for a moment; a raster IRQ
+	; then could not acknowledge $D019 and would repeat forever). init_stuff enables them again.
+	SEI
 	LDX #$FF
 	TXS
 	JSR sfx.end_of_sfx
@@ -2084,6 +2146,10 @@ rx_newest	.word 0
 rx_tick		.word 0
 rx_next		.word 0
 rx_count	.byte 0
+rx_alive	.byte 0
+net_busy	.byte 0
+ka_frames	.byte 0
+ka_timer	.byte 0
 in_ofs		.byte 2 ; INPUT field offset: 2 direct ('W' 'L' type), 0 server (type)
 srv_state	.byte 0
 srv_type	.byte 0

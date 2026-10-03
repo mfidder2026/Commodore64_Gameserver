@@ -5,6 +5,7 @@ so both machines must log exactly the same state checksums.
 
     python tools/netgame_test.py [seconds]
 
+KILL_JOIN=1: the join disappears after [seconds]; checks that the host goes back to its title screen.
 Environment: NPCAP_IF (default: the Wi-Fi adapter), C64_IP (host, 192.168.1.201), C64_IP2 (join, 192.168.1.202).
 """
 from __future__ import annotations
@@ -106,6 +107,22 @@ def main() -> None:
         keys(6510, r"\x0d")                  # PRESS A KEY -> game (a plain space would be an empty argument)
         keys(6511, r"\x0d")
         time.sleep(seconds)
+        if os.environ.get("KILL_JOIN"):
+            # abort test: the join disappears mid game; the host must go back to its title screen
+            b.kill()
+            prev = 0
+            for at in (8, 16, 24, 34):
+                time.sleep(at - prev)
+                prev = at
+                out = monitor(6510, "r", f'screenshot "build/abort_{at}.png" 2')
+                print(f"host {at:2d} s after the join vanished: " +
+                      " ".join(l for l in out.splitlines() if l.startswith(".;")))
+            for _ in range(6):
+                out = monitor(6510, "r")
+                print("   " + " ".join(l for l in out.splitlines() if l.startswith(".;")))
+            r = dump(6510, "host", lbl)
+            print(f"HOST: {r['vars']}  events: " + ", ".join(r["events"][-20:]))
+            return
         ra = dump(6510, "host", lbl)
         rb = dump(6511, "join", lbl)
     finally:

@@ -316,7 +316,10 @@ _leave_alone_sfx
 	JSR jingles.play
 	LDA #$C8
 	STA VIC_D012
-	LDA tmp_irq_ptr_save
+	LDA net_role
+	BEQ +
+	JSR net_session_irq ; network keepalive during the transition screens (netgame.asm)
++	LDA tmp_irq_ptr_save
 	STA tmp_0014_ptr
 	LDA tmp_irq_ptr_save+1
 	STA tmp_0014_ptr+1
