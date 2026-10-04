@@ -1728,7 +1728,7 @@ _opened
 	JMP wait_key_menu
 +	INC net_is_open
 	JSR print_inline
-	.null C_YELLOW, "CALLING THE SERVER", 13, C_LGREY, "(ANY KEY = SETUP)", 13, C_YELLOW
+	.null 13, C_YELLOW, "CALLING THE SERVER", 13, C_LGREY, "(ANY KEY = SETUP)", 13, C_YELLOW
 	LDA #0
 	STA hello_timer
 	STA hello_timer+1

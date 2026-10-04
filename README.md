@@ -7,9 +7,21 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
   <img src="docs/images/game_b.png" width="49%" alt="The Worriors and the monsters">
 </p>
 
-| Setup menu | Game server lobby | Title screen |
-|---|---|---|
-| ![Setup menu](docs/images/setup_menu.png) | ![Lobby screen](docs/images/lobby.png) | ![Title screen](docs/images/title.png) |
+### Playing via the C64 Game Server
+
+| 1. First start: the setup menu | 2. Next starts: settings from WOW.CFG |
+|---|---|
+| ![Setup menu](docs/images/setup_menu.png) | ![Welcome screen](docs/images/welcome.png) |
+| Choose **4**, type a nickname and the server's IP once; they are saved on the disk. | "Welcome Dungeon Master": the C64 calls the server by itself. |
+
+| 3. The lobby: everyone online | 4. Somebody challenges you |
+|---|---|
+| ![Lobby screen](docs/images/lobby.png) | ![A challenge in the lobby](docs/images/lobby_challenge.png) |
+| People and bots, free / busy / playing. Joystick (or W/S) chooses, FIRE challenges, **F1** opens the setup. | The bottom line flashes: FIRE plays, N declines. |
+
+| The original title screen (local and direct network games) |
+|---|
+| ![Title screen](docs/images/title.png) |
 
 | C64 Game Server dashboard |
 |---|
