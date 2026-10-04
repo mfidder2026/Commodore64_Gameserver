@@ -91,7 +91,7 @@ server\publish.bat
    - **1 LOCAL GAME:** joystick in port 2 for player 2, joystick in port 1 or the keyboard for player 1.
    - **2 HOST A NETWORK GAME** (RR-Net only): enter your IP (or RETURN for DHCP) and wait.
    - **3 JOIN A NETWORK GAME:** enter the host's IP.
-   - **4 PLAY VIA A GAME SERVER:** enter a nickname and the server's IP. The lobby screen lists everyone online, person or bot, and whether they are free, busy or playing. Pick an opponent with the joystick (or W/S) and challenge them with FIRE; accept a challenge with FIRE, decline with N.
+   - **4 PLAY VIA A GAME SERVER:** enter a nickname and the server's IP. They are saved as `WOW.CFG` on the disk, so the next start greets you ("Welcome Dungeon Master") and goes straight to the lobby. The lobby screen lists everyone online, person or bot, and whether they are free, busy or playing. Pick an opponent with the joystick (or W/S) and challenge them with FIRE; accept a challenge with FIRE, decline with N. **F1** opens the setup menu to change the name or server.
 3. In a network game each player uses joystick port 2 or W A S D + SPACE. The host (or the server) starts the game.
 
 ## The C64 Game Server

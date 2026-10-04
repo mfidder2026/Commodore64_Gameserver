@@ -21,8 +21,9 @@
 	.enc "none" ; ASCII ('A' = $41) for the code below
 
 	LOBBY_MAX = 16 ; players in the list (the server sends at most 16)
-	LB_ROWS = 8 ; visible lines
-	LB_ROW0 = 6 ; screen row of the first line (each line is 2 rows high)
+	LB_ROWS = 7 ; visible lines
+	LB_ROW0 = 7 ; screen row of the first line (each line is 2 rows high)
+	LB_ROW_YOU = 5
 	LB_COL = 2 ; column of the nickname
 	LB_COL_KIND = 12
 	LB_COL_STATE = 19
@@ -43,6 +44,7 @@
 	COL_LIGHT_GREY = 15
 
 	CHAR2_SPACE = $25 ; encoding "2x1"
+	SM_BYE = $0E
 
 ; -----------------------------------------
 ; main program
@@ -52,7 +54,8 @@ lobby_screen .proc
 	LDA #$01
 	STA is_title_screen ; the original IRQ: title mode
 	; like display_copyright_and_high_scores: hires, no sprites, no music
-	LDA #$0F
+	; (but no fine scroll: the game's 7 pixels would hide most of column 39)
+	LDA #$08
 	STA VIC_D016
 	LDA #$00
 	STA VIC_D015
@@ -64,14 +67,21 @@ lobby_screen .proc
 
 	LDA #COL_YELLOW
 	LDX #0
-	LDY #10
+	LDY #9
 	JSR lb_at
 	LDA #<lb_txt_title
 	LDY #>lb_txt_title
 	JSR lb_print
+	LDA #COL_LIGHT_BLUE
+	LDX #2
+	LDY #7
+	JSR lb_at
+	LDA #<lb_txt_title2
+	LDY #>lb_txt_title2
+	JSR lb_print
 
 	LDA #COL_CYAN
-	LDX #3
+	LDX #LB_ROW_YOU
 	LDY #LB_COL
 	JSR lb_at
 	LDA #<lb_txt_you
@@ -101,8 +111,14 @@ lobby_screen .proc
 
 	LDA #$01
 	STA lobby_dirty
+	LDA #$00
+	STA lobby_setup
 _loop
-	LDA start_received
+	LDA lobby_setup
+	CMP #1
+	BNE +
+	JMP cfg_reenter_setup ; F1: the BYE is out, back to the setup menu (config.asm)
++	LDA start_received
 	BNE _start
 	LDA lobby_frame
 	CMP lb_last_frame
@@ -141,7 +157,7 @@ lb_draw_list .proc
 +
 	; "n online" (the others and me)
 	LDA #COL_CYAN
-	LDX #3
+	LDX #LB_ROW_YOU
 	LDY #28
 	JSR lb_at
 	LDA lobby_total
@@ -352,6 +368,43 @@ lobby_read_joy .proc
 	RTS
 .pend
 
+lobby_check_setup .proc
+	; F1 in the lobby (or while the server does not answer): say BYE, the main program goes to the setup menu
+	LDA lobby_setup
+	BEQ +
+	CMP #1
+	BEQ _out
+	DEC lobby_setup ; a few frames for the BYE to go out
+_out
+	RTS
++	LDA srv_state
+	CMP #SRV_LOBBY
+	BEQ +
+	CMP #SRV_CONNECTING
+	BNE _out
++	LDA #$FF ; F1: keyboard column 0, row 4 (rows held low by joystick port 1 are ignored)
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	EOR #$FF
+	STA kb_mask
+	LDA #%11111110
+	STA CIA1_JOY_KEY1
+	LDA CIA1_JOY_KEY2
+	ORA kb_mask
+	LDX #$FF
+	STX CIA1_JOY_KEY1
+	AND #$10
+	BNE _out
+	LDA #SM_BYE
+	STA net_tx_buf
+	LDA #1
+	STA net_tx_len
+	JSR netio_send
+	LDA #12
+	STA lobby_setup
+	RTS
+.pend
+
 lobby_input .proc
 	; in the lobby: up / down choose a player, FIRE challenges him
 	LDA lobby_new
@@ -511,7 +564,8 @@ _dirty
 ; texts and variables
 
 	.enc "2x1"
-lb_txt_title	.text "wizard of wor lobby", $FF
+lb_txt_title	.text "welcome dungeon master", $FF
+lb_txt_title2	.text "at the wizard of wor lobby", $FF
 lb_txt_you	.text "you  ", $FF
 lb_txt_online	.text " online", $FF
 lb_txt_human	.text "person", $FF
@@ -521,7 +575,7 @@ lb_txt_busy	.text "busy   ", $FF
 lb_txt_playing	.text "playing", $FF
 lb_txt_blank	.text "                        ", $FF
 	.enc "charrom"
-lb_help		.text "  up down choose    fire challenge"
+lb_help		.text "up down choose  fire challenge  f1 setup"
 	.fill 40 - (* - lb_help), 0
 	.enc "none"
 
@@ -536,6 +590,7 @@ lobby_dirty	.byte 0
 lobby_frame	.byte 0
 lobby_joy_prev	.byte 0
 lobby_new	.byte 0
+lobby_setup	.byte 0 ; F1: >1 frames until the setup menu, 1 = now
 lobby_id	.fill LOBBY_MAX
 lobby_flags	.fill LOBBY_MAX
 lobby_len	.fill LOBBY_MAX

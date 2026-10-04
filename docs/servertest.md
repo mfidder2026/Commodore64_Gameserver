@@ -43,32 +43,46 @@ Bij **Spelers** staan de drie bots, met soort **bot**. Laat dit open staan.
 
 ## Stap 3 – verbinden vanaf de Ultimate
 
-1. Start `WOW` op de Ultimate. Het setupscherm is zwart met gele en lichtblauwe tekst, zoals het spel.
+**Belangrijk:** zet de **nieuwe** `build\wow.d64` op de Ultimate, **mount** hem als drive 8 en start `WOW` vanaf die disk. De instellingen worden op deze disk bewaard (`WOW.CFG`). Zie je onderaan nog `WAITING FOR AN OPPONENT`, dan draait er een oude versie.
+
+De eerste keer (nog geen instellingen):
+
+1. Het setupscherm is zwart met gele en lichtblauwe tekst, zoals het spel.
 2. Kies **4** (PLAY VIA A GAME SERVER).
 3. **YOUR NAME:** bijvoorbeeld `ERIK` (alleen A–Z en 0–9, max. 8 tekens).
 4. **IP OF THE GAME SERVER:** het IP-adres van je PC.
-5. Na `CALLING THE SERVER` met puntjes kom je direct in de lobby.
+5. Na `CALLING THE SERVER` met puntjes verschijnt `SETTINGS SAVED (WOW.CFG)` en kom je in de lobby.
+
+Daarna (instellingen gevonden):
+
+1. Start `WOW`: je ziet **WELCOME DUNGEON MASTER / AT THE WIZARD OF WOR LOBBY**, de C64 belt de server en je staat direct in de lobby.
+2. Wil je je naam of de server veranderen: druk in de lobby op **F1** (SETUP). Je komt in het setupmenu; kies **4**. Je opgeslagen waarden staan tussen haken, bijvoorbeeld `YOUR NAME (A-Z, 0-9, MAX 8) [ERIK]:`. **RETURN** houdt de waarde, of typ een nieuwe.
+3. Antwoordt de server niet: druk tijdens `CALLING THE SERVER` op een toets voor het setupmenu.
+
+**Controleren:** start `WOW` een tweede keer. Kom je direct in de lobby, dan is `WOW.CFG` goed bewaard.
+
 
 ## Stap 4 – de lobby
 
 Het lobbyscherm, in de letters en kleuren van het spel:
 
 ```
-          WIZARD OF WOR LOBBY
+         WELCOME DUNGEON MASTER
+       AT THE WIZARD OF WOR LOBBY
 
   YOU  ERIK                   4 ONLINE
-
   WORLUK    BOT    FREE
   GARWOR    BOT    FREE
   THORWOR   BOT    FREE
 
-  up down choose    fire challenge
+up down choose  fire challenge  f1 setup
 choose your opponent
 ```
 
 - Per speler: naam, **PERSON** (geel) of **BOT** (lichtblauw), en **FREE** (groen), **BUSY** (oranje) of **PLAYING** (rood).
 - Mensen staan bovenaan, de bots onderaan. De gekozen regel knippert wit/cyaan.
 - **Joystick omhoog/omlaag** (of **W/S**) kiest een speler, **FIRE** (of **SPACE**) daagt hem uit.
+- **F1** gaat naar het setupmenu (naam of server veranderen).
 
 **Controleren:** staan de drie bots in de lijst, en klopt het aantal bij `ONLINE` (de bots plus jij)?
 
@@ -115,6 +129,8 @@ Een tweede C64 (of VICE op een andere PC) die verbindt, staat bij jou bovenaan a
 | `NO NETWORK HARDWARE FOUND` | de Command Interface staat uit (zie "Wat je nodig hebt") |
 | Blijft hangen op `CALLING THE SERVER` | firewall: sta de server toe (zie `server/README.md`); klopt het IP-adres van de PC? Staat ERIK in het dashboard? |
 | `THE NAME IS IN USE` | kies een andere naam, of wacht 10 s |
+| `SETTINGS NOT SAVED (NO DISK?)` | start `WOW` vanaf de gemounte `wow.d64` (drive 8), niet los uit de bestandsbrowser |
+| Steeds opnieuw naam en server vragen | de disk is niet beschrijfbaar of niet gemount; zie hierboven |
 | Geen bots in de lijst | staat er een oude `server.json` met `"bots": []`? Verwijder die regel of het bestand |
 | Lege lijst, onderste regel `CONNECTING TO THE SERVER` | de server antwoordt niet: firewall of IP-adres |
 | Rand knippert steeds | slechte WiFi-verbinding; probeer een netwerkkabel aan de Ultimate of de PC |

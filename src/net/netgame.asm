@@ -1418,6 +1418,7 @@ _alive
 	LDA #$FF
 	STA net_joy
 	STA net_joy+1
+	JSR lobby_check_setup ; F1 (lobby.asm)
 	JSR lobby_read_joy
 	STA lobby_new
 	LDA srv_state
@@ -1631,14 +1632,23 @@ setup_server .proc
 	JSR setup_my_ip_rrnet
 	BCC +
 	JMP wait_key_menu
-+
++	LDA cfg_auto
+	BEQ _nick
+	JMP _connect
 _nick
 	JSR print_inline
-	.null 13, 13, C_CYAN, "YOUR NAME (A-Z, 0-9, MAX 8): ", C_WHITE
+	.null 13, 13, C_CYAN, "YOUR NAME (A-Z, 0-9, MAX 8)"
+	LDA #<my_nick
+	LDY #>my_nick
+	LDX my_nick_len
+	JSR cfg_show ; " [ERIK]: "
 	JSR read_line
 	LDX host_len
+	BNE +
+	LDA my_nick_len ; RETURN keeps the name
 	BEQ _nick
-	CPX #NICK_MAX+1
+	BNE _server ; always branches
++	CPX #NICK_MAX+1
 	BCS _nick
 	DEX
 -	LDA host_input,X
@@ -1655,18 +1665,40 @@ _nick
 	BPL -
 	LDA host_len
 	STA my_nick_len
-
+_server
 	JSR print_inline
-	.null 13, C_CYAN, "IP OF THE GAME SERVER: ", C_WHITE
+	.null 13, C_CYAN, "IP OF THE GAME SERVER"
+	LDA #<cfg_server
+	LDY #>cfg_server
+	LDX cfg_server_len
+	JSR cfg_show
 	JSR read_line
-	LDA host_len
+	LDX host_len
 	BNE +
+	LDA cfg_server_len ; RETURN keeps the server
+	BNE _typed
 	JMP net_setup.net_menu
-+	LDX host_len
++	CPX #CFG_SERVER_MAX+1
+	BCS _server
+	STX cfg_server_len
+	DEX
 -	LDA host_input,X
-	STA net_host,X
+	STA cfg_server,X
 	DEX
 	BPL -
+_typed
+	LDA #1
+	STA cfg_dirty ; save after connecting
+_connect
+	LDX #0
+-	LDA cfg_server,X
+	STA net_host,X
+	INX
+	CPX cfg_server_len
+	BNE -
+	LDA #0
+	STA net_host,X
+	JSR netio_close
 	LDA #<SERVER_PORT
 	STA net_port
 	LDA #>SERVER_PORT
@@ -1694,8 +1726,9 @@ _opened
 	JSR print_inline
 	.null C_LRED, "CANNOT OPEN THE CONNECTION", 13, C_WHITE
 	JMP wait_key_menu
-+	JSR print_inline
-	.null C_YELLOW, "CALLING THE SERVER", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_YELLOW
++	INC net_is_open
+	JSR print_inline
+	.null C_YELLOW, "CALLING THE SERVER", 13, C_LGREY, "(ANY KEY = SETUP)", 13, C_YELLOW
 	LDA #0
 	STA hello_timer
 	STA hello_timer+1
@@ -1724,6 +1757,7 @@ _loop
 	LDA srv_state
 	CMP #SRV_CONNECTING
 	BEQ _loop
+	JSR cfg_save ; typed in: keep it in WOW.CFG (config.asm)
 	JMP start_the_game ; connected: the lobby screen (lobby.asm) replaces the title screens
 _rejected
 	JSR print_inline
@@ -1799,8 +1833,25 @@ net_setup .proc
 	LDA #0 ; black, like the game
 	STA $D021
 	STA $D020
+	JSR cfg_first_init
+	LDA cfg_force_menu ; F1 in the lobby: the menu
+	BNE net_menu
+	JSR cfg_load ; WOW.CFG on the disk (config.asm)
+	BCS net_menu
+	JSR print_inline
+	.null 147, C_YELLOW, "WELCOME DUNGEON MASTER", 13, C_LBLUE, "AT THE WIZARD OF WOR LOBBY", 13, 13
+	JSR netio_detect
+	LDA net_backend
+	BEQ net_menu ; no network: the menu says why
+	LDA #1
+	STA cfg_auto
+	JMP setup_server
 
 net_menu
+	LDA #0
+	STA cfg_auto
+	STA cfg_force_menu
+	JSR netio_close
 	JSR print_inline
 	.null 147, C_YELLOW, "WIZARD OF WOR", C_LBLUE, "  NETWORK EDITION", 13, 13
 	JSR netio_detect
@@ -1863,7 +1914,7 @@ setup_my_ip_rrnet .proc
 	; RR-Net: own address by DHCP or typed in; C=1: failed
 	JSR print_inline
 	.null 13, 13, C_CYAN, "MY IP (RETURN = DHCP): ", C_WHITE
-	JSR read_line
+	JSR cfg_myip_line ; typed in, or from the settings (config.asm)
 	LDA host_len
 	BNE _static
 	JSR print_inline
@@ -1965,7 +2016,8 @@ _opened
 	JSR print_inline
 	.null C_LRED, "CANNOT OPEN THE CONNECTION", 13, C_WHITE
 	JMP wait_key_menu
-+	JSR print_inline
++	INC net_is_open
+	JSR print_inline
 	.null C_YELLOW, "CALLING THE HOST", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_YELLOW
 	LDA #0
 	STA hello_timer
