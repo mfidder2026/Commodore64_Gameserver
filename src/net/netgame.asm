@@ -76,6 +76,8 @@
 	SM_PING = $0C
 	SM_PONG = $0D
 	SM_CANCELLED = $0F
+	SM_PLAYERS = $10
+	SM_INVITE = $11
 	SM_INPUT = $80
 	SERVER_GAME_ID = 1 ; Wizard of Wor
 	SERVER_GAME_VERSION = 1
@@ -86,6 +88,7 @@
 	SRV_CHALLENGED = 2
 	SRV_ACCEPTED = 3
 	SRV_STARTING = 4
+	SRV_INVITING = 5 ; we challenged a player from the lobby list (lobby.asm)
 
 	; status line messages shown for a while on the title screen
 	MSG_NONE = 0
@@ -93,6 +96,9 @@
 	MSG_DESYNC = 2
 	MSG_DECLINED = 3
 	MSG_NO_SERVER = 4
+	MSG_NOT_FREE = 5
+	MSG_NO_ANSWER = 6
+	MSG_PLAYER_LEFT = 7
 
 	BACKEND_NONE = 0
 	BACKEND_UCI = 1
@@ -119,6 +125,14 @@
 	GETIN = $FFE4
 
 	; text is printed with CHROUT: PETSCII, upper case letters $41-$5A
+	; PETSCII color codes for the setup screen: the colors of the game on black
+	C_WHITE = 5
+	C_LRED = 150
+	C_LBLUE = 154
+	C_LGREY = 155
+	C_YELLOW = 158
+	C_CYAN = 159
+
 	.enc "setup"
 	.cdef " @", $20
 	.cdef "AZ", $41
@@ -1132,9 +1146,9 @@ srv_rx .proc
 	RTS ; jumps to the handler (address - 1 on the stack)
 _unknown
 	RTS
-_types		.byte SM_PING, SM_LOBBY, SM_CHALLENGE, SM_CANCELLED, SM_START, SM_SESSION_END, SM_OPPONENT_LEFT, SM_WELCOME, SM_REJECT, 0
-_handlers_lo	.byte <(_ping-1), <(_lobby-1), <(_challenge-1), <(_cancelled-1), <(srv_rx_start-1), <(_end-1), <(_left-1), <(_welcome-1), <(_reject-1)
-_handlers_hi	.byte >(_ping-1), >(_lobby-1), >(_challenge-1), >(_cancelled-1), >(srv_rx_start-1), >(_end-1), >(_left-1), >(_welcome-1), >(_reject-1)
+_types		.byte SM_PING, SM_LOBBY, SM_PLAYERS, SM_CHALLENGE, SM_CANCELLED, SM_START, SM_SESSION_END, SM_OPPONENT_LEFT, SM_WELCOME, SM_REJECT, 0
+_handlers_lo	.byte <(_ping-1), <(_lobby-1), <(lobby_rx_players-1), <(_challenge-1), <(_cancelled-1), <(srv_rx_start-1), <(_end-1), <(_left-1), <(_welcome-1), <(_reject-1)
+_handlers_hi	.byte >(_ping-1), >(_lobby-1), >(lobby_rx_players-1), >(_challenge-1), >(_cancelled-1), >(srv_rx_start-1), >(_end-1), >(_left-1), >(_welcome-1), >(_reject-1)
 _input
 	LDA #0
 	STA srv_silence
@@ -1209,12 +1223,33 @@ _challenge
 _out
 	RTS
 _cancelled
+	; [1] challenge id (0: the answer to our INVITE), [2] reason 1 declined, 2 no answer, 3 a player left, 4 not free
 	LDA session_active
 	BNE _out
+	LDY #1
+	LDA (net_rx_ptr),Y
+	BNE +
+	LDA srv_state
+	CMP #SRV_INVITING
+	BNE _out
+	BEQ _to_lobby ; always branches
++	LDA srv_state
+	CMP #SRV_CHALLENGED
+	BEQ _to_lobby
+	CMP #SRV_ACCEPTED
+	BEQ _to_lobby
+	CMP #SRV_INVITING
+	BNE _out ; in the lobby already (we declined or withdrew ourselves): nothing to say
+_to_lobby
 	LDA #SRV_LOBBY
 	STA srv_state
-	LDA #MSG_DECLINED
+	INY
+	LDA (net_rx_ptr),Y
+	AND #$03 ; 1-4 -> 1, 2, 3, 0
+	TAX
+	LDA _cancel_msg,X
 	JMP srv_message
+_cancel_msg	.byte MSG_NOT_FREE, MSG_DECLINED, MSG_NO_ANSWER, MSG_PLAYER_LEFT
 _end
 	; [1] session, [2] reason
 	LDA session_active
@@ -1298,6 +1333,30 @@ srv_send_answer .proc
 	JMP netio_send
 .pend
 
+srv_send_invite .proc
+	; INVITE: [1] client id of the player, [2] sequence number
+	LDA #SM_INVITE
+	STA net_tx_buf
+	LDA invite_id
+	STA net_tx_buf+1
+	LDA invite_seq
+	STA net_tx_buf+2
+	LDA #3
+	STA net_tx_len
+	JMP netio_send
+.pend
+
+srv_send_withdraw .proc
+	; DECLINE with challenge id 0: we take our invitation back
+	LDA #SM_DECLINE
+	STA net_tx_buf
+	LDA #0
+	STA net_tx_buf+1
+	LDA #2
+	STA net_tx_len
+	JMP netio_send
+.pend
+
 srv_send_hello .proc
 	LDA #SM_HELLO
 	STA net_tx_buf
@@ -1355,11 +1414,22 @@ srv_title_frame .proc
 +	LDA #SRV_CONNECTING
 	STA srv_state
 _alive
+	INC lobby_frame
 	LDA #$FF
 	STA net_joy
 	STA net_joy+1
+	JSR lobby_read_joy
+	STA lobby_new
 	LDA srv_state
-	CMP #SRV_CHALLENGED
+	CMP #SRV_LOBBY
+	BNE +
+	JSR lobby_input ; choose a player and challenge him (lobby.asm)
+	JMP _draw
++	CMP #SRV_INVITING
+	BNE +
+	JSR lobby_inviting
+	JMP _draw
++	CMP #SRV_CHALLENGED
 	BNE _not_challenged
 	; FIRE (joystick port 2 or SPACE) accepts, N declines
 	JSR read_keyboard
@@ -1437,12 +1507,11 @@ _state
 	LDY state_hi,X
 	JSR status_text
 	LDA srv_state
-	CMP #SRV_LOBBY
+	CMP #SRV_INVITING
 	BNE +
-	LDA srv_waiting
-	JSR status_number
-	LDA #<txt_in_lobby
-	LDY #>txt_in_lobby
+	JSR status_nick
+	LDA #<txt_cancel
+	LDY #>txt_cancel
 	JSR status_text
 	JMP _show
 +	CMP #SRV_CHALLENGED
@@ -1456,10 +1525,21 @@ _state
 	BNE _show
 	JSR status_nick
 _show
-	LDX #39
+	; white; a challenge flashes yellow / white
+	LDY #1
+	LDA srv_msg_timer
+	BNE +
+	LDA srv_state
+	CMP #SRV_CHALLENGED
+	BNE +
+	LDA lobby_frame
+	AND #$10
+	BEQ +
+	LDY #7
++	LDX #39
 -	LDA status_buf,X
 	STA STATUS_ROW,X
-	LDA #1 ; white, hires
+	TYA ; hires colors (< 8)
 	STA STATUS_COLOR,X
 	DEX
 	BPL -
@@ -1499,32 +1579,6 @@ status_nick .proc
 +	RTS
 .pend
 
-status_number .proc
-	; appends A as a decimal number (0-99) and a space
-	LDY #0
--	CMP #10
-	BCC +
-	SBC #10
-	INY
-	BNE - ; always branches
-+	PHA
-	TYA
-	BEQ +
-	CLC
-	ADC #CHAR_0
-	LDX status_pos
-	STA status_buf,X
-	INC status_pos
-+	PLA
-	CLC
-	ADC #CHAR_0
-	LDX status_pos
-	STA status_buf,X
-	INC status_pos
-	INC status_pos ; space
-	RTS
-.pend
-
 ascii_to_game .proc
 	; ASCII 'A'-'Z' / '0'-'9' -> code in the game's character set
 	CMP #'A'
@@ -1547,8 +1601,8 @@ _digit
 
 	.enc "charrom"
 txt_connecting	.text "connecting to the server", $FF
-txt_waiting	.text "waiting for an opponent  ", $FF
-txt_in_lobby	.text "in the lobby", $FF
+txt_waiting	.text "choose your opponent", $FF
+txt_cancel	.text "  n cancel", $FF
 txt_challenge	.text "challenge from ", $FF
 txt_fire	.text "  fire play  n no", $FF
 txt_accepted	.text "waiting for ", $FF
@@ -1557,12 +1611,15 @@ txt_left	.text "your opponent left", $FF
 txt_desync	.text "desync  the game was stopped", $FF
 txt_declined	.text "no game  back to the lobby", $FF
 txt_no_server	.text "no answer from the server", $FF
+txt_not_free	.text "that player is not free", $FF
+txt_no_answer	.text "no answer  back to the lobby", $FF
+txt_player_left	.text "the player has left", $FF
 	.enc "setup"
 
-state_lo	.byte <txt_connecting, <txt_waiting, <txt_challenge, <txt_accepted, <txt_starting
-state_hi	.byte >txt_connecting, >txt_waiting, >txt_challenge, >txt_accepted, >txt_starting
-msg_lo		.byte <txt_left, <txt_desync, <txt_declined, <txt_no_server
-msg_hi		.byte >txt_left, >txt_desync, >txt_declined, >txt_no_server
+state_lo	.byte <txt_connecting, <txt_waiting, <txt_challenge, <txt_accepted, <txt_starting, <txt_accepted
+state_hi	.byte >txt_connecting, >txt_waiting, >txt_challenge, >txt_accepted, >txt_starting, >txt_accepted
+msg_lo		.byte <txt_left, <txt_desync, <txt_declined, <txt_no_server, <txt_not_free, <txt_no_answer, <txt_player_left
+msg_hi		.byte >txt_left, >txt_desync, >txt_declined, >txt_no_server, >txt_not_free, >txt_no_answer, >txt_player_left
 
 ; -----------------------------------------
 
@@ -1577,7 +1634,7 @@ setup_server .proc
 +
 _nick
 	JSR print_inline
-	.null 13, 13, "YOUR NAME (A-Z, 0-9, MAX 8): "
+	.null 13, 13, C_CYAN, "YOUR NAME (A-Z, 0-9, MAX 8): ", C_WHITE
 	JSR read_line
 	LDX host_len
 	BEQ _nick
@@ -1600,7 +1657,7 @@ _nick
 	STA my_nick_len
 
 	JSR print_inline
-	.null 13, "IP OF THE GAME SERVER: "
+	.null 13, C_CYAN, "IP OF THE GAME SERVER: ", C_WHITE
 	JSR read_line
 	LDA host_len
 	BNE +
@@ -1635,10 +1692,10 @@ _rr
 _opened
 	BCC +
 	JSR print_inline
-	.null "CANNOT OPEN THE CONNECTION", 13
+	.null C_LRED, "CANNOT OPEN THE CONNECTION", 13, C_WHITE
 	JMP wait_key_menu
 +	JSR print_inline
-	.null "CALLING THE SERVER", 13, "(ANY KEY = BACK)", 13
+	.null C_YELLOW, "CALLING THE SERVER", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_YELLOW
 	LDA #0
 	STA hello_timer
 	STA hello_timer+1
@@ -1667,12 +1724,10 @@ _loop
 	LDA srv_state
 	CMP #SRV_CONNECTING
 	BEQ _loop
-	JSR print_inline
-	.null 13, "CONNECTED. THE SERVER WILL FIND AN OPPONENT;", 13, "ACCEPT ON THE TITLE SCREEN WITH FIRE.", 13
-	JMP start_after_key
+	JMP start_the_game ; connected: the lobby screen (lobby.asm) replaces the title screens
 _rejected
 	JSR print_inline
-	.null 13, "THE SERVER SAYS NO: "
+	.null 13, C_LRED, "THE SERVER SAYS NO: "
 	LDX srv_reject
 	CPX #6
 	BCC +
@@ -1741,44 +1796,43 @@ net_setup .proc
 	LDA $D012
 	ORA #$01
 	STA mac_last
-	LDA #6 ; blue background, light blue text: like the C64 screen
+	LDA #0 ; black, like the game
 	STA $D021
-	LDA #14
 	STA $D020
 
 net_menu
 	JSR print_inline
-	.null 147, 154, "WIZARD OF WOR - LAN", 13, 13
+	.null 147, C_YELLOW, "WIZARD OF WOR", C_LBLUE, "  NETWORK EDITION", 13, 13
 	JSR netio_detect
 	LDA net_backend
 	CMP #BACKEND_UCI
 	BNE +
 	JSR print_inline
-	.null "NETWORK: C64 ULTIMATE", 13, "MY IP:   "
+	.null C_CYAN, "NETWORK: ", C_WHITE, "C64 ULTIMATE", 13, C_CYAN, "MY IP:   ", C_WHITE
 	JSR uci.net_get_ip
 	JSR print_ip
 	JMP _items
 +	CMP #BACKEND_RRNET
 	BNE +
 	JSR print_inline
-	.null "NETWORK: RR-NET", 13
+	.null C_CYAN, "NETWORK: ", C_WHITE, "RR-NET", 13
 	JMP _items
 +	JSR print_inline
-	.null "NO NETWORK HARDWARE FOUND", 13, "(ULTIMATE: ENABLE THE COMMAND INTERFACE)", 13
+	.null C_LRED, "NO NETWORK HARDWARE FOUND", 13, C_LGREY, "(ULTIMATE: ENABLE THE COMMAND INTERFACE)", 13
 _items
 	JSR print_inline
-	.null 13, "CONTROLS: JOYSTICK PORT 2 OR W A S D + SPACE", 13, "(LOCAL GAME: KEYS / PORT 1 = PLAYER 1)", 13, 13, "1  LOCAL GAME", 13
+	.null 13, C_CYAN, "CONTROLS: ", C_WHITE, "JOYSTICK 2 OR W A S D + SPACE", 13, C_LGREY, "(LOCAL GAME: KEYBOARD OR PORT 1 = PL. 1)", 13, 13, C_YELLOW, "1  ", C_LBLUE, "LOCAL GAME", 13
 	LDA net_backend
 	CMP #BACKEND_RRNET
 	BNE +
 	JSR print_inline
-	.null "2  HOST A NETWORK GAME", 13
+	.null C_YELLOW, "2  ", C_LBLUE, "HOST A NETWORK GAME", 13
 +	LDA net_backend
 	BEQ +
 	JSR print_inline
-	.null "3  JOIN A NETWORK GAME", 13, "4  PLAY VIA A GAME SERVER", 13
+	.null C_YELLOW, "3  ", C_LBLUE, "JOIN A NETWORK GAME", 13, C_YELLOW, "4  ", C_LBLUE, "PLAY VIA A GAME SERVER", 13
 +	JSR print_inline
-	.null 13, "CHOICE? "
+	.null 13, C_CYAN, "YOUR CHOICE? ", C_WHITE
 -	JSR GETIN
 	CMP #'1'
 	BEQ _local
@@ -1808,7 +1862,7 @@ _server
 setup_my_ip_rrnet .proc
 	; RR-Net: own address by DHCP or typed in; C=1: failed
 	JSR print_inline
-	.null 13, 13, "MY IP (RETURN = DHCP): "
+	.null 13, 13, C_CYAN, "MY IP (RETURN = DHCP): ", C_WHITE
 	JSR read_line
 	LDA host_len
 	BNE _static
@@ -1817,7 +1871,7 @@ setup_my_ip_rrnet .proc
 	#rr_call rr.net_dhcp
 	BCC _ok
 	JSR print_inline
-	.null "FAILED", 13
+	.null C_LRED, "FAILED", 13, C_WHITE
 	SEC
 	RTS
 _static
@@ -1845,7 +1899,7 @@ _static
 	#rr_call rr.net_set_ip
 _ok
 	JSR print_inline
-	.null 13, "MY IP: "
+	.null 13, C_CYAN, "MY IP: ", C_WHITE
 	#rr_call rr.net_get_ip
 	JSR print_ip
 	CLC
@@ -1862,7 +1916,7 @@ setup_host .proc
 	STA net_role
 	#rr_call rr.net_listen
 	JSR print_inline
-	.null 13, 13, "WAITING FOR PLAYER 2 ON PORT 6464", 13, "(ANY KEY = BACK)", 13
+	.null 13, 13, C_YELLOW, "WAITING FOR PLAYER 2 ON PORT 6464", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_WHITE
 -	JSR GETIN
 	BEQ +
 	JMP net_setup.net_menu
@@ -1872,7 +1926,7 @@ setup_host .proc
 	LDA net_connected
 	BEQ -
 	JSR print_inline
-	.null 13, "PLAYER 2 IS HERE.", 13, "YOU ARE PLAYER 1 (YELLOW).", 13, "PRESS FIRE ON THE TITLE SCREEN TO START.", 13
+	.null 13, C_YELLOW, "PLAYER 2 IS HERE.", 13, C_WHITE, "YOU ARE PLAYER 1 (YELLOW).", 13, "PRESS FIRE ON THE TITLE SCREEN TO START.", 13
 	JMP start_after_key
 .pend
 
@@ -1886,7 +1940,7 @@ setup_join .proc
 	BCC +
 	JMP wait_key_menu
 +	JSR print_inline
-	.null 13, 13, "IP OF THE HOST: "
+	.null 13, 13, C_CYAN, "IP OF THE HOST: ", C_WHITE
 	JSR read_line
 	LDA host_len
 	BNE +
@@ -1909,10 +1963,10 @@ _rr
 _opened
 	BCC +
 	JSR print_inline
-	.null "CANNOT OPEN THE CONNECTION", 13
+	.null C_LRED, "CANNOT OPEN THE CONNECTION", 13, C_WHITE
 	JMP wait_key_menu
 +	JSR print_inline
-	.null "CALLING THE HOST", 13, "(ANY KEY = BACK)", 13
+	.null C_YELLOW, "CALLING THE HOST", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_YELLOW
 	LDA #0
 	STA hello_timer
 	STA hello_timer+1
@@ -1939,7 +1993,7 @@ _loop
 	LDA net_connected
 	BEQ _loop
 	JSR print_inline
-	.null 13, "CONNECTED.", 13, "YOU ARE PLAYER 2 (BLUE).", 13, "THE HOST STARTS THE GAME.", 13
+	.null 13, C_YELLOW, "CONNECTED.", 13, C_WHITE, "YOU ARE PLAYER 2 (BLUE).", 13, "THE HOST STARTS THE GAME.", 13
 	JMP start_after_key
 .pend
 
@@ -1947,7 +2001,7 @@ _loop
 
 start_after_key .proc
 	JSR print_inline
-	.null 13, "PRESS A KEY"
+	.null 13, C_CYAN, "PRESS A KEY", C_WHITE
 -	JSR netio_poll ; keep answering (the host: repeated HELLOs)
 	BCS +
 	JSR proto_rx
@@ -1965,7 +2019,7 @@ start_the_game .proc
 
 wait_key_menu .proc
 	JSR print_inline
-	.null 13, "PRESS A KEY"
+	.null 13, C_CYAN, "PRESS A KEY", C_WHITE
 -	JSR GETIN
 	BEQ -
 	JMP net_setup.net_menu

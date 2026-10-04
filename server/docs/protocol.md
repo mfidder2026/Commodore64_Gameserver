@@ -30,6 +30,8 @@ Dit document is het contract tussen de server en de C64 (C64 Ultimate via UCI, V
 | `$0D` | PONG | beide |
 | `$0E` | BYE | C64 → server |
 | `$0F` | CHALLENGE_CANCELLED | server → C64 |
+| `$10` | PLAYERS | server → C64 |
+| `$11` | INVITE | C64 → server |
 | `$80-$FF` | game-specifiek | beide, alleen in een sessie |
 
 Typen `$00-$7F` zijn van het platform en voor elke game gelijk. Typen `$80-$FF` geeft de server door aan de game-module van de sessie.
@@ -48,6 +50,9 @@ Typen `$00-$7F` zijn van het platform en voor elke game gelijk. Typen `$80-$FF` 
 | 3 | 1 | gameversie (Wizard of Wor: `$01`) |
 | 4 | 1 | lengte nickname (1–8) |
 | 5 | n | nickname, ASCII `A-Z` en `0-9` (de C64 zet om van PETSCII) |
+| 5+n | 1 | optioneel: soort client, 0 = een mens aan een C64 (standaard), 1 = bot |
+
+De soort staat in de spelerslijsten (PLAYERS) en in het dashboard. Een C64 laat de byte weg.
 
 Herhalen (bijvoorbeeld elke 0,5 s) tot er een WELCOME of REJECT komt.
 
@@ -81,6 +86,39 @@ Voorbeeld: `02 01 07`
 
 De server stuurt dit elke 2 s naar iedereen in de lobby. Zo weet de C64 dat de verbinding leeft.
 
+### `$10` PLAYERS (server → C64)
+
+De lobbylijst: alle **andere** spelers van dezelfde game, eerst de mensen en dan de bots (elk in volgorde van binnenkomst), maximaal 16.
+
+| Offset | Grootte | Inhoud |
+|---|---|---|
+| 0 | 1 | `$10` |
+| 1 | 1 | totaal aantal spelers in de lijst |
+| 2 | 1 | index van de eerste speler in dit bericht |
+| 3 | 1 | aantal spelers in dit bericht (maximaal 6) |
+| 4 | … | per speler: client-id (1), vlaggen (1), lengte nickname (1), nickname (n) |
+
+Vlaggen: bit 0 = bot; bits 1-2 = status: `0` vrij, `2` bezig (beantwoordt of wacht op een uitdaging), `4` speelt.
+
+Een lange lijst komt in pagina's van 6 (de C64 leest maximaal 128 bytes per pakket). De server stuurt de lijst naar iedereen die niet speelt: kort na elke wijziging (hooguit elke 200 ms) en anders elke seconde. Bots krijgen geen lijsten.
+
+Voorbeeld, 1 van 3 spelers, de bot `GARWOR` die speelt: `10 03 00 01 04 05 06 47 41 52 57 4F 52`
+
+### `$11` INVITE (C64 → server)
+
+| Offset | Grootte | Inhoud |
+|---|---|---|
+| 0 | 1 | `$11` |
+| 1 | 1 | client-id van de gekozen tegenstander (uit PLAYERS) |
+| 2 | 1 | volgnummer: elke nieuwe uitnodiging een hoger nummer |
+
+- Is de tegenstander vrij, dan maakt de server een uitdaging. De uitnodiger heeft daarmee al geaccepteerd; alleen de tegenstander krijgt CHALLENGE. De uitnodiger krijgt spelerslot 0.
+- Is de tegenstander niet vrij (of onbekend), dan antwoordt de server met CHALLENGE_CANCELLED, uitdaging-id 0, reden 4.
+- Herhaal INVITE (bijvoorbeeld elke 0,5 s) tot START of CHALLENGE_CANCELLED komt. Een herhaling met hetzelfde volgnummer negeert de server.
+- **Intrekken:** DECLINE met uitdaging-id 0.
+
+Een bot accepteert elke uitdaging.
+
 ### `$05` CHALLENGE (server → C64)
 
 | Offset | Grootte | Inhoud |
@@ -92,6 +130,8 @@ De server stuurt dit elke 2 s naar iedereen in de lobby. Zo weet de C64 dat de v
 
 De server herhaalt dit elke 0,5 s tot de C64 antwoordt (ACCEPT of DECLINE), maximaal 30 s. Een herhaalde CHALLENGE met hetzelfde id: stuur je antwoord opnieuw.
 
+Een uitdaging komt van een INVITE van een andere speler, of - met `autoPair` aan - van de server zelf, die wachtende spelers koppelt.
+
 Voorbeeld, tegenstander `ANNA`: `05 03 04 41 4E 4E 41`
 
 ### `$06` ACCEPT / `$07` DECLINE (C64 → server)
@@ -101,7 +141,9 @@ Voorbeeld, tegenstander `ANNA`: `05 03 04 41 4E 4E 41`
 | 0 | 1 | `$06` of `$07` |
 | 1 | 1 | uitdaging-id |
 
-Pas als **alle** spelers geaccepteerd hebben, start de sessie. Na een weigering of time-out worden dezelfde spelers 60 s niet opnieuw aan elkaar gekoppeld.
+Pas als **alle** spelers geaccepteerd hebben, start de sessie. Na een weigering of time-out koppelt de server (met `autoPair`) dezelfde spelers 60 s niet opnieuw aan elkaar. Uitnodigen kan wel meteen weer.
+
+DECLINE met uitdaging-id 0 trekt je eigen uitnodiging in.
 
 ### `$0F` CHALLENGE_CANCELLED (server → C64)
 
@@ -109,7 +151,7 @@ Pas als **alle** spelers geaccepteerd hebben, start de sessie. Na een weigering 
 |---|---|---|
 | 0 | 1 | `$0F` |
 | 1 | 1 | uitdaging-id |
-| 2 | 1 | reden: 1 = geweigerd, 2 = geen antwoord binnen 30 s, 3 = een speler is weg |
+| 2 | 1 | reden: 1 = geweigerd (of ingetrokken), 2 = geen antwoord binnen 30 s, 3 = een speler is weg, 4 = niet vrij (antwoord op INVITE, uitdaging-id 0) |
 
 De speler staat weer in de lobby.
 
@@ -216,10 +258,12 @@ Totaal 24 bytes.
 C64 A                      server                      C64 B
 HELLO  ------------------>
        <------------------ WELCOME
-       <------------------ LOBBY (1)          <-------- HELLO
+       <------------------ PLAYERS (leeg)     <-------- HELLO
                            WELCOME --------------------->
-       <------------------ CHALLENGE (B)   CHALLENGE (A) -->
-ACCEPT ------------------>                 <------------ ACCEPT
+       <------------------ PLAYERS (B)     PLAYERS (A) ---->
+INVITE (B) -------------->
+                           CHALLENGE (A) --------------->
+                                           <------------ ACCEPT
        <------------------ START slot 0    START slot 1 --->
 START_ACK --------------->                 <------------ START_ACK
 INPUT  ------------------> INPUT ----------------------->

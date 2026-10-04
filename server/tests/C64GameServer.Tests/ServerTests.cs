@@ -22,7 +22,7 @@ internal sealed class FakeTransport : ITransport
 internal sealed class Harness
 {
     public readonly FakeTransport Net = new();
-    public readonly ServerConfig Config = new();
+    public readonly ServerConfig Config = new() { AutoPair = true, Bots = [] };
     public readonly ServerCore Core;
     public DateTime Now = new(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc);
 
@@ -426,5 +426,151 @@ public class PlatformTests
             if (i % 100 == 0) h.Advance(20);
         }
         Assert.True(h.Core.InvalidDatagrams > 0);
+    }
+}
+
+/// <summary>The lobby without auto pairing: the players see who is online and invite an opponent.</summary>
+public class ChooseOpponentTests
+{
+    private static Harness Lobby()
+    {
+        var h = new Harness();
+        h.Config.AutoPair = false;
+        return h;
+    }
+
+    private static byte IdOf(Harness h, string nick) => h.Core.Clients.Single(c => c.Nick == nick).Id;
+
+    private static List<PlayerEntry> ListOf(Harness h, IPEndPoint ep)
+    {
+        var all = new List<PlayerEntry>();
+        var pages = h.Net.To(ep, MsgType.Players).Select(m => Messages.ParsePlayers(m)!.Value).ToList();
+        var lastTotal = pages[^1].Total;
+        // the newest complete list: the last pages starting from the last page with index 0
+        int from = pages.FindLastIndex(p => p.First == 0);
+        foreach (var p in pages.Skip(from)) all.AddRange(p.Entries);
+        Assert.Equal(lastTotal, all.Count);
+        return all;
+    }
+
+    [Fact]
+    public void Hello_can_say_bot()
+    {
+        var m = Messages.Hello(1, 1, "WORLUK", bot: true);
+        Assert.Equal("01 01 01 01 06 57 4f 52 4c 55 4b 01", Messages.Hex(m));
+        Assert.True(Messages.ParseHello(m)!.Bot);
+        Assert.False(Messages.ParseHello(Messages.Hello(1, 1, "ERIK"))!.Bot);
+    }
+
+    [Fact]
+    public void Players_round_trip()
+    {
+        var m = Messages.Players(3, 0, [new PlayerEntry(4, PlayerFlags.Bot | PlayerFlags.Playing, "GARWOR")]);
+        Assert.Equal("10 03 00 01 04 05 06 47 41 52 57 4f 52", Messages.Hex(m));
+        var p = Messages.ParsePlayers(m)!.Value;
+        Assert.Equal((3, 0, "GARWOR", (byte)5), (p.Total, p.First, p.Entries[0].Nick, p.Entries[0].Flags));
+        Assert.Null(Messages.ParsePlayers(m.AsSpan(0, m.Length - 1)));
+    }
+
+    [Fact]
+    public void Without_auto_pairing_nobody_is_challenged()
+    {
+        var h = Lobby();
+        h.Hello(Harness.Ep(10), "ANNA");
+        h.Hello(Harness.Ep(11), "BERT");
+        h.Advance(2000);
+        Assert.Empty(h.Core.Challenges);
+        Assert.Null(h.Net.Last(Harness.Ep(10), MsgType.Challenge));
+    }
+
+    [Fact]
+    public void The_list_shows_the_others_people_first_with_kind_and_state()
+    {
+        var h = Lobby();
+        var a = Harness.Ep(10);
+        h.Recv(Harness.Ep(20), Messages.Hello(1, 1, "WORLUK", bot: true));
+        h.Hello(a, "ANNA");
+        h.Hello(Harness.Ep(11), "BERT");
+        h.Hello(Harness.Ep(12), "CARL");
+        h.Advance(300);
+        var list = ListOf(h, a);
+        Assert.Equal(["BERT", "CARL", "WORLUK"], list.Select(e => e.Nick));
+        Assert.Equal([PlayerFlags.Free, PlayerFlags.Free, PlayerFlags.Bot], list.Select(e => e.Flags));
+        Assert.Empty(h.Net.To(Harness.Ep(20), MsgType.Players)); // bots get no lists
+
+        // BERT invites CARL: both busy; then they play
+        h.Recv(Harness.Ep(11), Messages.Invite(IdOf(h, "CARL"), 1));
+        h.Advance(300);
+        Assert.Equal([PlayerFlags.Busy, PlayerFlags.Busy], ListOf(h, a).Take(2).Select(e => e.Flags));
+        h.Recv(Harness.Ep(12), MsgType.Accept, h.Net.Last(Harness.Ep(12), MsgType.Challenge)![1]);
+        h.Advance(300);
+        Assert.Equal([PlayerFlags.Playing, PlayerFlags.Playing], ListOf(h, a).Take(2).Select(e => e.Flags));
+    }
+
+    [Fact]
+    public void A_long_list_comes_in_pages_of_six()
+    {
+        var h = Lobby();
+        var a = Harness.Ep(10);
+        h.Hello(a, "ANNA");
+        for (int i = 0; i < 20; i++) h.Hello(Harness.Ep(100 + i), "P" + i);
+        h.Advance(1100);
+        var list = ListOf(h, a);
+        Assert.Equal(ProtocolConst.MaxListed, list.Count);
+        Assert.All(h.Net.To(a, MsgType.Players), m => Assert.True(m.Length <= 128));
+    }
+
+    [Fact]
+    public void Invite_challenges_only_the_target_and_starts_after_its_accept()
+    {
+        var h = Lobby();
+        var a = Harness.Ep(10);
+        var b = Harness.Ep(11);
+        h.Hello(a, "ANNA");
+        h.Hello(b, "BERT");
+        h.Recv(a, Messages.Invite(IdOf(h, "BERT"), 1));
+        var ch = h.Net.Last(b, MsgType.Challenge)!;
+        Assert.Equal("ANNA", System.Text.Encoding.ASCII.GetString(ch, 3, ch[2]));
+        Assert.Null(h.Net.Last(a, MsgType.Challenge)); // the inviter has accepted already
+        h.Recv(a, Messages.Invite(IdOf(h, "BERT"), 1)); // a repeat changes nothing
+        Assert.Single(h.Core.Challenges);
+        h.Recv(b, MsgType.Accept, ch[1]);
+        Assert.Equal(0, h.Net.Last(a, MsgType.Start)![2]); // the inviter is slot 0 (player 1)
+        Assert.Equal(1, h.Net.Last(b, MsgType.Start)![2]);
+    }
+
+    [Fact]
+    public void Inviting_a_busy_player_says_not_available()
+    {
+        var h = Lobby();
+        var a = Harness.Ep(10);
+        h.Hello(a, "ANNA");
+        h.Hello(Harness.Ep(11), "BERT");
+        h.Hello(Harness.Ep(12), "CARL");
+        h.Recv(Harness.Ep(11), Messages.Invite(IdOf(h, "CARL"), 1));
+        h.Recv(a, Messages.Invite(IdOf(h, "CARL"), 1));
+        Assert.Equal([MsgType.ChallengeCancelled, 0, (byte)CancelReason.NotAvailable], h.Net.Last(a, MsgType.ChallengeCancelled));
+        h.Recv(a, Messages.Invite(99, 2)); // unknown player
+        Assert.Equal(2, h.Net.To(a, MsgType.ChallengeCancelled).Count);
+    }
+
+    [Fact]
+    public void The_inviter_can_withdraw_and_the_target_can_decline()
+    {
+        var h = Lobby();
+        var a = Harness.Ep(10);
+        var b = Harness.Ep(11);
+        h.Hello(a, "ANNA");
+        h.Hello(b, "BERT");
+        h.Recv(a, Messages.Invite(IdOf(h, "BERT"), 1));
+        h.Recv(a, MsgType.Decline, 0); // withdraw
+        Assert.Empty(h.Core.Challenges);
+        Assert.NotNull(h.Net.Last(b, MsgType.ChallengeCancelled));
+
+        h.Recv(a, Messages.Invite(IdOf(h, "BERT"), 2)); // a new invite (new sequence number) works at once
+        h.Recv(b, MsgType.Decline, h.Net.Last(b, MsgType.Challenge)![1]);
+        Assert.Empty(h.Core.Challenges);
+        Assert.Equal((byte)CancelReason.Declined, h.Net.Last(a, MsgType.ChallengeCancelled)![2]);
+        Assert.All(h.Core.Clients, c => Assert.Equal(ClientState.Lobby, c.State));
     }
 }

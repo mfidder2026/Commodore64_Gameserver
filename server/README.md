@@ -53,21 +53,28 @@ VICE met RR-Net (Npcap) kan meestal **niet** praten met de PC waarop het zelf dr
 | `maxClients` | 32 | maximaal aantal verbonden C64's |
 | `idleTimeoutSeconds` | 10 | een client waarvan niets komt, is weg |
 | `challengeTimeoutSeconds` | 30 | tijd om een uitdaging te accepteren |
-| `declineCooldownSeconds` | 60 | na een weigering worden dezelfde spelers zolang niet gekoppeld |
+| `autoPair` | `false` | `false`: spelers kiezen zelf hun tegenstander in de lobby; `true`: de server koppelt wachtende spelers zelf |
+| `bots` | `WORLUK`, `GARWOR`, `THORWOR` | bots die met de server mee starten; `[]` = geen |
+| `botGame` | 1 | game van de ingebouwde bots |
+| `declineCooldownSeconds` | 60 | `autoPair`: na een weigering worden dezelfde spelers zolang niet gekoppeld |
 | `logFile` | `server.log` | gebeurtenissenlog |
 | `games` | Wizard of Wor (1), Relay demo (2) | zie `docs/nieuwe-game-toevoegen.md` |
 
 Instellingen van Wizard of Wor (`games[].settings`): `inputDelay` (4), `tickRate` (60) en `inputTimeoutSeconds` (10).
 
-## Testen zonder C64: de bot
+## De bots
+
+De server start zelf drie bots (`bots` in `server.json`). Ze staan in de lobby met de soort **bot**, accepteren elke uitdaging en spelen willekeurige zetten; het echte spel draait op de C64. Zo vindt een speler altijd een tegenstander.
+
+## Testen zonder C64: C64Bot
 
 `C64Bot` gedraagt zich als een C64 die Wizard of Wor speelt:
 
 ```bash
-publish\win-x64\C64Bot.exe --nick ANNA --ticks 3600
+publish\win-x64\C64Bot.exe --nick ANNA --human --invite WORLUK --ticks 3600 --no-checksum
 ```
 
-Twee bots in twee vensters vinden elkaar, accepteren en spelen. `--help` toont alle opties. De belangrijkste:
+ANNA daagt de ingebouwde bot WORLUK uit en speelt een minuut. `--help` toont alle opties. De belangrijkste:
 
 | Optie | Doel |
 |---|---|
@@ -77,11 +84,13 @@ Twee bots in twee vensters vinden elkaar, accepteren en spelen. `--help` toont a
 | `--bad-checksum-at 300` | de server moet een desync melden |
 | `--quit-at 300` | wegvallen; de tegenstander moet OPPONENT_LEFT krijgen |
 | `--decline` | elke uitdaging weigeren |
+| `--invite NAAM` | NAAM uitdagen zodra die vrij is in de lobbylijst |
+| `--human` | niet als bot in de lobbylijsten staan |
 | `--no-checksum` | tegen een echte C64 spelen (de bot kent de echte spelstate niet) |
 
 ## Verbinden vanaf de C64
 
-De C64 stuurt `HELLO` met zijn nickname naar `<ip-van-de-server>:6465` (UDP), wacht in de lobby, accepteert een uitdaging en speelt. Het protocol staat in [`docs/protocol.md`](docs/protocol.md).
+De C64 stuurt `HELLO` met zijn nickname naar `<ip-van-de-server>:6465` (UDP) en toont dan het lobbyscherm met de andere spelers (mens of bot, vrij / bezig / speelt). De speler kiest een tegenstander en daagt die uit, of accepteert een uitdaging. Het protocol staat in [`docs/protocol.md`](docs/protocol.md).
 
 ## Ontwikkeling
 

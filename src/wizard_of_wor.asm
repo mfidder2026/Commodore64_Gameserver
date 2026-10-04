@@ -6959,6 +6959,7 @@ kernal_ioinit_prg
 	JMP net_game_init
 
 	.include "net/game_net.asm"
+	.include "net/lobby.asm"
 	.cerror * > $D000, "the network code must end below $D000"
 
 	.include "net/netgame.asm" ; $4000-$7FFF: ip65, setup menu, network I/O, lockstep

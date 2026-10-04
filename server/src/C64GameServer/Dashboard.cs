@@ -120,6 +120,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                 {
                     id = c.Id,
                     nick = c.Nick,
+                    kind = c.IsBot ? "bot" : "human",
                     address = c.EndPoint.ToString(),
                     game = core.Games.Get(c.GameId)?.Name ?? c.GameId.ToString(),
                     state = c.State switch
@@ -204,8 +205,8 @@ function render(s) {
   document.getElementById('connect').textContent = s.addresses.map(a => a + ' : ' + s.port).join('   ');
   document.getElementById('summary').textContent =
     `uptime ${s.uptime} · ${s.players.length} spelers · ${s.sessions.length} sessies · games: ${s.games.map(g => g.id + ' ' + g.name).join(', ')} · ongeldige pakketten: ${s.stats.invalid}`;
-  document.getElementById('players').innerHTML = '<tr><th>naam</th><th>adres</th><th>game</th><th>status</th><th>ping</th><th>laatst</th><th></th></tr>' +
-    s.players.map(p => `<tr><td>${esc(p.nick)}</td><td>${esc(p.address)}</td><td>${esc(p.game)}</td><td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
+  document.getElementById('players').innerHTML = '<tr><th>naam</th><th>soort</th><th>adres</th><th>game</th><th>status</th><th>ping</th><th>laatst</th><th></th></tr>' +
+    s.players.map(p => `<tr><td>${esc(p.nick)}</td><td>${p.kind === 'bot' ? 'bot' : 'mens'}</td><td>${esc(p.address)}</td><td>${esc(p.game)}</td><td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
       <td><button onclick="post('/api/kick/${p.id}')">verwijder</button></td></tr>`).join('');
   document.getElementById('sessions').innerHTML = s.sessions.length ? s.sessions.map(x => `
     <div style="margin-bottom:10px"><b>#${x.id} ${esc(x.game)}</b>: ${esc(x.players)} · ${x.duration} · gestart: ${x.started} · ${esc(x.traffic)} · ${esc(x.rate)}

@@ -25,6 +25,7 @@ public sealed class ServerCore
     private byte _nextClientId, _nextChallengeId, _nextSessionId;
     private ushort _nextPingToken;
     private DateTime _now;
+    private bool _playersChanged; // the lobby lists must be sent again
 
     public DateTime StartedAt { get; }
     public long UnknownDatagrams { get; private set; }
@@ -86,6 +87,9 @@ public sealed class ServerCore
                 break;
             case MsgType.Decline when data.Length == 2:
                 HandleAnswer(client, data[1], accept: false);
+                break;
+            case MsgType.Invite when data.Length == 3:
+                HandleInvite(client, data[1], data[2]);
                 break;
             case MsgType.StartAck when data.Length == 2:
                 if (client.Session is { } s && s.Id == data[1] && s.StartAcked.Add(client))
@@ -178,14 +182,16 @@ public sealed class ServerCore
             Nick = hello.Nick,
             GameId = hello.GameId,
             GameVersion = hello.GameVersion,
+            IsBot = hello.Bot,
             Connected = _now,
             LastSeen = _now,
             LobbySince = _now,
             LastLobby = DateTime.MinValue,
         };
         _clients[from] = client;
+        _playersChanged = true;
         Send(client, Messages.Welcome(client.Id));
-        LogEvent("connect", $"{client.Nick} ({from}) joined the lobby of {game.Name}", client);
+        LogEvent("connect", $"{client.Nick} ({from}){(client.IsBot ? " (bot)" : "")} joined the lobby of {game.Name}", client);
     }
 
     private void Reject(IPEndPoint to, RejectReason reason, string why)
@@ -197,7 +203,15 @@ public sealed class ServerCore
     private void HandleAnswer(Client client, byte challengeId, bool accept)
     {
         var ch = client.Challenge;
-        if (ch == null || ch.Id != challengeId) return; // an old or repeated answer
+        if (ch == null) return;
+        if (challengeId == 0 && !accept && ch.Accepted.Contains(client))
+        {
+            // DECLINE with id 0: the player withdraws the invitation he sent
+            LogEvent("challenge", $"{client.Nick} withdrew the challenge", client);
+            CancelChallenge(ch, CancelReason.Declined, cooldown: false);
+            return;
+        }
+        if (ch.Id != challengeId) return; // an old or repeated answer
         if (!accept)
         {
             LogEvent("challenge", $"{client.Nick} declined", client);
@@ -208,6 +222,23 @@ public sealed class ServerCore
         LogEvent("challenge", $"{client.Nick} accepted", client);
         if (ch.Accepted.Count == ch.Players.Count)
             StartSession(ch);
+    }
+
+    private void HandleInvite(Client client, byte targetId, byte seq)
+    {
+        if (seq == client.LastInviteSeq) return; // a repeated INVITE (the C64 repeats it until it sees the outcome)
+        client.LastInviteSeq = seq;
+        var target = _clients.Values.FirstOrDefault(c => c.Id == targetId);
+        var game = _games.Get(client.GameId)!;
+        if (client.State != ClientState.Lobby || target == null || target == client || target.GameId != client.GameId ||
+            target.State != ClientState.Lobby || game.MinPlayers != 2)
+        {
+            LogEvent("challenge", $"{client.Nick} invited {target?.Nick ?? "#" + targetId}: not available", client);
+            Send(client, Messages.ChallengeCancelled(0, CancelReason.NotAvailable));
+            return;
+        }
+        LogEvent("challenge", $"{client.Nick} invites {target.Nick}{(target.IsBot ? " (bot)" : "")}", client);
+        CreateChallenge(game, [client, target], acceptedBy: client);
     }
 
     private void HandleGameMessage(Client client, ReadOnlySpan<byte> data)
@@ -252,6 +283,7 @@ public sealed class ServerCore
                 Send(c, Messages.Lobby((byte)Math.Min(waiting, 255)));
             }
         }
+        SendPlayerLists(now);
 
         foreach (var ch in _challenges.ToList())
         {
@@ -282,8 +314,47 @@ public sealed class ServerCore
         foreach (var key in _cooldown.Where(kv => kv.Value < now).Select(kv => kv.Key).ToList())
             _cooldown.Remove(key);
 
-        PairPlayers();
+        if (_config.AutoPair) PairPlayers();
     }
+
+    // ------------------------------------------------------------------ lobby list
+
+    /// <summary>
+    /// Everyone who is not playing gets the list of the other players of his game: soon after a change
+    /// (at most every 200 ms) and else every second (UDP: a lost list is replaced by the next one).
+    /// </summary>
+    private void SendPlayerLists(DateTime now)
+    {
+        bool changed = _playersChanged;
+        _playersChanged = false;
+        foreach (var c in _clients.Values.Where(c => c.State != ClientState.InSession && !c.IsBot))
+        {
+            if (now - c.LastPlayers < TimeSpan.FromMilliseconds(changed ? 200 : 1000))
+            {
+                if (changed) _playersChanged = true; // send it as soon as the 200 ms are over
+                continue;
+            }
+            c.LastPlayers = now;
+            var list = PlayerList(c);
+            const int per = ProtocolConst.PlayersPerMessage;
+            int pages = Math.Max(1, (list.Count + per - 1) / per);
+            for (int i = 0; i < pages; i++)
+                Send(c, Messages.Players(list.Count, i * per, list.Skip(i * per).Take(per).ToList()));
+        }
+    }
+
+    /// <summary>The other players of the client's game for its lobby screen: people first, then the bots.</summary>
+    public List<PlayerEntry> PlayerList(Client c) =>
+        _clients.Values.Where(o => o != c && o.GameId == c.GameId)
+            .OrderBy(o => o.IsBot).ThenBy(o => o.Connected).ThenBy(o => o.Id)
+            .Take(ProtocolConst.MaxListed)
+            .Select(o => new PlayerEntry(o.Id, (byte)((o.IsBot ? PlayerFlags.Bot : 0) | o.State switch
+            {
+                ClientState.Lobby => PlayerFlags.Free,
+                ClientState.Challenged => PlayerFlags.Busy,
+                _ => PlayerFlags.Playing,
+            }), o.Nick))
+            .ToList();
 
     private void PairPlayers()
     {
@@ -321,7 +392,7 @@ public sealed class ServerCore
 
     // ------------------------------------------------------------------ challenges and sessions
 
-    private void CreateChallenge(IGameModule game, List<Client> players)
+    private Challenge CreateChallenge(IGameModule game, List<Client> players, Client? acceptedBy = null)
     {
         var ch = new Challenge
         {
@@ -335,9 +406,12 @@ public sealed class ServerCore
             p.State = ClientState.Challenged;
             p.Challenge = ch;
         }
+        if (acceptedBy != null) ch.Accepted.Add(acceptedBy); // the inviting player
         _challenges.Add(ch);
+        _playersChanged = true;
         LogEvent("challenge", $"{game.Name}: {string.Join(" vs ", players.Select(p => p.Nick))}");
         SendChallenge(ch);
+        return ch;
     }
 
     private void SendChallenge(Challenge ch)
@@ -354,6 +428,7 @@ public sealed class ServerCore
     private void CancelChallenge(Challenge ch, CancelReason reason, bool cooldown)
     {
         _challenges.Remove(ch);
+        _playersChanged = true;
         foreach (var p in ch.Players)
         {
             p.Challenge = null;
@@ -376,6 +451,7 @@ public sealed class ServerCore
     private void StartSession(Challenge ch)
     {
         _challenges.Remove(ch);
+        _playersChanged = true;
         var game = _games.Get(ch.GameId)!;
         var s = new Session
         {
@@ -412,6 +488,7 @@ public sealed class ServerCore
     public void EndSession(Session s, EndReason reason, string why)
     {
         if (!_sessions.Remove(s)) return;
+        _playersChanged = true;
         foreach (var p in s.Players)
         {
             if (p.Session != s) continue;
@@ -428,6 +505,7 @@ public sealed class ServerCore
     private void RemoveClient(Client c, string why)
     {
         if (!_clients.Remove(c.EndPoint)) return;
+        _playersChanged = true;
         LogEvent("disconnect", $"{c.Nick} left: {why}", c);
         if (c.Challenge is { } ch)
             CancelChallenge(ch, CancelReason.PlayerLeft, cooldown: false);

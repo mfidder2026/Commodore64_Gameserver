@@ -22,6 +22,18 @@ public sealed class ServerConfig
     public double DeclineCooldownSeconds { get; set; } = 60;
 
     public int LobbyIntervalMs { get; set; } = 2000;
+
+    /// <summary>
+    /// false (default): the players choose their opponent in the lobby (INVITE).
+    /// true: the server pairs waiting players by itself (the first version of the protocol).
+    /// </summary>
+    public bool AutoPair { get; set; }
+
+    /// <summary>Bots the server starts together with itself; they accept every challenge.</summary>
+    public List<string> Bots { get; set; } = ["WORLUK", "GARWOR", "THORWOR"];
+
+    /// <summary>Game the built-in bots play.</summary>
+    public byte BotGame { get; set; } = 1;
     public int PingIntervalMs { get; set; } = 2000;
 
     public string LogFile { get; set; } = "server.log";

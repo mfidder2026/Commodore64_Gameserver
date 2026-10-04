@@ -3,6 +3,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
+using C64GameServer.Bots;
 using C64GameServer.Core;
 using C64GameServer.Games;
 
@@ -88,10 +89,38 @@ internal static class Program
         Dashboard.SetGamePort(config.GamePort);
         var dashboard = new Dashboard(host, config.DashboardPort);
         var dashboardTask = dashboard.Run(cts.Token);
+        StartBots(config, log, cts.Token);
         await host.Run(cts.Token);
         await dashboardTask;
         log.Add(DateTime.UtcNow, "server", "stopped");
         return 0;
+    }
+
+    /// <summary>
+    /// The built-in bots (server.json "bots"): normal clients over the loopback interface that accept every challenge,
+    /// so a player always finds an opponent. They play random moves; the real game runs on the C64.
+    /// </summary>
+    private static void StartBots(ServerConfig config, EventLog log, CancellationToken ct)
+    {
+        foreach (var nick in config.Bots.Select(b => b.ToUpperInvariant()).Distinct())
+        {
+            if (!Protocol.Messages.IsValidNick(nick))
+            {
+                log.Add(DateTime.UtcNow, "error", $"bot name {nick} is invalid (A-Z, 0-9, max 8)");
+                continue;
+            }
+            var bot = new BotClient(new BotOptions
+            {
+                Server = new IPEndPoint(IPAddress.Loopback, config.GamePort),
+                Nick = nick,
+                Game = config.BotGame,
+                Games = 0,
+                Ticks = int.MaxValue, // the game over comes from the C64
+                NoChecksum = true,    // the bot does not know the real game state
+                Quiet = true,
+            });
+            new Thread(() => bot.Run(ct)) { IsBackground = true, Name = "bot " + nick }.Start();
+        }
     }
 
     private static void PrintBanner(ServerConfig config, GameRegistry games)
@@ -104,6 +133,7 @@ internal static class Program
             Console.WriteLine($"     {ip}");
         Console.WriteLine($" Dashboard: http://localhost:{config.DashboardPort}/");
         Console.WriteLine(" Games: " + string.Join(", ", games.All.Select(g => $"{g.GameId} = {g.Name}")));
+        if (config.Bots.Count > 0) Console.WriteLine(" Bots: " + string.Join(", ", config.Bots));
         Console.WriteLine(" Ctrl+C stops the server.");
         Console.WriteLine();
     }

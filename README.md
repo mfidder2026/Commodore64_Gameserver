@@ -7,9 +7,9 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
   <img src="docs/images/game_b.png" width="49%" alt="The Worriors and the monsters">
 </p>
 
-| Setup menu | Title screen |
-|---|---|
-| ![Setup menu](docs/images/setup_menu.png) | ![Title screen](docs/images/title.png) |
+| Setup menu | Game server lobby | Title screen |
+|---|---|---|
+| ![Setup menu](docs/images/setup_menu.png) | ![Lobby screen](docs/images/lobby.png) | ![Title screen](docs/images/title.png) |
 
 | C64 Game Server dashboard |
 |---|
@@ -23,7 +23,7 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
 - **Three ways to play**
   - **Local:** two joysticks, or one joystick plus the keyboard (W A S D + SPACE).
   - **Direct:** VICE/RR-Net hosts, a C64 Ultimate (or another RR-Net) joins. No server needed.
-  - **Via the C64 Game Server:** nickname, lobby, challenge and accept. Needed for C64 Ultimate ↔ C64 Ultimate.
+  - **Via the C64 Game Server:** nickname, a lobby screen with everyone online (people and bots), choose your opponent. Needed for C64 Ultimate ↔ C64 Ultimate.
 - **Robust networking over UDP:** every input packet repeats the last 16 inputs, packets are resent while waiting, state checksums detect a desync, and a lost opponent sends you back to the title screen.
 - **C64 Game Server** (.NET 8, Windows and Raspberry Pi): lobby, challenges, sessions, a relay with checksum checks, a live web dashboard, and a test bot that behaves like a C64.
 
@@ -36,7 +36,7 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
 | Direct network play, VICE ↔ VICE | verified (lockstep, identical checksums) |
 | C64 Ultimate network driver | measured on real hardware (round trip from 8 ms) |
 | C64 Ultimate ↔ VICE, game | built, **not yet tested on real hardware** |
-| C64 Game Server + bot | 30 automated tests, bot ↔ bot sessions without errors |
+| C64 Game Server + bot | 38 automated tests, bot ↔ bot sessions without errors |
 | C64 ↔ C64 Game Server | built, **not yet tested on real hardware** |
 
 ## Hardware
@@ -91,7 +91,7 @@ server\publish.bat
    - **1 LOCAL GAME:** joystick in port 2 for player 2, joystick in port 1 or the keyboard for player 1.
    - **2 HOST A NETWORK GAME** (RR-Net only): enter your IP (or RETURN for DHCP) and wait.
    - **3 JOIN A NETWORK GAME:** enter the host's IP.
-   - **4 PLAY VIA A GAME SERVER:** enter a nickname and the server's IP. On the title screen the bottom line shows the lobby; accept a challenge with FIRE, decline with N.
+   - **4 PLAY VIA A GAME SERVER:** enter a nickname and the server's IP. The lobby screen lists everyone online, person or bot, and whether they are free, busy or playing. Pick an opponent with the joystick (or W/S) and challenge them with FIRE; accept a challenge with FIRE, decline with N.
 3. In a network game each player uses joystick port 2 or W A S D + SPACE. The host (or the server) starts the game.
 
 ## The C64 Game Server
@@ -102,7 +102,8 @@ server\publish\win-x64\C64GameServer.exe
 
 - C64s connect to **UDP port 6465**; the dashboard is at `http://localhost:8080/`.
 - **LAN only:** no encryption, no accounts. Never expose it to the internet.
-- `C64Bot.exe` plays like a C64, so you can test without hardware, or let one real C64 play against it (`--no-checksum`).
+- The server starts three bots (WORLUK, GARWOR, THORWOR) that accept every challenge, so there is always an opponent.
+- `C64Bot.exe` plays like a C64, so you can test without hardware.
 
 More in [`server/README.md`](server/README.md) and the protocol in [`server/docs/protocol.md`](server/docs/protocol.md) (both in Dutch).
 
@@ -112,6 +113,7 @@ More in [`server/README.md`](server/README.md) and the protocol in [`server/docs
 |---|---|
 | `tools/dettest.py` | determinism: PAL and NTSC VICE play the same bot game, checksums compared |
 | `tools/netgame_test.py` | network lockstep: VICE host vs VICE join over RR-Net |
+| `tools/lobby_view.py` | the lobby screen in VICE with a made-up player list (screenshots) |
 | `tools/speedtest.py` | can a C64 keep up with 60 ticks per second? |
 | `tools/profile_run.py` | measures the cost of the original game loop (the cost model) |
 | `tools/netpeer.py` | PC peer for the network measurement tool |

@@ -17,6 +17,12 @@ public sealed class Client
     public required string Nick { get; init; }
     public required byte GameId { get; init; }
     public required byte GameVersion { get; init; }
+
+    /// <summary>The client said in its HELLO that it is a bot.</summary>
+    public bool IsBot { get; init; }
+
+    /// <summary>Sequence number of the last INVITE handled (-1: none), so repeated INVITEs are ignored.</summary>
+    public int LastInviteSeq { get; set; } = -1;
     public ClientState State { get; set; } = ClientState.Lobby;
     public DateTime Connected { get; init; }
     public DateTime LastSeen { get; set; }
@@ -32,6 +38,7 @@ public sealed class Client
     public DateTime PingSent { get; set; }
     public DateTime LastPing { get; set; }
     public DateTime LastLobby { get; set; }
+    public DateTime LastPlayers { get; set; }
 
     public long MessagesIn { get; set; }
     public long BytesIn { get; set; }

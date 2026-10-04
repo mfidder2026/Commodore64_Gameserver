@@ -274,7 +274,12 @@ session_end .proc
 	LDA net_role
 	BEQ +
 	JSR proto_session_end
-+	JMP vic_init
++	JSR vic_init
+	LDA net_role
+	CMP #ROLE_SERVER
+	BNE +
+	JSR lobby_screen ; game server: the lobby replaces the title screens, back here when a game starts (lobby.asm)
++	RTS
 .pend
 
 ;============================================================
