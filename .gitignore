@@ -8,3 +8,6 @@ docs/c64_ka_syntax_checker.py
 # server runtime files when started from the project root
 /server.json
 /server.log
+
+# release packages (tools/make_release.py)
+/dist/

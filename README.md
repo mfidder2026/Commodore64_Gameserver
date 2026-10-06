@@ -27,6 +27,10 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
 |---|
 | ![Dashboard](docs/images/dashboard.png) |
 
+## Download
+
+No need to build anything: the [**Releases**](https://github.com/mfidder2026/Commodore64_Gameserver/releases) page has the C64 disk image (`wow.d64`) and the C64 Game Server for Windows and for a Raspberry Pi, ready to run (no .NET installation needed).
+
 ## Features
 
 - **The original game, unchanged in look and feel**, rebuilt from the [commented disassembly by dabadab](https://github.com/dabadab/wizardofwor). Every change to the original 16 KB image is a same-size patch, so its layout stays exactly the same.
