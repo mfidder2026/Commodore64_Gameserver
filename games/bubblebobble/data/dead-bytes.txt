@@ -1,0 +1,60 @@
+# Dead Bytes Registry
+# ===================
+# This file contains byte values for regions that exist in the original ROM
+# but are not actually used by the game. These include:
+# - Sprite padding bytes (byte 64 of each 64-byte sprite block, unused by VIC-II)
+# - Alignment padding between segments
+# - Other filler data
+#
+# Format:
+#   key: XX XX XX ...
+#
+# Where:
+#   - key: identifier used by converters to look up the values
+#   - XX: hex byte values (space-separated)
+#
+# Lines starting with # are comments. Blank lines are ignored.
+
+# =============================================================================
+# Sprite Padding Bytes
+# =============================================================================
+# The VIC-II only uses 63 bytes per sprite (21 rows x 3 bytes). Byte 64 of each
+# 64-byte sprite block is ignored by hardware. The original ROM contains
+# non-zero values in these locations which we preserve for byte-compatibility.
+
+# bubble-dragon-in-bubble.tga: 8 sprites at $7440-$75FF
+# Contents: Bubble dragon in bubble (2 images x 4 sprites each)
+# Padding bytes are at: $747F, $74BF, $74FF, $753F, $757F, $75BF, $75FF (every 64 bytes)
+bubble-dragon-in-bubble.padding: 35 35 35 35 35 35 03 03
+
+# grumple-gromit.tga: 27 sprites total
+# Contents: Grumple Gromit facing left (9) + in bubble (9) + facing right (9)
+# Memory layout:
+#   Left+bubble at $7600-$7ABF (18 sprites, bytes 0-1151 of bin)
+#   Right at $7C40-$7E7F (9 sprites, bytes 1152-1727 of bin)
+grumple-gromit.padding: ea 55 20 55 03 00 03 00 a0 ea 55 20 55 03 00 03 00 a0 00 7d ff 00 00 00 00 00 00
+
+# sprites-game.tga: 97 sprites at $5800-$703F
+# Contents: Players, bubbles, EXTEND letters, enemies, items, animations
+# Memory layout:
+#   $5800-$5FFF: 32 sprites (pointers $160-$17F) - players, bubbles, EXTEND
+#   $6000-$703F: 65 sprites (pointers $180-$1C0) - enemies, items, animations
+# Padding bytes are at: $583F, $587F, $58BF, ... $6FFF (every 64 bytes)
+sprites-game.padding: 00 08 00 00 00 00 00 03 03 10 0a fc 12 00 04 03 51 08 08 08 08 08 08 08 08 08 08 08 30 30 08 30 30 30 30 30 30 08 08 08 08 08 08 08 08 08 08 08 08 08 00 00 00 00 08 35 35 35 35 00 00 00 08 00 03 03 03 03 03 03 03 03 03 03 08 08 08 08 08 08 08 08 08 30 30 08 08 08 08 08 08 08 08 35 08 35 08
+
+# bonus-cake.tga: 4 sprites at $A320-$A41F
+# Contents: Giant cupcake (top-left, top-right, bottom-left, bottom-right)
+# Padding bytes are at: $A35F, $A39F, $A3DF, $A41F (every 64 bytes)
+bonus-cake.padding: 00 00 00 00
+
+# bonus-melon.tga: 2 sprites at $A4A0-$A51F
+# Contents: Giant watermelon slice (left, right)
+# Padding bytes are at: $A4DF, $A51F (every 64 bytes)
+# Also includes 1 padding byte at end of melon-top-right data ($A49F)
+bonus-melon.padding: 00 00
+bonus-melon-top.padding: 00
+
+# bonus-diamond.tga: 2 sprites at $A520-$A59F
+# Contents: Giant diamond (left, right)
+# Padding bytes are at: $A55F, $A59F (every 64 bytes)
+bonus-diamond.padding: 00 00

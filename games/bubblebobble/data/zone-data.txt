@@ -1,0 +1,519 @@
+# Zone Data for Bubble Bobble C64
+# 
+# Format:
+#   level <N>           - Start of level N definition
+#   level <N> -> <M>    - Level N uses level M's data
+#   level <N> size=<S>  - Level with explicit block size (for byte-exact output)
+#   rect <x> <y> <w> <h> type=<T>  - Rectangle at (x,y) with size (w,h)
+#   mirror              - Mirror left half to right half
+#
+# Zone types:
+#   0 = Default (spawn allowed at bottom corners)
+#   1 = Left-biased
+#   2 = Right-biased (spawn allowed at top corners)
+#   3 = Type 3
+#
+# Coordinates: x=0-31 (column), y=0-23 (row)
+# Screen is 32 columns x 24 rows
+
+level 0 size=5
+  rect 0 1 14 4 type=1
+
+level 1 -> 0
+
+level 2 size=20
+  rect 0 3 11 1 type=0
+  rect 0 4 5 16 type=0
+  rect 14 17 2 7 type=0
+  rect 15 1 1 7 type=2
+  rect 15 8 1 6 type=0
+  rect 14 10 1 5 type=0
+
+level 3 size=20
+  rect 0 1 8 2 type=2
+  rect 0 4 5 7 type=0
+  rect 0 15 5 10 type=0
+  rect 10 7 2 10 type=2
+  rect 14 1 2 14 type=2
+  rect 14 15 2 4 type=0
+
+level 4 size=23 trailing=e90d80a71c00c70841
+  rect 4 5 11 3 type=1
+  rect 6 10 10 3 type=3
+  rect 2 15 13 3 type=1
+  rect 6 20 10 4 type=3
+
+level 5 size=20 trailing=e61e00a24601e66e00a29600
+  rect 2 23 8 1 type=1
+  rect 12 23 5 1 type=3
+
+level 6 size=17
+  rect 2 1 6 4 type=1
+  rect 2 5 8 5 type=1
+  rect 2 10 10 5 type=1
+  rect 2 15 12 4 type=1
+  rect 2 20 12 4 type=1
+
+level 7 size=17
+  rect 0 1 5 13 type=2
+  rect 6 3 2 9 type=0
+  rect 6 12 2 3 type=2
+  rect 0 14 4 6 type=1
+  rect 8 21 9 3 type=3
+
+level 8 size=20
+  rect 4 2 5 12 type=3
+  rect 5 14 5 3 type=3
+  rect 8 17 6 4 type=3
+  rect 12 11 3 7 type=3
+  rect 14 5 2 9 type=3
+  rect 2 23 13 1 type=1
+
+level 9 size=26
+  rect 12 2 4 11 type=1
+  rect 6 5 6 6 type=1
+  rect 10 2 3 7 type=3
+  rect 2 2 4 3 type=1
+  rect 6 2 3 3 type=2
+  rect 8 5 2 2 type=2
+  rect 10 7 2 2 type=2
+  rect 12 9 2 2 type=2
+
+level 10 size=14
+  rect 4 2 12 1 type=3
+  rect 2 11 10 2 type=1
+  rect 2 9 3 6 type=1
+  rect 4 22 10 2 type=1
+
+level 11 size=32
+  rect 0 1 5 6 type=2
+  rect 0 7 3 12 type=1
+  rect 3 7 1 12 type=2
+  rect 0 19 9 5 type=0
+  rect 6 8 3 11 type=0
+  rect 9 13 2 2 type=0
+  rect 9 15 4 6 type=0
+  rect 13 17 2 7 type=0
+  rect 15 3 1 12 type=0
+  rect 14 3 1 8 type=1
+
+level 12 size=11
+  rect 4 1 6 2 type=1
+  rect 0 1 4 23 type=1
+  rect 12 1 4 2 type=3
+
+level 13 size=50
+  rect 0 1 10 2 type=1
+  rect 4 3 12 2 type=3
+  rect 0 5 10 2 type=1
+  rect 4 7 7 2 type=3
+  rect 0 9 6 2 type=1
+  rect 4 11 5 2 type=3
+  rect 0 13 6 2 type=1
+  rect 4 15 5 2 type=3
+  rect 0 17 5 2 type=1
+  rect 4 19 12 2 type=3
+  rect 0 21 10 1 type=1
+  rect 4 22 12 2 type=3
+  rect 12 21 4 1 type=3
+  rect 13 1 3 2 type=3
+  rect 12 5 4 3 type=3
+  rect 8 8 7 11 type=3
+
+level 14 size=28
+  rect 0 1 4 4 type=1
+  rect 6 1 13 5 type=3
+  rect 0 22 29 2 type=1
+  rect 4 21 24 1 type=2
+  rect 19 13 8 2 type=3
+  rect 19 3 4 3 type=3
+  rect 23 3 2 4 type=1
+  rect 25 2 3 3 type=2
+  rect 28 1 2 5 type=3
+
+level 15 size=29
+  rect 4 1 7 2 type=3
+  rect 6 7 8 2 type=1
+  rect 11 1 1 2 type=1
+  rect 14 3 2 3 type=0
+  rect 15 6 1 13 type=0
+  rect 11 3 3 4 type=1
+  rect 7 15 2 10 type=0
+  rect 11 19 2 5 type=0
+  rect 13 21 3 3 type=3
+
+level 16 size=14
+  rect 7 2 9 4 type=3
+  rect 6 16 10 5 type=3
+  rect 0 14 5 2 type=1
+  rect 5 12 2 2 type=3
+
+level 17 size=29
+  rect 0 0 5 3 type=1
+  rect 0 4 13 2 type=1
+  rect 5 0 2 5 type=2
+  rect 3 7 13 2 type=3
+  rect 0 10 14 2 type=1
+  rect 3 13 13 2 type=3
+  rect 0 16 14 2 type=1
+  rect 3 19 13 2 type=3
+  rect 0 22 14 2 type=1
+
+level 18 size=17
+  rect 0 2 14 2 type=1
+  rect 13 4 2 7 type=1
+  rect 13 12 3 5 type=1
+  rect 4 18 12 2 type=3
+  rect 9 20 5 2 type=3
+
+level 19 size=20 trailing=a046819b18c8e51680a62c009718c2
+  rect 4 18 12 1 type=3
+
+level 20 size=20 trailing=a00cc1f709819300c0
+  rect 0 22 15 2 type=1
+  rect 12 7 3 17 type=1
+  rect 14 8 2 2 type=2
+
+level 21 size=11
+  rect 4 17 12 7 type=3
+  rect 0 1 10 3 type=1
+  rect 13 1 3 3 type=3
+
+level 22 size=23
+  rect 2 1 6 8 type=1
+  rect 4 13 2 2 type=1
+  rect 2 19 2 2 type=1
+  rect 8 22 8 2 type=3
+  rect 10 5 3 15 type=3
+  rect 15 1 1 18 type=2
+  rect 12 14 3 2 type=1
+
+level 23 size=14
+  rect 2 16 10 2 type=1
+  rect 2 19 11 2 type=1
+  rect 2 22 4 2 type=1
+  rect 14 16 2 2 type=3
+
+level 24 size=10
+  rect 2 13 4 2 type=1
+  rect 8 12 22 3 type=3
+  rect 5 15 14 2 type=2
+
+level 25 size=0
+
+level 26 size=8
+  rect 4 22 11 2 type=3
+  rect 15 1 1 3 type=2
+
+level 27 size=11
+  rect 7 1 3 21 type=1
+  rect 13 1 3 22 type=1
+  rect 15 14 1 10 type=0
+
+level 28 size=0
+
+level 29 size=17
+  rect 2 1 8 3 type=1
+  rect 2 10 9 4 type=1
+  rect 13 1 3 3 type=3
+  rect 13 10 3 4 type=3
+  rect 2 21 13 3 type=1
+
+level 30 size=16
+  rect 2 5 26 2 type=1
+  rect 4 9 26 2 type=3
+  rect 2 13 26 2 type=1
+  rect 4 17 26 2 type=3
+  rect 2 22 26 2 type=1
+
+level 31 size=14
+  rect 2 1 13 5 type=1
+  rect 6 7 10 5 type=2
+  rect 6 10 9 4 type=1
+  rect 5 17 11 7 type=3
+
+level 32 size=14 trailing=c52481
+  rect 2 1 7 2 type=1
+  rect 13 1 3 2 type=3
+  rect 4 21 12 3 type=3
+
+level 33 size=0
+
+level 34 size=8
+  rect 4 1 12 2 type=3
+  rect 4 3 8 5 type=1
+
+level 35 -> 0
+
+level 36 size=16
+  rect 2 1 8 3 type=1
+  rect 6 5 14 4 type=2
+  rect 7 11 4 2 type=1
+  rect 14 9 4 3 type=1
+  rect 6 18 24 2 type=3
+
+level 37 size=0
+
+level 38 size=8
+  rect 4 3 9 2 type=3
+  rect 12 21 4 2 type=3
+
+level 39 size=23
+  rect 9 22 6 2 type=1
+  rect 4 18 12 3 type=3
+  rect 2 10 6 3 type=1
+  rect 10 10 6 3 type=3
+  rect 2 6 13 3 type=1
+  rect 2 14 13 3 type=1
+  rect 2 1 11 3 type=1
+
+level 40 size=11
+  rect 2 3 2 17 type=0
+  rect 4 17 10 2 type=1
+  rect 13 1 3 15 type=3
+
+level 41 size=5
+  rect 2 21 4 3 type=1
+
+level 42 size=7
+  rect 8 1 9 6 type=3
+  rect 2 1 8 5 type=2
+
+level 43 size=0
+
+level 44 size=14
+  rect 2 9 9 4 type=1
+  rect 2 12 5 5 type=0
+  rect 7 15 5 5 type=1
+  rect 13 9 3 3 type=3
+
+level 45 size=0
+
+level 46 size=14
+  rect 2 1 8 2 type=1
+  rect 13 1 3 2 type=3
+  rect 11 7 4 12 type=1
+  rect 9 22 3 2 type=1
+
+level 47 -> 0
+
+level 48 size=8
+  rect 12 4 4 4 type=1
+  rect 4 21 12 3 type=3
+
+level 49 size=5
+  rect 2 1 9 2 type=1
+
+level 50 size=8
+  rect 2 9 13 3 type=1
+  rect 15 5 1 2 type=2
+
+level 51 -> 49
+
+level 52 size=14
+  rect 4 22 12 2 type=3
+  rect 1 1 8 2 type=1
+  rect 13 1 3 2 type=3
+  rect 4 3 12 2 type=3
+
+level 53 size=11
+  rect 2 1 6 2 type=1
+  rect 12 21 4 3 type=3
+  rect 12 15 4 6 type=2
+
+level 54 size=20 trailing=e98bc1a76341eb3ac1
+  rect 2 1 5 18 type=1
+  rect 6 22 10 2 type=3
+  rect 7 1 6 3 type=1
+
+level 55 size=11
+  rect 2 1 8 2 type=1
+  rect 12 1 4 21 type=3
+  rect 7 6 11 9 type=3
+
+level 56 size=11
+  rect 2 22 8 2 type=1
+  rect 2 1 2 21 type=2
+  rect 9 4 2 18 type=2
+
+level 57 size=28
+  rect 4 22 15 2 type=3
+  rect 19 22 9 2 type=1
+  rect 9 17 21 2 type=3
+  rect 7 12 21 2 type=1
+  rect 15 7 17 2 type=3
+  rect 2 1 6 4 type=1
+  rect 8 1 2 2 type=3
+  rect 10 1 10 3 type=1
+  rect 22 1 8 3 type=3
+
+level 58 size=11
+  rect 2 1 8 2 type=1
+  rect 13 1 3 2 type=3
+  rect 4 17 12 2 type=3
+
+level 59 size=0
+
+level 60 size=0
+
+level 61 size=7
+  rect 0 2 9 1 type=1
+  rect 9 0 4 3 type=0
+
+level 62 size=0
+
+level 63 size=22
+  rect 2 23 18 2 type=1
+  rect 7 18 19 2 type=3
+  rect 4 14 15 2 type=3
+  rect 15 2 4 11 type=3
+  rect 23 2 5 11 type=1
+  rect 19 2 2 2 type=1
+  rect 22 23 8 2 type=3
+
+level 64 size=14
+  rect 9 1 6 1 type=1
+  rect 15 1 1 9 type=2
+  rect 12 23 4 1 type=3
+  rect 9 16 2 6 type=0
+
+level 65 size=20
+  rect 2 1 8 2 type=1
+  rect 13 1 3 2 type=3
+  rect 10 10 6 4 type=2
+  rect 4 11 5 13 type=3
+  rect 9 19 6 5 type=1
+  rect 9 13 6 2 type=1
+
+level 66 size=8
+  rect 2 22 8 2 type=1
+  rect 13 22 3 2 type=3
+
+level 67 size=5
+  rect 2 2 12 2 type=1
+
+level 68 size=0
+
+level 69 size=14
+  rect 2 19 8 7 type=1
+  rect 2 5 2 18 type=2
+  rect 4 2 12 3 type=3
+  rect 13 19 3 7 type=3
+
+level 70 size=8
+  rect 9 22 4 2 type=3
+  rect 2 1 8 2 type=1
+
+level 71 size=4
+  rect 6 15 20 8 type=0
+
+level 72 size=14 trailing=c41053e4b041
+  rect 2 2 2 2 type=1
+  rect 4 2 12 2 type=3
+
+level 73 size=11
+  rect 2 5 2 4 type=2
+  rect 2 13 14 2 type=1
+  rect 4 14 2 8 type=3
+
+level 74 size=5
+  rect 2 16 10 2 type=1
+
+level 75 size=0
+
+level 76 size=0
+
+level 77 size=17
+  rect 2 3 3 19 type=0
+  rect 8 6 8 1 type=3
+  rect 8 7 8 10 type=0
+  rect 6 20 9 2 type=1
+  rect 12 17 4 4 type=3
+
+level 78 size=8
+  rect 2 1 11 1 type=1
+  rect 12 3 4 3 type=1
+
+level 79 size=11
+  rect 8 2 8 3 type=1
+  rect 2 3 4 7 type=1
+  rect 7 22 9 2 type=3
+
+level 80 size=0
+
+level 81 size=8
+  rect 13 1 3 22 type=0
+  rect 4 1 5 2 type=3
+
+level 82 size=0
+
+level 83 size=20
+  rect 2 1 4 2 type=2
+  rect 1 2 2 15 type=1
+  rect 4 2 2 15 type=3
+  rect 6 1 4 2 type=1
+  rect 6 15 6 5 type=3
+  rect 11 19 4 5 type=3
+
+level 84 size=5
+  rect 2 18 10 2 type=1
+
+level 85 size=0
+
+level 86 size=0
+
+level 87 size=23
+  rect 4 21 9 3 type=3
+  rect 2 1 9 2 type=1
+  rect 4 3 12 3 type=2
+  rect 2 14 3 3 type=1
+  rect 9 6 2 15 type=2
+  rect 9 18 3 2 type=1
+  rect 4 7 2 6 type=2
+
+level 88 size=0
+
+level 89 size=5
+  rect 7 2 9 1 type=3
+
+level 90 size=0
+
+level 91 size=0
+
+level 92 size=0
+
+level 93 size=14 trailing=ec0a01ec1188aa6243
+  rect 2 1 7 3 type=1
+
+level 94 size=11
+  rect 2 2 11 2 type=1
+  rect 4 21 5 3 type=3
+  rect 9 21 1 3 type=1
+
+level 95 size=5
+  rect 11 12 5 12 type=1
+
+level 96 size=31
+  rect 23 22 6 2 type=3
+  rect 2 1 8 3 type=1
+  rect 13 0 19 2 type=2
+  rect 13 2 19 2 type=3
+  rect 23 2 4 21 type=2
+  rect 22 2 4 2 type=1
+  rect 17 9 3 1 type=3
+  rect 17 16 6 1 type=3
+  rect 15 17 4 6 type=2
+  rect 19 21 3 3 type=1
+
+level 97 size=0
+
+level 98 size=26 trailing=d278c6
+  rect 4 22 5 2 type=3
+  rect 2 8 4 3 type=1
+  rect 5 8 2 13 type=2
+  rect 8 16 2 5 type=2
+  rect 4 4 8 3 type=1
+  rect 9 1 3 1 type=1
+  rect 11 7 3 8 type=2
+
+level 99 size=0

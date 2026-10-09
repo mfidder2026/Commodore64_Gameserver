@@ -1,0 +1,33 @@
+# Build artifacts
+build/*.o
+build/*.bin
+build/*.prg
+build/*.lst
+build/*.map
+build/*.sid
+build/*.lbl
+build/*.dbg
+build/sound-select.inc
+src/*.o
+
+# Editor backups
+*~
+*.swp
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+
+# Screenshots from test runs
+build/*.png
+
+# test output
+build/*.d64
+build/*.cfg
+build/*.lst
+build/*.txt
+build/srvtest/
+server/**/bin/
+server/**/obj/

@@ -1,0 +1,286 @@
+{
+ "BONUS_CAKE": [
+  41760,
+  264
+ ],
+ "BONUS_DIAMOND": [
+  42272,
+  128
+ ],
+ "BONUS_MELON": [
+  42110,
+  162
+ ],
+ "BSS": [
+  0,
+  0
+ ],
+ "BUBBLE_MASKS": [
+  32768,
+  1152
+ ],
+ "CODE": [
+  0,
+  0
+ ],
+ "CODE_BONUS": [
+  13450,
+  829
+ ],
+ "CODE_CREDITS": [
+  61868,
+  148
+ ],
+ "CODE_EFFECTS": [
+  11621,
+  1028
+ ],
+ "CODE_ENEMY": [
+  3314,
+  1575
+ ],
+ "CODE_ENTITY": [
+  59901,
+  1777
+ ],
+ "CODE_ENTITY_TBLS": [
+  15361,
+  1023
+ ],
+ "CODE_GAMELOOP": [
+  2276,
+  1038
+ ],
+ "CODE_IRQ": [
+  1707,
+  569
+ ],
+ "CODE_ITEMS": [
+  10317,
+  1304
+ ],
+ "CODE_LEVEL_DISP": [
+  14279,
+  1082
+ ],
+ "CODE_LEVEL_RENDERER": [
+  57344,
+  935
+ ],
+ "CODE_LINE_DRAW": [
+  58708,
+  510
+ ],
+ "CODE_PHYSICS": [
+  8546,
+  1771
+ ],
+ "CODE_PLATFORM": [
+  12649,
+  801
+ ],
+ "CODE_PLAYER_STATE": [
+  1116,
+  591
+ ],
+ "CODE_RENDER": [
+  6212,
+  2334
+ ],
+ "CODE_SPRITES": [
+  4889,
+  1323
+ ],
+ "CODE_SPRITES_DISPLAY": [
+  58279,
+  429
+ ],
+ "CODE_SPRITE_COMPOSER": [
+  59218,
+  683
+ ],
+ "CODE_TITLE_DATA": [
+  61678,
+  190
+ ],
+ "CODE_VARIABLES": [
+  1024,
+  92
+ ],
+ "DATA": [
+  0,
+  0
+ ],
+ "ENEMY_SPAWNS": [
+  44625,
+  1816
+ ],
+ "FILE_PADDING": [
+  65528,
+  3
+ ],
+ "GAMEDATA_WIND": [
+  46741,
+  1145
+ ],
+ "GAMEINIT1": [
+  42024,
+  86
+ ],
+ "GAMEINIT2": [
+  42400,
+  146
+ ],
+ "GT_ASM1": [
+  42546,
+  546
+ ],
+ "GT_ASM2": [
+  43128,
+  1277
+ ],
+ "GT_ASM3": [
+  44465,
+  160
+ ],
+ "GT_BIN1": [
+  43092,
+  36
+ ],
+ "GT_BIN2": [
+  44405,
+  60
+ ],
+ "HUDFONT": [
+  65168,
+  160
+ ],
+ "IO_BITMAP_DECODE_TABLE": [
+  57344,
+  0
+ ],
+ "IO_BITMAP_DICT_PAIRS": [
+  57344,
+  0
+ ],
+ "IO_CODE_DECOMPRESSOR": [
+  57344,
+  0
+ ],
+ "IO_LEVEL_BITMAPS": [
+  50674,
+  2574
+ ],
+ "IO_LEVEL_BITMAPS_HI": [
+  53248,
+  4096
+ ],
+ "ITEM_POSITIONS": [
+  46441,
+  300
+ ],
+ "LEVELS2_CODE1": [
+  31424,
+  384
+ ],
+ "LEVELS2_CODE2": [
+  32384,
+  384
+ ],
+ "LEVEL_COLORS": [
+  65328,
+  100
+ ],
+ "LEVEL_FLAGS": [
+  65428,
+  100
+ ],
+ "LEVEL_TILES": [
+  49774,
+  800
+ ],
+ "LOADADDR": [
+  1022,
+  2
+ ],
+ "NULL": [
+  0,
+  0
+ ],
+ "PHYSICS_FLAGS": [
+  50574,
+  100
+ ],
+ "RODATA": [
+  0,
+  0
+ ],
+ "SIDEBARS": [
+  47886,
+  1888
+ ],
+ "SOFTWARE_SPRITES": [
+  36608,
+  5152
+ ],
+ "SOUND_HI": [
+  62016,
+  3152
+ ],
+ "SOUND_LO": [
+  28736,
+  1024
+ ],
+ "SPRITES2_PREAMBLE": [
+  33920,
+  128
+ ],
+ "SPRITES2_TABLES": [
+  34048,
+  1536
+ ],
+ "TMP_CHARSET_EXT": [
+  17408,
+  96
+ ],
+ "TMP_INIT_CODE": [
+  17504,
+  928
+ ],
+ "TMP_SCREEN_BACKUP": [
+  35584,
+  1024
+ ],
+ "TMP_WORK_BUFFERS": [
+  19456,
+  1024
+ ],
+ "VIC_CHARSET": [
+  16384,
+  1024
+ ],
+ "VIC_CHARSET_B": [
+  18432,
+  1024
+ ],
+ "VIC_LEVELS2_SPR1": [
+  29760,
+  1664
+ ],
+ "VIC_LEVELS2_SPR2": [
+  31808,
+  576
+ ],
+ "VIC_SCREEN_RAM": [
+  20480,
+  2048
+ ],
+ "VIC_SPRITES_GAME": [
+  22528,
+  6208
+ ],
+ "ZEROPAGE": [
+  0,
+  0
+ ]
+}
