@@ -9,3 +9,8 @@ server/**/obj/
 server/publish/
 server.json
 server.log
+
+# RELEASE: files the start scripts make for the user
+/RELEASE/my-disks/
+/RELEASE/vice-path.txt
+/RELEASE/rrnet-interface.txt

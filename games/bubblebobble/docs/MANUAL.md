@@ -200,18 +200,23 @@ Two VICEs and the server on one PC work fine this way. Each VICE needs its own c
 
 ## 6. The lobby
 
-![The lobby menu](images/lobby-menu.png)
-
-The menu shows the network hardware that was found and your name:
-
-- `F1`/`RETURN` connects to the server ("play online").
-- `L` starts a local game for two players on one C64 (two joysticks), as in the original.
-- `S` opens the settings.
-
-The first time, you are asked for your name and (Ultimate, WiC64) the server's address:
+The first time, the lobby asks for your name and (Ultimate, WiC64) the server's address:
 
 - Names are 1-8 characters: letters and digits.
+- The server can be any game server you can reach, also someone else's.
 - `RETURN` on an empty line keeps the old value.
+
+They are saved in `BBLAN.CFG`. From then on the lobby connects to the server by
+itself when it starts, and after every game.
+
+![The setup screen](images/lobby-menu.png)
+
+`F1` in the lobby (or while connecting) opens the **setup** screen. It shows the
+network hardware that was found, your name and the server:
+
+- `RETURN` connects to the server ("play online").
+- `L` starts a local game for two players on one C64 (two joysticks), as in the original.
+- `S` changes the name and the server.
 
 ![The players on the server](images/lobby-players.png)
 
@@ -239,7 +244,7 @@ Then both C64s load the game. The screen shows which dragon you play:
 - **Bub** (green, player 1): the player who invited.
 - **Bob** (blue, player 2): the player who accepted.
 
-After the game the lobby is loaded again. It shows how the game ended and connects to the server by itself. The possible endings:
+After the game the lobby is loaded again. It connects to the server by itself and shows how the game ended. The possible endings:
 
 | Message | Meaning |
 |---|---|

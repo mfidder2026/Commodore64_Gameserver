@@ -91,6 +91,7 @@ static struct player players[MAXPLAYERS];
 static unsigned char nplayers, total_players;
 static unsigned char sel;
 static unsigned char myid;
+static unsigned char last_reason;       /* how the last game ended (shown in the lobby) */
 
 static const char *const end_text[] = {
     "", "game over", "desync - the C64s disagreed", "timeout - no answer",
@@ -222,7 +223,7 @@ static void settings(unsigned char ask_server)
 {
     title();
     cputs("Your name (A-Z, 0-9, max. 8)\r\n");
-    if (*nick) cprintf("[%s] ", nick);
+    if (*nick) { cputs("["); put_nick(nick, 0); cputs("] "); }
     do {
         input(nick, NICK_MAX, 0);
         cputs("\r\n");
@@ -346,7 +347,14 @@ static void lobby(void)
     unsigned char target = 0;
 
     title();
-    status("Connecting to the server...");
+    if (last_reason) {
+        gotoxy(0, 21);
+        textcolor(COLOR_YELLOW);
+        cprintf("Last game: %s", end_text[last_reason]);
+        textcolor(COLOR_WHITE);
+        last_reason = 0;
+    }
+    status("Connecting to the server...   F1: setup");
     for (;;) {
         /* --- network */
         while (rx()) {
@@ -354,14 +362,14 @@ static void lobby(void)
             switch (msg[0]) {
             case M_WELCOME:
                 myid = msg[2];
-                if (st == CONNECTING) { st = LOBBY; redraw = 1; cfg_save(); status("FIRE/RETURN: invite   F1: back"); }
+                if (st == CONNECTING) { st = LOBBY; redraw = 1; cfg_save(); status("FIRE/RETURN: invite   F1: setup"); }
                 break;
             case M_REJECT:
                 status(msg[1] == 1 ? "That name is already in use." : msg[1] == 2 ? "Wrong version." : "Rejected by the server.");
                 sleep(3);
                 return;
             case M_PLAYERS:
-                if (st == CONNECTING) { st = LOBBY; status("FIRE/RETURN: invite   F1: back"); }
+                if (st == CONNECTING) { st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
                 take_players();
                 redraw = 1;
                 break;
@@ -460,11 +468,11 @@ static void lobby(void)
             }
             break;
         case INVITING:
-            if (key == 'n') { send2(M_DECLINE, 0); st = LOBBY; status("FIRE/RETURN: invite   F1: back"); }
+            if (key == 'n') { send2(M_DECLINE, 0); st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
             break;
         case CHALLENGED:
             if (key == CH_ENTER || key == 'y' || key == ' ') { send2(M_ACCEPT, challenge); status("Accepted, starting..."); }
-            if (key == 'n') { send2(M_DECLINE, challenge); st = LOBBY; status("FIRE/RETURN: invite   F1: back"); }
+            if (key == 'n') { send2(M_DECLINE, challenge); st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
             break;
         }
     }
@@ -472,9 +480,17 @@ static void lobby(void)
 
 /* --------------------------------------------------------------- main */
 
+/* the server's address is needed for the Ultimate and the WiC64; RR-Net finds the server itself */
+#define NEEDS_SERVER (drv == DRV_UCI || drv == DRV_WIC)
+#if GAME_PAL_ONLY
+#define PAL_OK (PEEK(0x02A6) != 0)
+#else
+#define PAL_OK 1
+#endif
+
 int main(void)
 {
-    unsigned char key, came_back = 0, reason = 0;
+    unsigned char key, came_back = 0, reason = 0, autostart = 1;
 
     POKE(0xD015, 0);                                 /* the game's sprites */
     if (RESULT[0] == 'b' && RESULT[1] == 'r') {      /* back from a game */
@@ -503,29 +519,34 @@ int main(void)
         default:      cputs("Network: none found\r\n"); break;
         }
         cputs("Name:    "); put_nick(*nick ? nick : "-", 0); cputs("\r\n");
-        if (drv == DRV_UCI || drv == DRV_WIC) cprintf("Server:  %s\r\n", *server ? server : "-");
-        if (came_back && reason && reason < 7) {
-            textcolor(COLOR_YELLOW);
-            cprintf("\r\nLast game: %s\r\n", end_text[reason]);
-            textcolor(COLOR_WHITE);
-        }
-        cputs("\r\n\r\n  F1/RETURN  play online\r\n"
+        if (NEEDS_SERVER) cprintf("Server:  %s\r\n", *server ? server : "-");
+        else if (drv == DRV_RR) cputs("Server:  found by itself on the LAN\r\n");
+        textcolor(COLOR_YELLOW);
+        cputs("\r\nSetup\r\n\r\n");
+        textcolor(COLOR_WHITE);
+        cputs("  RETURN     play online\r\n"
 #ifdef LOCAL_GAME_TEXT
               "  L          " LOCAL_GAME_TEXT "\r\n"
 #endif
-              "  S          settings\r\n");
+              "  S          name and server\r\n");
 
-        if ((came_back || auto_mode) && drv != DRV_NONE && *nick) key = CH_ENTER;
-        else key = cgetc();
-        came_back = 0;
+        /* at the start (and back from a game) straight into the lobby; the first time ask the settings */
+        key = 0;
+        if ((autostart || auto_mode) && drv != DRV_NONE && PAL_OK) {
+            if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
+            key = CH_ENTER;
+        }
+        if (came_back && reason < 7) last_reason = reason;
+        autostart = came_back = 0;
+        if (!key) key = cgetc();
 
-        if (key == 's') { settings(drv == DRV_UCI || drv == DRV_WIC); cfg_save(); continue; }
+        if (key == 's') { settings(NEEDS_SERVER); cfg_save(); continue; }
 #ifdef LOCAL_GAME_TEXT
         if (key == 'l') { memset(HB, 0, HB_SIZE); start_game(game_file()); }
 #endif
         if (key != CH_ENTER && key != CH_F1) continue;
-        if (drv == DRV_NONE || PEEK(0x02A6) == 0) continue;
-        if (!*nick || ((drv == DRV_UCI || drv == DRV_WIC) && !*server)) { settings(drv == DRV_UCI || drv == DRV_WIC); cfg_save(); }
+        if (drv == DRV_NONE || !PAL_OK) continue;
+        if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
         if (net_connect(server, SERVER_PORT)) {
             status("Cannot open a connection to the server.");
             sleep(3);

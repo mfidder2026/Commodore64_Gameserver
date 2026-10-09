@@ -17,10 +17,11 @@
 ;         player 2 (actor 0).
 ;   The Ultimate firmware cannot listen or open a fixed local
 ;   port (docs/netcode.md), so an Ultimate always joins.
-;   server  via the C64 Game Server (server/, UDP 6465): nickname,
-;         lobby on the title screen, the server pairs the players.
+;   server  via the C64 Game Server (server/, UDP 6465; WiC64: TCP 6466):
+;         nickname, lobby on the title screen, the server pairs the players.
 ;         Slot 0 = player 1 (actor 1), slot 1 = player 2 (actor 0).
-;         Needed for Ultimate <-> Ultimate. Protocol: server/docs/protocol.md
+;         Needed for Ultimate <-> Ultimate. Protocol: docs/protocol.md
+;         A WiC64 (TCP only) can only play via the server.
 ;   Each player uses joystick port 2 or the keyboard (W A S D +
 ;   SPACE) on his own machine.
 ;
@@ -103,6 +104,9 @@
 	BACKEND_NONE = 0
 	BACKEND_UCI = 1
 	BACKEND_RRNET = 2
+	BACKEND_WIC64 = 3
+	WIC_SEND_EVERY = 4 ; WiC64: send INPUT every 4th tick (power of 2; the window of 16 covers it)
+	WIC_RESEND = 250 ; WiC64: resend while waiting every ~64 ms instead of ~20 ms
 
 	NETIO_IDLE = 0
 	NETIO_READ = 1
@@ -205,6 +209,10 @@ rr	.block
 	.include "net_rrnet.asm"
 	.bend
 
+wic	.block
+	.include "wic64.asm"
+	.bend
+
 ;============================================================
 ;
 ; network I/O: one interface for both backends
@@ -273,10 +281,18 @@ netio_detect .proc
 _no_uci
 	LDA mac_last
 	#rr_call rr.net_detect
+	LDA #BACKEND_RRNET
+	BCC +
+	JSR wic.net_detect
 	LDA #BACKEND_NONE
 	BCS +
-	LDA #BACKEND_RRNET
+	LDA #BACKEND_WIC64
 +	STA net_backend
+	LDX #WAIT_RESEND ; a WiC64 resends less often while waiting
+	CMP #BACKEND_WIC64
+	BNE +
+	LDX #WIC_RESEND
++	STX resend_units
 	RTS
 .pend
 
@@ -303,6 +319,10 @@ _rr
 	CMP #BACKEND_RRNET
 	BNE +
 	#rr_call rr.net_write
+	RTS
++	CMP #BACKEND_WIC64
+	BNE +
+	JMP wic.net_write
 +	RTS
 .pend
 
@@ -315,7 +335,10 @@ netio_poll .proc
 	BEQ _uci
 	CMP #BACKEND_RRNET
 	BEQ _rr
-	SEC
+	CMP #BACKEND_WIC64
+	BNE +
+	JMP wic.net_read_poll
++	SEC
 	RTS
 _rr
 	#rr_call rr.net_read_poll
@@ -755,9 +778,10 @@ proto_session_start .proc
 	STA remote_in,X
 	INX
 	BNE -
-	LDA #INPUT_DELAY-1
-	STA local_newest
-	STA remote_newest
+	LDX delay_ticks
+	DEX
+	STX local_newest
+	STX remote_newest
 	LDA #0
 	STA local_newest+1
 	STA remote_newest+1
@@ -840,6 +864,8 @@ net_session_irq .proc
 	LDA ka_frames
 	CMP #20
 	BCC _out ; ticks are running: the main program does the network
+	LDA #1
+	STA wic_gap ; (a WiC64 reads at most every ~50 ms here)
 	JSR netio_poll
 	BCS +
 	JSR proto_rx
@@ -867,7 +893,7 @@ proto_tick .proc
 	; 2. our input for tick + INPUT_DELAY (joystick port 2)
 	CLC
 	LDA tick_count
-	ADC #INPUT_DELAY
+	ADC delay_ticks
 	STA local_newest
 	LDA tick_count+1
 	ADC #0
@@ -887,7 +913,17 @@ proto_tick .proc
 	.fi
 	LDX local_newest
 	STA local_in,X
+	LDA net_backend
+	CMP #BACKEND_WIC64
+	BNE _send
+	LDA #0
+	STA wic_gap ; poll as fast as possible while waiting
+	LDA tick_count
+	AND #WIC_SEND_EVERY-1
+	BNE _sent ; a WiC64 transfer costs time: every 4th tick (each packet carries 16 ticks)
+_send
 	JSR send_input
+_sent
 
 	; 3. wait for the peer's input for this tick
 	JSR get_cycles
@@ -940,7 +976,7 @@ _wait
 	LDA cycles+2
 	SBC wait_last_send+1
 	BNE _resend
-	CPX #WAIT_RESEND
+	CPX resend_units
 	BCC _no_resend
 _resend
 	LDA cycles+1
@@ -975,6 +1011,8 @@ _no_resend
 	JMP _wait
 
 _ready
+	LDA #1
+	STA wic_gap
 	LDA wait_shown
 	BEQ +
 	LDA wait_border
@@ -1300,6 +1338,18 @@ srv_rx_start .proc
 	BNE +
 	LDA #$01 ; an LFSR state of 0 would stay 0
 +	STA start_seed_rnd
+	LDY #4 ; parameter 2: the input delay (1-12), if the server sends it
+	LDA (net_rx_ptr),Y ; parameter length
+	CMP #3
+	BCC _default
+	LDY #7
+	LDA (net_rx_ptr),Y
+	BEQ _default
+	CMP #13
+	BCC +
+_default
+	LDA #INPUT_DELAY
++	STA delay_ticks
 	LDA #SRV_STARTING
 	STA srv_state
 	LDA #$01
@@ -1433,10 +1483,13 @@ _alive
 +	CMP #SRV_CHALLENGED
 	BNE _not_challenged
 	; FIRE (joystick port 2 or SPACE) accepts, N declines
+	LDA test_accept ; set by test tools through the VICE monitor
+	BNE _accept
 	JSR read_keyboard
 	AND CIA1_JOY_KEY1
 	AND #$10
 	BNE +
+_accept
 	LDA #SRV_ACCEPTED
 	STA srv_state
 	JSR srv_send_accept
@@ -1720,6 +1773,11 @@ _connect
 	JSR uci.net_open
 	JMP _opened
 _rr
+	CMP #BACKEND_WIC64
+	BNE _rrnet
+	JSR wic.net_open
+	JMP _opened
+_rrnet
 	#rr_call rr.net_open
 _opened
 	BCC +
@@ -1822,6 +1880,12 @@ net_setup .proc
 	STA net_port+1
 	LDA #2 ; direct packets: 'W' 'L' type, then the fields
 	STA in_ofs
+	LDA #INPUT_DELAY
+	STA delay_ticks
+	LDA #WAIT_RESEND
+	STA resend_units
+	LDA #1
+	STA wic_gap
 	LDA #$80
 	STA netio_kernal
 	.if (PROFILE || DETTEST) && !NETBOT
@@ -1868,6 +1932,14 @@ net_menu
 	JSR print_inline
 	.null C_CYAN, "NETWORK: ", C_WHITE, "RR-NET", 13
 	JMP _items
++	CMP #BACKEND_WIC64
+	BNE +
+	JSR print_inline
+	.null C_CYAN, "NETWORK: ", C_WHITE, "WIC64", 13, C_CYAN, "MY IP:   ", C_WHITE
+	JSR wic.net_print_ip
+	JSR print_inline
+	.null 13
+	JMP _items
 +	JSR print_inline
 	.null C_LRED, "NO NETWORK HARDWARE FOUND", 13, C_LGREY, "(ULTIMATE: ENABLE THE COMMAND INTERFACE)", 13
 _items
@@ -1880,8 +1952,13 @@ _items
 	.null C_YELLOW, "2  ", C_LBLUE, "HOST A NETWORK GAME", 13
 +	LDA net_backend
 	BEQ +
+	CMP #BACKEND_WIC64
+	BEQ _wic_items ; TCP only: no direct games
 	JSR print_inline
-	.null C_YELLOW, "3  ", C_LBLUE, "JOIN A NETWORK GAME", 13, C_YELLOW, "4  ", C_LBLUE, "PLAY VIA A GAME SERVER", 13
+	.null C_YELLOW, "3  ", C_LBLUE, "JOIN A NETWORK GAME", 13
+_wic_items
+	JSR print_inline
+	.null C_YELLOW, "4  ", C_LBLUE, "PLAY VIA A GAME SERVER", 13
 +	JSR print_inline
 	.null 13, C_CYAN, "YOUR CHOICE? ", C_WHITE
 -	JSR GETIN
@@ -1889,8 +1966,11 @@ _items
 	BEQ _local
 	LDX net_backend
 	BEQ -
+	CPX #BACKEND_WIC64
+	BEQ +
 	CMP #'3'
 	BEQ _join
++
 	CMP #'4'
 	BEQ _server
 	CPX #BACKEND_RRNET
@@ -2290,6 +2370,10 @@ chk_hist_tick_hi .fill 4
 chk_hist_lo	.fill 4
 chk_hist_hi	.fill 4
 hello_timer	.word 0
+test_accept	.byte 0 ; tests: 1 = accept every challenge (written through the VICE monitor)
+delay_ticks	.byte INPUT_DELAY ; from START (server) or INPUT_DELAY (direct)
+resend_units	.byte WAIT_RESEND
+wic_gap		.byte 1 ; WiC64: 1 = read at most every ~50 ms (title screen, lobby), 0 = as fast as possible
 host_input	.fill net_host_size
 host_len	.byte 0
 ip_idx		.byte 0

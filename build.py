@@ -7,6 +7,7 @@ Build and test the whole C64 Game Server project: the server and every game in g
     python build.py server           build and unit-test the server only
     python build.py <game>           build one game (folder name, e.g. bubblebobble)
     python build.py test [<game>]    server tests plus the game tests (these start VICE, minimized)
+    python build.py release          build everything and fill RELEASE/ (server, disk images, start scripts)
 
 A game takes part when its folder has a game.json (see docs/adding-a-game.md):
     {"id": 3, "name": "Bubble Bobble", "module": "bubblebobble",
@@ -16,13 +17,18 @@ Commands run in the game's folder; "python" means the Python running this script
 """
 from __future__ import annotations
 
+import datetime
 import json
 import os
+import shutil
 import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(REPO, "server")
+RELEASE = os.path.join(REPO, "RELEASE")
+RELEASE_FILES = os.path.join(REPO, "framework", "release")  # start scripts and README for RELEASE/
+RELEASE_RIDS = ["win-x64", "linux-arm64"]  # Windows, Raspberry Pi (64-bit OS)
 
 
 def games() -> dict[str, dict]:
@@ -58,12 +64,49 @@ def build(g: dict) -> None:
         sys.exit(f"{g['name']}: the build did not produce {g['disk']}")
 
 
+def release(all_games: dict[str, dict]) -> None:
+    """RELEASE/: the server (self-contained, one file per platform), every game's disk, the start scripts."""
+    server()
+    for name, g in all_games.items():
+        build(g)
+    for sub in ("games", "server"):
+        shutil.rmtree(os.path.join(RELEASE, sub), ignore_errors=True)
+    os.makedirs(os.path.join(RELEASE, "games"))
+    for name, g in all_games.items():
+        shutil.copy(os.path.join(g["folder"], g["disk"]), os.path.join(RELEASE, "games", name + ".d64"))
+    for rid in RELEASE_RIDS:
+        out = os.path.join(RELEASE, "server", rid)
+        run(["dotnet", "publish", "src/C64GameServer", "-c", "Release", "-r", rid, "--self-contained",
+             "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true",
+             "-p:EnableCompressionInSingleFile=true", "-p:DebugType=none", "-o", out, "-v", "q"], SERVER)
+        for f in os.listdir(out):
+            if not f.startswith("C64GameServer") or f.endswith(".pdb"):
+                os.remove(os.path.join(out, f))
+    for f in os.listdir(RELEASE_FILES):
+        with open(os.path.join(RELEASE_FILES, f), encoding="utf-8") as src:
+            text = src.read()
+        newline = "\r\n" if f.endswith((".bat", ".cmd")) else "\n"  # cmd.exe wants CRLF
+        with open(os.path.join(RELEASE, f), "w", encoding="utf-8", newline=newline) as dst:
+            dst.write(text)
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True,
+                            text=True).stdout.strip()
+    with open(os.path.join(RELEASE, "VERSION.txt"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"C64 Game Server release, {datetime.date.today()} (based on commit {commit})\n")
+        for name, g in all_games.items():
+            f.write(f"  games/{name}.d64  {g['name']} OME (game id {g['id']})\n")
+        f.write("  server/: " + ", ".join(RELEASE_RIDS) + "\n")
+    print(f"\nRELEASE/ is ready ({os.path.relpath(RELEASE, REPO)})")
+
+
 def main() -> None:
     args = sys.argv[1:]
     all_games = games()
     if args[:1] == ["list"]:
         for name, g in all_games.items():
             print(f"{g['id']:3}  {name:16} {g['name']:20} module {g['module']:14} lobby: {g.get('lobby', '?')}")
+        return
+    if args[:1] == ["release"]:
+        release(all_games)
         return
     if args[:1] == ["server"]:
         server()

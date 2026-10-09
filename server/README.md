@@ -123,6 +123,7 @@ Other settings, such as `idleTimeoutSeconds`, `challengeTimeoutSeconds`,
 | Setting | Default | Meaning |
 |---|---|---|
 | `inputDelay` | 4 | Ticks between the joystick and the game reacting (a tick is 1/60 s) |
+| `inputDelayWiC64` | 8 | The same when a WiC64 takes part (it sends only every 4th tick) |
 | `tickRate` | 60 | Ticks per second, sent in START |
 | `inputTimeoutSeconds` | 10 | A player who sends nothing for this long during the game ends the session |
 

@@ -42,7 +42,7 @@ A client is identified by an `IPEndPoint`, whatever its transport:
 - raw Ethernet: a link-local IPv6 address made from the MAC address.
 
 So the core does not know or care how a C64 is connected. A module can ask,
-though. For example, Bubble Bobble picks a longer input delay when a WiC64
+though. For example, both games get a longer input delay when a WiC64
 takes part.
 
 ### Sessions
@@ -89,7 +89,7 @@ described by its `game.json`. The root `build.py` reads these files.
 |---|---|---|
 | Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 |
 | Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` |
-| C64 network | Ultimate (UCI), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) |
+| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) |
 | Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time |
 | INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs |
 | Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) |
@@ -100,7 +100,7 @@ Both games keep the original game logic and add the same three things:
 
 1. a deterministic tick;
 2. a lockstep loop that exchanges inputs and checksums;
-3. a lobby that meets the lobby standard in [CLAUDE.md](../CLAUDE.md).
+3. a lobby that meets the lobby standard in [AI_AGENT.md](../AI_AGENT.md).
 
 ## Testing
 
@@ -108,5 +108,5 @@ Both games keep the original game logic and add the same three things:
 |---|---|
 | Server core | `dotnet test` (in `server/`): a fake clock and a fake transport; lobby, invitations, sessions, timeouts, checksums, modules |
 | Determinism | each game's `tools/dettest.py`: two VICEs (PAL/NTSC, jitter, stalls) must produce the same checksums |
-| End to end | `games/bubblebobble/tools/nettest.py`: the server plus two VICEs over RR-Net or WiC64, or one VICE against a bot (`--bot`) |
+| End to end | `games/bubblebobble/tools/nettest.py` (RR-Net, `--wic64`, `--bot`) and `games/wizardofwor/tools/servertest.py` (WiC64, `--bot`): the server plus two VICEs, or one VICE against a bot |
 | Everything | `python build.py test` |

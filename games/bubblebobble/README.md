@@ -36,39 +36,36 @@ original game behave identically on two machines took some work; see
 |---|---|---|
 | **C64 Ultimate / Ultimate 64** | UDP via the Ultimate Command Interface | Enable *Command Interface* in the Ultimate menu |
 | **C64 + WiC64** | TCP via the WiC64 (firmware 2.x) | |
-| **VICE 3.9** with WiC64 emulation | TCP | Easiest way to play in an emulator |
-| **VICE** with RR-Net | raw Ethernet | Server must run with pcap (Npcap) on the same LAN or PC |
+| **VICE 3.9** with WiC64 emulation | TCP | Easiest way to play in an emulator: [`RELEASE/vice-wic64.bat`](../../RELEASE/vice-wic64.bat) |
+| **VICE** with RR-Net | raw Ethernet | Server must run with pcap (Npcap) on the same LAN or PC: [`RELEASE/vice-rrnet.bat`](../../RELEASE/vice-rrnet.bat) |
 
 Plus:
 
-- **One PC on the LAN for the game server** (Windows, Linux, Raspberry Pi). It
-  needs the .NET 8 runtime. A Raspberry Pi works fine.
-- **PAL machines.** The game is PAL only; the lobby refuses NTSC for LAN play.
-- **The disk image `bblan.d64`**: [`release/bblan.d64`](release/bblan.d64), or build it yourself (see below).
+- **One PC on the LAN for the game server** (Windows, Linux, Raspberry Pi), or
+  someone else's server: you can enter any server's IP address.
+- **PAL machines.** The game is PAL only; the lobby refuses NTSC for online play.
+- **The disk image**: [`RELEASE/games/bubblebobble.d64`](../../RELEASE/games/bubblebobble.d64), or build it yourself (see below).
+  The disk holds the lobby `BBLAN` and the game files.
 
 No second player? The server has two **bots**, BUBBLUN and BOBBLUN. They sit in
 the lobby and accept every invitation.
 
 ## Quick start
 
-1. **Start the server** on a PC on the LAN:
+1. **Start the server** on a PC on the LAN: [`RELEASE/start-server.bat`](../../RELEASE/start-server.bat)
+   (Windows) or `RELEASE/start-server.sh` (Raspberry Pi). It prints the addresses the C64s can use.
+   The dashboard is at http://localhost:8080/.
 
-   ```bash
-   cd server        # in the repository root
-   dotnet run --project src/C64GameServer -c Release
-   ```
+2. **On each C64:** `LOAD "BBLAN",8` and `RUN`. In VICE: double-click `RELEASE/vice-wic64.bat` and choose Bubble Bobble.
 
-   It prints the addresses the C64s can use. The dashboard is at
-   http://localhost:8080/.
+3. **The first start asks for your name** and, for the Ultimate and the WiC64, **the server's IP address**.
+   Any server works, also someone else's. VICE with RR-Net needs no address: it finds the server by itself.
+   Later starts go straight to the lobby.
 
-2. **On each C64:** `LOAD "BBLAN",8` and `RUN` (or autostart `bblan.d64` in VICE).
-
-3. **Configure the lobby** with `S` (settings): your name and, for the Ultimate and the WiC64, the server's IP address.
-   - VICE with RR-Net needs no address: it finds the server by itself.
-
-4. **Play.** Press `RETURN`. You now see the other players, people and bots. Pick one with the joystick or the cursor keys and press `FIRE`/`RETURN` to invite them.
+4. **Play.** You see the other players, people and bots. Pick one with the joystick or the cursor keys and press `FIRE`/`RETURN` to invite them.
    - The other player accepts with `FIRE` or `Y`.
    - Both C64s then load the game. Bub (green) is the player who invited, Bob (blue) the one who accepted.
+   - `F1` in the lobby opens the setup: change your name or the server.
 
 The complete manual, including VICE setup, Ultimate settings, the server
 configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
@@ -77,13 +74,13 @@ configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
 
 | Where | Key / joystick | Action |
 |---|---|---|
-| Menu | `F1` / `RETURN` | Play online |
-| Menu | `L` | Local game, two joysticks, as the original |
-| Menu | `S` | Settings |
+| Setup | `RETURN` | Play online (connect to the lobby) |
+| Setup | `L` | Local game, two joysticks, as the original |
+| Setup | `S` | Name and server |
 | Lobby | joystick up/down or cursor keys | Choose a player |
 | Lobby | `FIRE` / `RETURN` | Invite |
 | Lobby | `N` | Withdraw or decline an invitation |
-| Lobby | `F1` | Back to the menu |
+| Lobby | `F1` | Setup (name, server) |
 | Game | joystick in **port 2** | Move, jump, blow bubbles |
 | Game | `C=` | Pause (both machines) |
 | Game | `Q` | Quit the game (both machines) |

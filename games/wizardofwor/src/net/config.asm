@@ -454,6 +454,9 @@ netio_close .proc
 	BNE +
 	JSR uci.uci_reset ; abort a read that may still run
 	JMP uci.net_close
++	CMP #BACKEND_WIC64
+	BNE +
+	JMP wic.net_close
 +	CMP #BACKEND_RRNET
 	BNE _out
 	JSR rr_enter ; (the rr_call macro is defined later, in netgame.asm)

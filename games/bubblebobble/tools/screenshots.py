@@ -56,9 +56,11 @@ def main():
                  *hw, "-remotemonitor", "-remotemonitoraddress", f"ip4://127.0.0.1:{port}", "-autostart", disk],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
             if port == 6520:
-                time.sleep(8)
+                time.sleep(10)                # ALICE goes straight into the lobby
+                keys(6520, [133])             # F1: the setup screen
+                time.sleep(2)
                 shot(6520, "lobby-menu.png")
-                keys(6520, [13])              # RETURN: play on the LAN
+                keys(6520, [13])              # RETURN: back to the lobby
                 time.sleep(5)
                 shot(6520, "lobby-players.png")
             time.sleep(3)

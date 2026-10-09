@@ -2,13 +2,15 @@
 
 A small C64 program (C with [cc65](https://cc65.github.io/), drivers in
 assembly) that every OME game can use as its front end. It gives each game
-the same lobby (see the lobby standard in [CLAUDE.md](../../../CLAUDE.md)):
+the same lobby (see the lobby standard in [AI_AGENT.md](../../../AI_AGENT.md)):
 
 1. It finds the network hardware: **C64 Ultimate** (Command Interface, UDP),
    **WiC64** (TCP) or **RR-Net** (raw Ethernet, VICE).
-2. It asks for the name and, for the Ultimate and the WiC64, the server's IP once, and saves them on the disk.
+2. The first time it asks for the name and, for the Ultimate and the WiC64, the server's IP (any server), and
+   saves them on the disk. Later starts connect to the lobby at once.
 3. It connects and shows **everyone online for this game**: PERSON or BOT, and FREE, BUSY or PLAYING.
 4. The player invites someone (FIRE/RETURN) or accepts an invitation (FIRE/Y; N declines).
+   F1 opens the setup screen: name and server, a local game (`LOCAL_GAME_TEXT`), play online.
 5. When the server starts the session, the lobby writes a **handoff block** and **loads the game file**. The game takes over the network connection.
 6. After the game, the game loads the lobby again. The lobby shows how the game ended and reconnects.
 

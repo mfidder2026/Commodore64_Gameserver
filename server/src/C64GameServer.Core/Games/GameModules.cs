@@ -82,6 +82,9 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
     public const int ChecksumHistory = 16;
 
     private readonly int _inputDelay = config.Settings.GetValueOrDefault("inputDelay", 4);
+
+    // a WiC64 sends only every 4th tick (each transfer costs the C64 time): a longer delay hides that
+    private readonly int _inputDelayWiC64 = Math.Clamp(config.Settings.GetValueOrDefault("inputDelayWiC64", 8), 1, 12);
     private readonly int _tickRate = config.Settings.GetValueOrDefault("tickRate", 60);
     private readonly int _inputTimeout = config.Settings.GetValueOrDefault("inputTimeoutSeconds", 10);
 
@@ -94,6 +97,7 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
         public int ChecksumsCompared;
         public ushort? LastCompared;
         public DateTime[] LastInput = [];
+        public int InputDelay;
     }
 
     public override byte[] CreateSession(Session session, Random random)
@@ -108,7 +112,8 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
         };
         Array.Fill(st.NewestTick, -1);
         session.ModuleState = st;
-        return [st.SeedRandom, st.SeedRnd, (byte)_inputDelay, (byte)_tickRate];
+        st.InputDelay = session.Players.Any(p => p.EndPoint.Address.IsIPv4MappedToIPv6) ? _inputDelayWiC64 : _inputDelay;
+        return [st.SeedRandom, st.SeedRnd, (byte)st.InputDelay, (byte)_tickRate];
     }
 
     public override void OnGameMessage(ISessionContext ctx, Session session, Client from, ReadOnlySpan<byte> m)
@@ -173,7 +178,7 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
             ("tick", string.Join(" / ", st.NewestTick.Select(t => t < 0 ? "-" : t.ToString()))),
             ("checksums ok", st.LastCompared is { } t ? $"{st.ChecksumsCompared} (last tick {t})" : "0"),
             ("seeds", $"{st.SeedRandom:X2} {st.SeedRnd:X2}"),
-            ("input delay", _inputDelay.ToString()),
+            ("input delay", st.InputDelay.ToString()),
         ];
     }
 }

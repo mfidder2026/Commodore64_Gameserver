@@ -287,7 +287,7 @@ INPUT: $80, session, newest tick (16), checksum tick (16, $FFFF = none), checksu
 |---|---|
 | 0 | seed for `random_number` |
 | 1 | seed for the LFSR `rnd_state` (never 0) |
-| 2 | input delay in ticks (default 4) |
+| 2 | input delay in ticks: `inputDelay` (4), or `inputDelayWiC64` (8) when a WiC64 takes part |
 | 3 | tick rate (60) |
 
 Slot 0 controls player 1 (yellow, actor 1), slot 1 controls player 2 (blue, actor 0).
@@ -303,7 +303,8 @@ Slot 0 controls player 1 (yellow, actor 1), slot 1 controls player 2 (blue, acto
 | 6 | 2 | checksum |
 | 8 | 16 | inputs of ticks newest−15 … newest (joystick format, active low) |
 
-Waiting C64s repeat their last INPUT about every 20 ms. Details:
+Waiting C64s repeat their last INPUT about every 20 ms. A WiC64 sends INPUT only every 4th tick
+(each packet still carries 16 ticks) and repeats it about every 64 ms. Details:
 [games/wizardofwor/docs/netcode.md](../games/wizardofwor/docs/netcode.md) (in Dutch).
 
 ## Game: Bubble Bobble (id `$03`, version `$01`, module `bubblebobble`)

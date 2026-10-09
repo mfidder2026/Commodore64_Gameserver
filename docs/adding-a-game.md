@@ -77,7 +77,7 @@ Put on the disk:
 
 Do **not** copy the lobby into the game folder. If the game needs something
 the lobby cannot do yet, add an option to `game.h` and the framework. That
-change then exists for every game (see [CLAUDE.md](../CLAUDE.md)).
+change then exists for every game (see [AI_AGENT.md](../AI_AGENT.md)).
 
 ## 3. The game side: lockstep
 
@@ -207,4 +207,7 @@ each session.
 - [ ] The game's messages and start parameters in [protocol.md](protocol.md)
 - [ ] `game.json`, the `ServerConfig` defaults, `GameRegistry` and `BotProfile` agree
 - [ ] `python build.py` and `python build.py test` pass
+- [ ] The game runs on every network: Ultimate, WiC64 (real and VICE) and VICE RR-Net
 - [ ] An end-to-end session between two emulated C64s, and one against a bot
+- [ ] `python build.py release`: the game's disk is in `RELEASE/games/`, and `vice-wic64.bat` offers it
+  (add it to the menu in `framework/release/_vice.cmd`)

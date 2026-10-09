@@ -1,5 +1,6 @@
-* text=auto eol=lf
+# Windows scripts need CRLF, shell scripts LF
 *.bat text eol=crlf
-*.png binary
+*.cmd text eol=crlf
+*.sh  text eol=lf
+*.d64 binary
 *.prg binary
-*.bin binary

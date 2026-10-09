@@ -6,6 +6,6 @@
   "lobby": "in-game",
   "build": ["python", "tools/build.py"],
   "disk": "build/wow.d64",
-  "tests": [["python", "tools/dettest.py"]],
+  "tests": [["python", "tools/build.py", "dettest"], ["python", "tools/dettest.py"]],
   "readme": "README.md"
 }
