@@ -49,9 +49,12 @@ A new version of a game? Delete its copy in `my-disks\`. You then enter your nam
 
 ### C64 Ultimate / Ultimate 64
 
-1. Copy the `.d64` files to a USB stick.
-2. Turn on *C64 and Cartridge Settings → Command Interface*.
-3. Start the disk from the Ultimate menu. Enter your name and the server's IP address.
+1. **Turn on the Command Interface**: Ultimate menu (F2) → *C64 and Cartridge Settings* →
+   *Command Interface*: **Enabled**, and save the settings. It is off by default; without it the
+   games find no network ("NO NETWORK HARDWARE FOUND" / "Network: none found").
+2. Connect the Ultimate to your network and check that it has an IP address.
+3. Copy the `.d64` files to a USB stick.
+4. Start the disk from the Ultimate menu. Enter your name and the server's IP address.
 
 ### C64 with a WiC64
 

@@ -38,6 +38,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 - [How it works](#how-it-works)
 - [What you need](#what-you-need)
 - [Quick start](#quick-start)
+- [C64 Ultimate: turn on the Command Interface](#c64-ultimate-turn-on-the-command-interface)
 - [The lobby (all games)](#the-lobby-all-games)
 - [The game server](#the-game-server)
 - [Repository layout](#repository-layout)
@@ -121,7 +122,7 @@ More in [docs/architecture.md](docs/architecture.md).
 
 | Player's machine | Network | Notes |
 |---|---|---|
-| C64 **Ultimate / Ultimate 64** | UDP through the Ultimate Command Interface | Enable *C64 and Cartridge Settings → Command Interface* |
+| C64 **Ultimate / Ultimate 64** | UDP through the Ultimate Command Interface | **The Command Interface must be enabled**, see [below](#c64-ultimate-turn-on-the-command-interface) |
 | C64 + **WiC64** (firmware 2.x) | TCP | |
 | **VICE** with WiC64 emulation | TCP | The simplest emulator set-up: `RELEASE/vice-wic64.bat` |
 | **VICE** with RR-Net | raw Ethernet (Bubble Bobble) or UDP (Wizard of Wor) | Needs [Npcap](https://npcap.com/): `RELEASE/vice-rrnet.bat`. With Wizard of Wor the server must run on another PC |
@@ -141,6 +142,7 @@ Pi. The release builds need no .NET installation; from source you need the .NET 
 2. **Start a C64.**
    - **VICE:** double-click `RELEASE/vice-wic64.bat` and choose a game.
    - **Ultimate, WiC64:** put `RELEASE/games/<game>.d64` on the Ultimate, or on the disk drive.
+     On the Ultimate, first turn on the **Command Interface** (see the next section).
 
 3. **Enter your name and the server's IP address** the first time. They are saved on the disk.
    - Any server works.
@@ -150,6 +152,23 @@ Pi. The release builds need no .NET installation; from source you need the .NET 
 4. **Choose an opponent** in the lobby, a person or a bot, and press FIRE. Play.
 
 5. **F1** in the lobby opens the setup, to change your name or the server.
+
+## C64 Ultimate: turn on the Command Interface
+
+On a **C64 Ultimate** or **Ultimate 64** the games reach the network through
+the Ultimate's **Command Interface**. It is **off by default**. Without it a game
+finds no network hardware: Wizard of Wor says *NO NETWORK HARDWARE FOUND*,
+Bubble Bobble says *Network: none found*.
+
+1. Open the Ultimate menu (**F2**, or the menu button).
+2. Go to **C64 and Cartridge Settings** and set **Command Interface** to **Enabled**.
+   The exact place can differ a little between firmware versions.
+3. Save the settings, so they are kept after a restart.
+4. Connect the Ultimate to your network (LAN, or Wi-Fi on the C64 Ultimate) and
+   check in its network settings that it has an IP address.
+
+When it works, the game shows `NETWORK: C64 ULTIMATE` (Wizard of Wor) or
+`Network: Ultimate, IP ...` (Bubble Bobble).
 
 ## The lobby (all games)
 

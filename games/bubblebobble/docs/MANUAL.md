@@ -145,12 +145,14 @@ The C64s find the server by a broadcast; no IP addresses are involved.
 
 ## 3. C64 Ultimate / Ultimate 64
 
-1. In the Ultimate menu (F2), enable the **Command Interface**:
+1. In the Ultimate menu (F2), enable the **Command Interface**. It is off by default, and
+   without it the lobby shows `Network: none found`:
    - *C64 and Cartridge Settings → Command Interface: Enabled*
    - The exact place depends on the firmware version.
+   - Save the settings, so they are kept after a restart.
 2. Connect the Ultimate to the network (LAN or Wi-Fi) and check that it has an IP address (*Network settings*).
 3. Copy `bblan.d64` to the USB stick or SD card. Mount it on drive A (8) and run `BBLAN` (`LOAD"BBLAN",8` + `RUN`).
-4. In the lobby, press `S` and enter your name and the server's IP address.
+4. The first start asks for your name and the server's IP address.
 
 The menu then shows `Network: Ultimate, IP ...`.
 
@@ -161,7 +163,7 @@ The Ultimate's emulated 1541 loads the 46 KB game at normal 1541 speed (about a 
 1. The WiC64 needs **firmware 2.0 or newer**. Update via the WiC64 portal if needed.
 2. Connect it to your Wi-Fi with the WiC64's own setup program.
 3. Load `BBLAN` from a disk drive, SD2IEC or similar.
-4. In the lobby, press `S` and enter your name and the server's IP address. The WiC64 connects to the server's TCP port (6466).
+4. The first start asks for your name and the server's IP address. The WiC64 connects to the server's TCP port (6466).
 
 The menu shows `Network: WiC64, IP ...`.
 

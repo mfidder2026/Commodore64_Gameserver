@@ -72,7 +72,7 @@ and `vice-wic64.bat`, which starts VICE with the right network set-up.
 **Why the server?** The C64 Ultimate firmware cannot listen on a port and cannot open a socket on a fixed local port (checked in the [firmware source](https://github.com/GideonZ/1541ultimate)). Two Ultimates can never reach each other directly, but both can reach a server.
 
 Network notes:
-- C64 Ultimate: enable **C64 and Cartridge Settings → Command Interface**.
+- C64 Ultimate: enable **C64 and Cartridge Settings → Command Interface** in the Ultimate menu (F2) and save the settings. It is off by default; without it the setup menu says NO NETWORK HARDWARE FOUND.
 - WiC64: nothing to set up on the C64 side; it must be connected to your Wi-Fi. In VICE: `RELEASE/vice-wic64.bat` (userport device WiC64).
 - VICE with RR-Net: `RELEASE/vice-rrnet.bat`, or **Settings → Cartridge → Ethernet cartridge**, mode **RR-Net**, with [Npcap](https://npcap.com/) installed. A **wired** network adapter on the PC works best: Wi-Fi access points often drop frames from VICE's extra MAC address.
 - VICE usually cannot talk to the PC it runs on (pcap). Run the game server on another machine, for example a Raspberry Pi, when VICE should use it.

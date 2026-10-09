@@ -34,7 +34,7 @@ original game behave identically on two machines took some work; see
 
 | Player's machine | Network | Notes |
 |---|---|---|
-| **C64 Ultimate / Ultimate 64** | UDP via the Ultimate Command Interface | Enable *Command Interface* in the Ultimate menu |
+| **C64 Ultimate / Ultimate 64** | UDP via the Ultimate Command Interface | **Enable the Command Interface** in the Ultimate menu (F2 → C64 and Cartridge Settings); it is off by default |
 | **C64 + WiC64** | TCP via the WiC64 (firmware 2.x) | |
 | **VICE 3.9** with WiC64 emulation | TCP | Easiest way to play in an emulator: [`RELEASE/vice-wic64.bat`](../../RELEASE/vice-wic64.bat) |
 | **VICE** with RR-Net | raw Ethernet | Server must run with pcap (Npcap) on the same LAN or PC: [`RELEASE/vice-rrnet.bat`](../../RELEASE/vice-rrnet.bat) |

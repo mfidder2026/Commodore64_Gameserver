@@ -1,4 +1,4 @@
-/* Standard lobby: network layer (Ultimate Command Interface or RR-Net) */
+/* Standard lobby: network layer (Ultimate Command Interface, RR-Net or WiC64) */
 #include <string.h>
 #include <stdio.h>
 #include <peekpoke.h>

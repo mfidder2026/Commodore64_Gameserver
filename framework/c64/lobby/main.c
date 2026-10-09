@@ -516,7 +516,8 @@ int main(void)
         case DRV_UCI: cprintf("Network: Ultimate, IP %s\r\n", net_info()); break;
         case DRV_RR:  cputs("Network: RR-Net (VICE)\r\n"); break;
         case DRV_WIC: cprintf("Network: WiC64, IP %s\r\n", net_info()); break;
-        default:      cputs("Network: none found\r\n"); break;
+        default:      cputs("Network: none found\r\n"
+                              "(Ultimate: enable the Command Interface)\r\n"); break;
         }
         cputs("Name:    "); put_nick(*nick ? nick : "-", 0); cputs("\r\n");
         if (NEEDS_SERVER) cprintf("Server:  %s\r\n", *server ? server : "-");
