@@ -9,8 +9,59 @@ using C64GameServer.Protocol;
 namespace C64GameServer.Bots;
 
 /// <summary>
-/// Test client that behaves like a C64: connects, accepts challenges and plays Wizard of Wor in lockstep
-/// (input delay, 16 inputs per packet, resend while waiting, a checksum every 64 ticks).
+/// How a bot plays the lockstep of one game: the layout of its INPUT message and its timing.
+/// A new lockstep game needs an entry in <see cref="For"/> (see docs/adding-a-game.md).
+/// </summary>
+/// <param name="InputLength">INPUT message length: $80, session, newest tick, checksum tick, checksum, inputs</param>
+/// <param name="Window">inputs per INPUT message (newest-Window+1 .. newest)</param>
+/// <param name="TickRate">ticks per second (a START parameter at index 3 overrides it)</param>
+/// <param name="IdleInput">input of a player who does nothing (the ticks before the first real input)</param>
+/// <param name="FirstInputTimeoutSeconds">how long to wait for the opponent's first input (the C64 may be loading)</param>
+/// <param name="Input">the bot's input for (tick, slot, seed)</param>
+public sealed record BotProfile(int InputLength, int Window, int TickRate, byte IdleInput,
+    int FirstInputTimeoutSeconds, Func<int, int, byte, byte> Input)
+{
+    public static BotProfile For(byte game) => game switch
+    {
+        3 => BubbleBobble,
+        _ => WizardOfWor,
+    };
+
+    /// <summary>Wizard of Wor OME: 60 ticks/s, 16 inputs per packet.</summary>
+    public static readonly BotProfile WizardOfWor = new(24, 16, 60, 0xFF, 15, (tick, slot, seed) =>
+    {
+        // a new direction / fire state every 16 ticks, different per slot
+        uint x = Hash(tick >> 4, slot, seed);
+        byte[] dirs = [0xEE, 0xED, 0xEB, 0xE7];
+        byte v = dirs[x & 3];
+        if ((x & 0x80) != 0) v |= 0x10; // release fire
+        return v;
+    });
+
+    /// <summary>Bubble Bobble OME: 25 ticks/s, 8 inputs per packet, joystick bits 0-4 active low.</summary>
+    public static readonly BotProfile BubbleBobble = new(16, 8, 25, 0x1F, 150, (tick, slot, seed) =>
+    {
+        // walk left/right (sometimes jumping) for 8 ticks, fire now and then
+        byte[] dirs = [0x1F, 0x1B, 0x17, 0x1A, 0x16, 0x1B, 0x17, 0x1E];
+        byte v = dirs[Hash(tick >> 3, slot, seed) & 7];
+        if ((Hash(tick, slot + 7, seed) & 3) == 0) v &= 0x0F; // fire
+        return v;
+    });
+
+    private static uint Hash(int a, int slot, byte seed)
+    {
+        uint x = (uint)a * 2654435761u ^ (uint)(slot * 0x9E3779B9) ^ seed;
+        x ^= x >> 13;
+        x *= 0x5bd1e995;
+        x ^= x >> 15;
+        return x;
+    }
+}
+
+/// <summary>
+/// Test client that behaves like a C64: connects, accepts challenges and plays a game in lockstep
+/// (input delay, several inputs per packet, resend while waiting, a checksum every 64 ticks), as described by
+/// the game's <see cref="BotProfile"/>. It also is the built-in bot of the lobbies.
 /// The bot does not simulate the game itself: its "state" is a hash over all inputs, which is the same on both
 /// bots exactly when the lockstep works.
 /// </summary>
@@ -265,33 +316,21 @@ public sealed class BotClient
 
     private byte _inviteTarget;
 
-    private static byte BotInput(int tick, int slot, byte seed)
-    {
-        // a new direction / fire state every 16 ticks, different per slot
-        uint x = (uint)(tick >> 4) * 2654435761u ^ (uint)(slot * 0x9E3779B9) ^ seed;
-        x ^= x >> 13;
-        x *= 0x5bd1e995;
-        x ^= x >> 15;
-        byte[] dirs = [0xEE, 0xED, 0xEB, 0xE7];
-        byte v = dirs[x & 3];
-        if ((x & 0x80) != 0) v |= 0x10; // release fire
-        return v;
-    }
-
     private void PlaySession(byte[] start)
     {
+        var profile = BotProfile.For(_o.Game);
         byte session = start[1], slot = start[2];
         int nParams = start[4];
         byte seedRandom = nParams > 0 ? start[5] : (byte)0;
         int delay = nParams > 2 ? start[7] : 4;
-        int rate = nParams > 3 && start[8] > 0 ? start[8] : 60;
+        int rate = nParams > 3 && start[8] > 0 ? start[8] : profile.TickRate;
         Say($"START session {session}, slot {slot}, input delay {delay}, {rate} ticks/s");
         Send(Messages.StartAck(session));
 
         var local = new byte[65536];
         var remote = new byte[65536];
-        Array.Fill(local, (byte)0xFF);
-        Array.Fill(remote, (byte)0xFF);
+        Array.Fill(local, profile.IdleInput);
+        Array.Fill(remote, profile.IdleInput);
         int localNewest = delay - 1, remoteNewest = delay - 1;
         uint state = 0x1234;
         ushort chkTick = 0xFFFF, chk = 0;
@@ -301,15 +340,17 @@ public sealed class BotClient
         double maxWait = 0;
         string? ended = null;
 
+        bool heard = false;
+
         byte[] InputPacket()
         {
-            var p = new byte[24];
+            var p = new byte[profile.InputLength];
             p[0] = 0x80;
             p[1] = session;
             p[2] = (byte)localNewest; p[3] = (byte)(localNewest >> 8);
             p[4] = (byte)chkTick; p[5] = (byte)(chkTick >> 8);
             p[6] = (byte)chk; p[7] = (byte)(chk >> 8);
-            for (int i = 0; i < 16; i++) p[8 + i] = local[(localNewest - 15 + i) & 0xFFFF];
+            for (int i = 0; i < profile.Window; i++) p[8 + i] = local[(localNewest - profile.Window + 1 + i) & 0xFFFF];
             return p;
         }
 
@@ -319,13 +360,15 @@ public sealed class BotClient
             {
                 if (HandleCommon(m)) continue;
                 if (m[0] == MsgType.Start && m[1] == session) Send(Messages.StartAck(session));
-                else if (m[0] == 0x80 && m.Length == 24 && m[1] == session)
+                else if (m[0] == 0x80 && m.Length == profile.InputLength && m[1] == session)
                 {
                     _lastInputRx = Stopwatch.GetTimestamp();
+                    heard = true;
                     int newest = Messages.U16(m, 2);
-                    int first = newest - 15;
+                    int first = newest - profile.Window + 1;
                     if (first > remoteNewest + 1) continue; // hole (cannot happen)
-                    for (int i = 0; i < 16; i++) remote[(first + i) & 0xFFFF] = m[8 + i];
+                    for (int i = 0; i < profile.Window; i++)
+                        if (first + i >= 0) remote[(first + i) & 0xFFFF] = m[8 + i];
                     if (newest > remoteNewest) remoteNewest = newest;
                 }
                 else if (m[0] == MsgType.SessionEnd && m[1] == session) { ended = $"session end, reason {m[2]}"; return false; }
@@ -361,7 +404,7 @@ public sealed class BotClient
 
             // our input for t + delay
             localNewest = t + delay;
-            local[localNewest & 0xFFFF] = BotInput(localNewest, slot, seedRandom);
+            local[localNewest & 0xFFFF] = profile.Input(localNewest, slot, seedRandom);
             Send(InputPacket());
 
             // wait for the opponent's input of tick t; give up only when nothing at all came for 15 s
@@ -374,7 +417,8 @@ public sealed class BotClient
                 if (!Pump()) break;
                 long now = Stopwatch.GetTimestamp();
                 if ((now - lastSend) * 1000 / Stopwatch.Frequency >= 20) { Send(InputPacket()); lastSend = now; }
-                if ((now - Math.Max(waitStart, _lastInputRx)) / Stopwatch.Frequency >= 15) { ended = "nothing from the opponent for 15 s"; break; }
+                int patience = heard ? 15 : profile.FirstInputTimeoutSeconds; // the C64 may still be loading
+                if ((now - Math.Max(waitStart, _lastInputRx)) / Stopwatch.Frequency >= patience) { ended = $"nothing from the opponent for {patience} s"; break; }
                 Thread.Sleep(1);
             }
             if (ended != null) break;

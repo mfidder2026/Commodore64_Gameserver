@@ -95,5 +95,5 @@ Twee Ultimates kunnen niet rechtstreeks verbinden (zie hierboven). Daarom is er 
 - UDP op poort 6465. De server leert per client het adres en de bronpoort.
 - Een lobby met nicknames, uitdagen en accepteren. Daarna een sessie.
 - Wizard of Wor: de lockstep blijft op de C64. De server geeft `INPUT` ongewijzigd door, controleert de checksums en meldt uitval.
-- Protocol: `server/docs/protocol.md`.
+- Protocol: `docs/protocol.md` in the repository root.
 - VICE kan via pcap meestal niet de eigen PC bereiken: draai de server dan op een andere machine (bijvoorbeeld een Raspberry Pi), of speel tegen de bot.

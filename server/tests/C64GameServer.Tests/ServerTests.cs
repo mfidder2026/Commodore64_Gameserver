@@ -671,3 +671,30 @@ public class BubbleBobbleTests
         Assert.Equal((byte)EndReason.Desync, h.Net.Last(Harness.Ep(1), MsgType.SessionEnd)![2]);
     }
 }
+
+public class FrameworkTests
+{
+    [Fact]
+    public void Every_default_game_with_bots_has_a_matching_bot_profile()
+    {
+        var config = new ServerConfig();
+        Assert.Equal(WizardOfWorModule.InputLength, Bots.BotProfile.For(1).InputLength);
+        Assert.Equal(BubbleBobbleModule.InputLength, Bots.BotProfile.For(3).InputLength);
+        foreach (var g in config.Games.Where(g => g.Bots.Count > 0))
+        {
+            var p = Bots.BotProfile.For(g.Id);
+            Assert.Equal(8 + p.Window, p.InputLength);
+            Assert.All(g.Bots, b => Assert.True(Messages.IsValidNick(b.ToUpperInvariant()), $"bot name {b}"));
+        }
+        Assert.Equal(config.Games.Count, config.Games.Select(g => g.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void Event_log_entries_carry_the_game_of_the_player_or_session()
+    {
+        var h = new Harness();
+        h.Hello(Harness.Ep(1), "ANNA");
+        var e = h.Core.Log.Snapshot(50).First(x => x.Player == "ANNA");
+        Assert.Equal((byte)1, e.Game);
+    }
+}

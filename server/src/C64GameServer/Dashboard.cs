@@ -121,6 +121,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                     id = c.Id,
                     nick = c.Nick,
                     kind = c.IsBot ? "bot" : "human",
+                    gameId = c.GameId,
                     address = c.EndPoint.ToString(),
                     game = core.Games.Get(c.GameId)?.Name ?? c.GameId.ToString(),
                     state = c.State switch
@@ -135,6 +136,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                 sessions = core.Sessions.Select(s => new
                 {
                     id = s.Id,
+                    gameId = s.GameId,
                     game = core.Games.Get(s.GameId)?.Name,
                     players = string.Join(" vs ", s.Players.Select(p => p.Nick)),
                     duration = (now - s.Started).ToString(@"mm\:ss"),
@@ -148,6 +150,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                 challenges = core.Challenges.Select(c => new
                 {
                     id = c.Id,
+                    gameId = c.GameId,
                     players = string.Join(" vs ", c.Players.Select(p => p.Nick + (c.Accepted.Contains(p) ? " (accepted)" : ""))),
                     age = $"{(now - c.Created).TotalSeconds:0} s",
                 }).ToList(),
@@ -159,6 +162,7 @@ internal sealed class Dashboard(ServerHost host, int port)
                     text = e.Text,
                     player = e.Player,
                     session = e.Session,
+                    gameId = e.Game,
                 }).ToList(),
             };
             return JsonSerializer.Serialize(status, Json);
@@ -170,9 +174,13 @@ internal sealed class Dashboard(ServerHost host, int port)
     /// <summary>The game port shown on the page (from server.json).</summary>
     public static void SetGamePort(int p) => _gamePort = p;
 
+    /// <summary>
+    /// The page: an "All games" tab plus one tab per game in server.json (made from status.games, so a new
+    /// game gets its tab without changes here). The open tab is kept in the URL (#game-3).
+    /// </summary>
     private const string Page = """
 <!doctype html>
-<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>C64 Game Server</title>
 <style>
  :root { --bg:#1d1b4a; --panel:#2b2a6b; --text:#d8d6ff; --dim:#9a97d8; --accent:#7b78ff; --ok:#7fe0a0; --bad:#ff8080; }
@@ -183,13 +191,17 @@ internal sealed class Dashboard(ServerHost host, int port)
  table { border-collapse:collapse; width:100% } td, th { text-align:left; padding:3px 8px 3px 0; vertical-align:top } th { color:var(--dim); font-weight:normal }
  button { background:var(--accent); color:#fff; border:0; border-radius:4px; padding:2px 8px; cursor:pointer }
  pre { margin:4px 0 0; font:12px ui-monospace, monospace; color:var(--dim); white-space:pre-wrap }
- .warn { color:var(--bad) } .desync { color:var(--bad) } .connect-small { color:var(--dim) }
+ .warn { color:var(--bad) } .connect-small { color:var(--dim) }
  input { background:var(--bg); color:var(--text); border:1px solid var(--accent); border-radius:4px; padding:2px 6px }
+ .tabs { display:flex; gap:4px; flex-wrap:wrap; margin:12px 0 16px; border-bottom:2px solid var(--accent) }
+ .tab { background:var(--panel); color:var(--dim); border-radius:6px 6px 0 0; padding:6px 14px; cursor:pointer; user-select:none }
+ .tab.on { background:var(--accent); color:#fff } .tab .n { font-size:12px; opacity:.8; margin-left:6px }
 </style></head><body>
 <h1>C64 Game Server</h1>
 <div class="connect-small">LAN only, no encryption. C64s connect to:</div>
 <div class="connect" id="connect">...</div>
 <p class="connect-small" id="summary"></p>
+<div class="tabs" id="tabs"></div>
 <div class="grid">
  <div class="panel"><h2>Players</h2><table id="players"></table></div>
  <div class="panel"><h2>Sessions</h2><div id="sessions"></div><h2 style="margin-top:12px">Challenges</h2><table id="challenges"></table></div>
@@ -200,26 +212,38 @@ internal sealed class Dashboard(ServerHost host, int port)
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function post(url) { await fetch(url, {method:'POST'}); }
 let last = null;
+let tab = (location.hash.match(/^#game-(\d+)$/) || [])[1] ?? 'all'; // 'all' or a game id
+const mine = x => tab === 'all' || String(x.gameId) === tab;
+function setTab(t) { tab = t; history.replaceState(null, '', t === 'all' ? location.pathname + location.search : '#game-' + t); render(last); }
 function render(s) {
+  if (!s) return;
   last = s;
+  if (tab !== 'all' && !s.games.some(g => String(g.id) === tab)) tab = 'all';
   document.getElementById('connect').textContent = s.addresses.map(a => a + ' : ' + s.port).join('   ');
   document.getElementById('summary').textContent =
-    `uptime ${s.uptime} · ${s.players.length} players · ${s.sessions.length} sessions · games: ${s.games.map(g => g.id + ' ' + g.name).join(', ')} · invalid packets: ${s.stats.invalid}`;
-  document.getElementById('players').innerHTML = '<tr><th>name</th><th>kind</th><th>address</th><th>game</th><th>status</th><th>ping</th><th>last seen</th><th></th></tr>' +
-    s.players.map(p => `<tr><td>${esc(p.nick)}</td><td>${p.kind === 'bot' ? 'bot' : 'human'}</td><td>${esc(p.address)}</td><td>${esc(p.game)}</td><td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
+    `uptime ${s.uptime} · ${s.players.length} players · ${s.sessions.length} sessions · ${s.games.length} games · invalid packets: ${s.stats.invalid}`;
+  const count = id => s.players.filter(p => p.gameId === id && p.kind !== 'bot').length;
+  document.getElementById('tabs').innerHTML =
+    `<div class="tab ${tab === 'all' ? 'on' : ''}" onclick="setTab('all')">All games<span class="n">${s.players.filter(p => p.kind !== 'bot').length}</span></div>` +
+    s.games.map(g => `<div class="tab ${tab === String(g.id) ? 'on' : ''}" onclick="setTab('${g.id}')">${esc(g.name)}<span class="n">${count(g.id)}</span></div>`).join('');
+  const all = tab === 'all';
+  document.getElementById('players').innerHTML = `<tr><th>name</th><th>kind</th><th>address</th>${all ? '<th>game</th>' : ''}<th>status</th><th>ping</th><th>last seen</th><th></th></tr>` +
+    s.players.filter(mine).map(p => `<tr><td>${esc(p.nick)}</td><td>${p.kind === 'bot' ? 'bot' : 'human'}</td><td>${esc(p.address)}</td>${all ? `<td>${esc(p.game)}</td>` : ''}<td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
       <td><button onclick="post('/api/kick/${p.id}')">kick</button></td></tr>`).join('');
-  document.getElementById('sessions').innerHTML = s.sessions.length ? s.sessions.map(x => `
+  const sessions = s.sessions.filter(mine);
+  document.getElementById('sessions').innerHTML = sessions.length ? sessions.map(x => `
     <div style="margin-bottom:10px"><b>#${x.id} ${esc(x.game)}</b>: ${esc(x.players)} · ${x.duration} · started: ${x.started} · ${esc(x.traffic)} · ${esc(x.rate)}
     <button onclick="post('/api/end/${x.id}')">end</button>
     <table>${(x.status || []).map(f => `<tr><th>${esc(f.name)}</th><td>${esc(f.value)}</td></tr>`).join('')}</table>
     <pre>${x.recent.map(esc).join('\n')}</pre></div>`).join('') : '<span class="connect-small">none</span>';
-  document.getElementById('challenges').innerHTML = s.challenges.map(c => `<tr><td>#${c.id}</td><td>${esc(c.players)}</td><td>${c.age}</td></tr>`).join('');
+  document.getElementById('challenges').innerHTML = s.challenges.filter(mine).map(c => `<tr><td>#${c.id}</td><td>${esc(c.players)}</td><td>${c.age}</td></tr>`).join('');
   renderLog();
 }
 function renderLog() {
   if (!last) return;
   const f = document.getElementById('filter').value.toLowerCase();
   document.getElementById('log').innerHTML = last.log
+    .filter(e => tab === 'all' || e.gameId == null || String(e.gameId) === tab) // server events show everywhere
     .filter(e => !f || [e.text, e.player, e.session, e.category].join(' ').toLowerCase().includes(f))
     .map(e => `<tr class="${e.category === 'desync' || e.category === 'error' ? 'warn' : ''}"><td>${e.time}</td><td>${esc(e.category)}</td><td>${esc(e.text)}</td></tr>`).join('');
 }

@@ -7,18 +7,19 @@
  * Finds the network hardware, connects to the C64 Game Server, shows the
  * other players and lets you invite one. When the server starts a session
  * this program writes a handoff block to $03C0 and loads the game, which
- * takes over the connection (see src/bbnet.s). After the game the game loads
+ * takes over the connection (see README.md here; Bubble Bobble: src/bbnet.s). After the game it loads
  * this program again; it then shows how the game ended and reconnects.
  *
  * Hardware:
  *   Ultimate 64 / C64 Ultimate  UDP through the Ultimate Command Interface
+ *   WiC64                       TCP to the server (port + 1)
  *   RR-Net (VICE)               raw Ethernet to the server's pcap interface
  *
- * Config file BBLAN.CFG (written by this program):
+ * Config file CFG_FILE (written by this program):
  *   name=...   your name (A-Z, 0-9, max 8)
- *   server=... IP address of the game server (Ultimate only)
+ *   server=... IP address of the game server (Ultimate and WiC64)
  *   mac=...    MAC address of the RR-Net (made up once, RR-Net only)
- *   auto=...   tests: "invite" or "accept"
+ *   auto=...   tests: "invite" (a person), "bot" (invite a bot) or "accept"
  *   bot=1      tests: a bot plays instead of the joystick (test game files)
  */
 #include <stdio.h>
@@ -54,7 +55,7 @@
 #define M_PLAYERS   0x10
 #define M_INVITE    0x11
 
-/* handoff block for the game ($03C0, see src/bbnet.s) */
+/* handoff block for the game ($03C0, see README.md here) */
 #define HB          ((unsigned char *)0x03C0)
 #define HB_DRIVER   2
 #define HB_SLOT     3
@@ -420,10 +421,11 @@ static void lobby(void)
         if (redraw && st != CONNECTING) { draw_players(); redraw = 0; }
 
         /* --- automatic play (tests) */
-        if (auto_mode == 'i' && st == LOBBY) {
+        if ((auto_mode == 'i' || auto_mode == 'b') && st == LOBBY) {
             unsigned char i;
             for (i = 0; i < nplayers; ++i)
-                if (players[i].id != myid && !(players[i].flags & 7)) {
+                if (players[i].id != myid && !(players[i].flags & 6)
+                    && (players[i].flags & 1) == (auto_mode == 'b')) {
                     target = players[i].id; ++seq; st = INVITING; last_send = 0;
                     status("Inviting...  N: cancel");
                     break;
@@ -490,8 +492,10 @@ int main(void)
 
     for (;;) {
         title();
+#if GAME_PAL_ONLY
         if (PEEK(0x02A6) == 0)
-            cputs("NTSC C64: the LAN game needs PAL.\r\n\r\n");
+            cputs("NTSC C64: the online game needs PAL.\r\n\r\n");
+#endif
         switch (drv) {
         case DRV_UCI: cprintf("Network: Ultimate, IP %s\r\n", net_info()); break;
         case DRV_RR:  cputs("Network: RR-Net (VICE)\r\n"); break;
@@ -505,8 +509,10 @@ int main(void)
             cprintf("\r\nLast game: %s\r\n", end_text[reason]);
             textcolor(COLOR_WHITE);
         }
-        cputs("\r\n\r\n  F1/RETURN  play on the LAN\r\n"
-              "  L          local game (2 joysticks)\r\n"
+        cputs("\r\n\r\n  F1/RETURN  play online\r\n"
+#ifdef LOCAL_GAME_TEXT
+              "  L          " LOCAL_GAME_TEXT "\r\n"
+#endif
               "  S          settings\r\n");
 
         if ((came_back || auto_mode) && drv != DRV_NONE && *nick) key = CH_ENTER;
@@ -514,7 +520,9 @@ int main(void)
         came_back = 0;
 
         if (key == 's') { settings(drv == DRV_UCI || drv == DRV_WIC); cfg_save(); continue; }
+#ifdef LOCAL_GAME_TEXT
         if (key == 'l') { memset(HB, 0, HB_SIZE); start_game(game_file()); }
+#endif
         if (key != CH_ENTER && key != CH_F1) continue;
         if (drv == DRV_NONE || PEEK(0x02A6) == 0) continue;
         if (!*nick || ((drv == DRV_UCI || drv == DRV_WIC) && !*server)) { settings(drv == DRV_UCI || drv == DRV_WIC); cfg_save(); }

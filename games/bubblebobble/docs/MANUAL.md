@@ -1,6 +1,7 @@
-# BB-LAN manual
+# Bubble Bobble OME manual
 
-This manual covers everything needed to play Bubble Bobble with two C64s over a local network:
+This manual covers everything needed to play Bubble Bobble with two C64s over a local network
+through the [C64 Game Server](../../../README.md):
 
 - the game server;
 - setting up each kind of C64 (C64 Ultimate / Ultimate 64, WiC64, VICE);
@@ -55,7 +56,7 @@ It needs very little CPU; a Raspberry Pi is plenty.
 Install the [.NET 8 runtime or SDK](https://dotnet.microsoft.com/download/dotnet/8.0), then:
 
 ```bash
-cd server
+cd server        # in the repository root
 dotnet run --project src/C64GameServer -c Release
 ```
 
@@ -63,6 +64,7 @@ Or build stand-alone executables once with `server/publish.bat`. They are writte
 
 At start-up the server prints the IP addresses of the PC. Use the LAN address (for example `192.168.1.10`) in the C64s' settings. The **dashboard** at `http://<server>:8080/` shows:
 
+- a tab per game (Bubble Bobble, Wizard of Wor, ...) and one for all games;
 - the players and sessions;
 - the current tick of each C64 and the number of compared checksums;
 - an event log.
@@ -94,9 +96,9 @@ The server reads `server.json` from its working directory. If the file is missin
   "dashboardPort": 8080,
   "pcapInterface": "",
   "pcapMac": "02:BB:4C:41:4E:01",
-  "bots": [],
   "games": [
     { "id": 3, "name": "Bubble Bobble", "module": "bubblebobble", "version": 1,
+      "bots": ["BUBBLUN", "BOBBLUN"],
       "settings": { "inputDelay": 2, "inputDelayWiC64": 4,
                     "inputTimeoutSeconds": 10, "loadTimeoutSeconds": 150 } }
   ]
@@ -113,12 +115,12 @@ The server reads `server.json` from its working directory. If the file is missin
 | `inputDelayWiC64` | The same when a WiC64 takes part. Every WiC64 transfer costs the C64 time, so a longer delay lets one transfer bring several ticks of input |
 | `inputTimeoutSeconds` | A player who sends nothing for this long during the game ends the session |
 | `loadTimeoutSeconds` | How long a C64 may take to load the game after the start (a real 1541 needs about a minute) |
-| `bots` | Built-in bots that accept every challenge (for the Wizard of Wor game; not useful for Bubble Bobble, keep empty) |
+| `bots` | Built-in bots of this game. They are in the lobby, accept every invitation and play with random joystick moves |
 
 Other settings:
 
-- `idleTimeoutSeconds`, `challengeTimeoutSeconds`, `lobbyIntervalMs`, and so on. They keep their defaults; see `server/src/C64GameServer.Core/Core/ServerConfig.cs`.
-- The `games` list can also hold the other games of the platform (Wizard of Wor, id 1). The lobby of BB-LAN only shows Bubble Bobble players.
+- `idleTimeoutSeconds`, `challengeTimeoutSeconds`, `lobbyIntervalMs`, and so on. They keep their defaults; see [server/README.md](../../../server/README.md).
+- The default `games` list also holds the other games (Wizard of Wor, id 1). The Bubble Bobble lobby only shows Bubble Bobble players.
 
 ### Raw Ethernet for VICE with RR-Net
 
@@ -202,7 +204,7 @@ Two VICEs and the server on one PC work fine this way. Each VICE needs its own c
 
 The menu shows the network hardware that was found and your name:
 
-- `F1`/`RETURN` connects to the server.
+- `F1`/`RETURN` connects to the server ("play online").
 - `L` starts a local game for two players on one C64 (two joysticks), as in the original.
 - `S` opens the settings.
 
@@ -213,13 +215,15 @@ The first time, you are asked for your name and (Ultimate, WiC64) the server's a
 
 ![The players on the server](images/lobby-players.png)
 
-After connecting you see the other Bubble Bobble players on the server:
+After connecting you see the other Bubble Bobble players on the server. **PERSON**
+is someone at a C64, **BOT** one of the server's bots (BUBBLUN, BOBBLUN), which
+accepts every invitation:
 
 | Status | Meaning |
 |---|---|
-| *free* | can be invited |
-| *busy* | is invited or invites someone |
-| *playing* | is in a game |
+| FREE | can be invited |
+| BUSY | is invited or invites someone |
+| PLAYING | is in a game |
 
 To invite a player, move to them with the joystick (port 2) or the cursor keys and press `FIRE` or `RETURN`. `N` withdraws the invitation.
 
@@ -254,7 +258,7 @@ The lobby writes this file itself. You can also put it on the disk by hand (a SE
 | `NAME` | Your name |
 | `SERVER` | IP address of the server (Ultimate, WiC64) |
 | `MAC` | RR-Net MAC address, 12 hex digits (made up by the lobby) |
-| `AUTO` | Tests: `I` invites the first free player automatically, `A` accepts every invitation |
+| `AUTO` | Tests: `I` invites the first free person automatically, `B` the first free bot, `A` accepts every invitation |
 | `BOT` | Tests: `1` lets a simple bot play instead of the joystick (only in the test build of the game) |
 
 ## 7. Playing

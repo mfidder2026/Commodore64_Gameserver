@@ -140,7 +140,10 @@ internal static class Program
     /// </summary>
     private static void StartBots(ServerConfig config, EventLog log, CancellationToken ct)
     {
-        foreach (var nick in config.Bots.Select(b => b.ToUpperInvariant()).Distinct())
+        var bots = config.Games.SelectMany(g => g.Bots.Select(b => (Nick: b.ToUpperInvariant(), Game: g.Id)))
+            .Concat(config.Bots.Select(b => (Nick: b.ToUpperInvariant(), Game: config.BotGame)))
+            .DistinctBy(b => b.Nick);
+        foreach (var (nick, game) in bots)
         {
             if (!Protocol.Messages.IsValidNick(nick))
             {
@@ -151,7 +154,7 @@ internal static class Program
             {
                 Server = new IPEndPoint(IPAddress.Loopback, config.GamePort),
                 Nick = nick,
-                Game = config.BotGame,
+                Game = game,
                 Games = 0,
                 Ticks = int.MaxValue, // the game over comes from the C64
                 NoChecksum = true,    // the bot does not know the real game state
@@ -175,7 +178,8 @@ internal static class Program
             Console.WriteLine($" Raw Ethernet (VICE RR-Net) on {config.PcapInterface}, MAC {config.PcapMac}");
         Console.WriteLine($" Dashboard: http://localhost:{config.DashboardPort}/");
         Console.WriteLine(" Games: " + string.Join(", ", games.All.Select(g => $"{g.GameId} = {g.Name}")));
-        if (config.Bots.Count > 0) Console.WriteLine(" Bots: " + string.Join(", ", config.Bots));
+        foreach (var g in config.Games.Where(g => g.Bots.Count > 0))
+            Console.WriteLine($" Bots in {g.Name}: " + string.Join(", ", g.Bots));
         Console.WriteLine(" Ctrl+C stops the server.");
         Console.WriteLine();
     }

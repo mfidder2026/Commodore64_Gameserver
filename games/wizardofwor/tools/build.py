@@ -6,7 +6,7 @@ Build script for Wizard of Wor LAN.
     python tools/build.py shot [N]   build, run N million cycles in VICE (warp) and save a screenshot
 
 64tass runs inside WSL (tools/64tass.sh fetches it on first use).
-VICE and cc65: environment variables VICE_DIR / CC65_BIN, tools/paths.local.json, or the PATH (tools/paths.py).
+VICE and cc65: see framework/tools/c64env.py (VICE_DIR / CC65_BIN, paths.local.json in the repository root, a c64 folder next to it, or the PATH).
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 BUILD = os.path.join(ROOT, "build")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from paths import VICE_DIR, CC65_BIN  # noqa: E402  (environment, tools/paths.local.json or the PATH)
+from paths import VICE_DIR, CC65_BIN  # noqa: E402  (framework/tools/c64env.py)
 WSL_DISTRO = os.environ.get("WSL_DISTRO", "Ubuntu-24.04")
 
 # md5 of the unmodified upstream source assembled as a cartridge

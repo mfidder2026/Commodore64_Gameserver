@@ -1,6 +1,6 @@
 namespace C64GameServer.Core;
 
-public sealed record LogEntry(DateTime Time, string Category, string Text, string? Player, byte? Session);
+public sealed record LogEntry(DateTime Time, string Category, string Text, string? Player, byte? Session, byte? Game = null);
 
 /// <summary>In-memory event log (for the dashboard) plus an optional log file.</summary>
 public sealed class EventLog
@@ -18,9 +18,10 @@ public sealed class EventLog
         _console = console;
     }
 
-    public void Add(DateTime time, string category, string text, string? player = null, byte? session = null)
+    public void Add(DateTime time, string category, string text, string? player = null, byte? session = null,
+        byte? game = null)
     {
-        var e = new LogEntry(time, category, text, player, session);
+        var e = new LogEntry(time, category, text, player, session, game);
         lock (_lock)
         {
             _entries.AddLast(e);

@@ -1,6 +1,8 @@
-# Wizard of Wor LAN – two Commodore 64s, one dungeon
+# Wizard of Wor OME: two Commodore 64s, one dungeon
 
-A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: two players play at the same time on **two separate C64s** connected over the LAN. It runs on the **Commodore 64 Ultimate** (network through its Command Interface) and on **VICE / RR-Net**. It also includes the **C64 Game Server**, a small LAN server that lets C64s find each other and play – the only way two C64 Ultimates can play together.
+> Part of the **[Commodore 64 Game Server](../../README.md)**: one server, a shared framework and several *Online Multiplayer Enabled* C64 games.
+
+An *Online Multiplayer Enabled* version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: two players play at the same time on **two separate C64s** connected over the LAN. It runs on the **Commodore 64 Ultimate** (network through its Command Interface) and on **VICE / RR-Net**. It plays through the **[C64 Game Server](../../server/README.md)**, a small LAN server that lets C64s find each other and play – the only way two C64 Ultimates can play together.
 
 <p align="center">
   <img src="docs/images/game_a.png" width="49%" alt="Two players in the dungeon">
@@ -25,7 +27,7 @@ A network version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: t
 
 | C64 Game Server dashboard |
 |---|
-| ![Dashboard](docs/images/dashboard.png) |
+| ![Dashboard](../../docs/images/dashboard-wow.png) |
 
 ## Download
 
@@ -52,7 +54,7 @@ No need to build anything: the [**Releases**](https://github.com/mfidder2026/Com
 | Direct network play, VICE ↔ VICE | verified (lockstep, identical checksums) |
 | C64 Ultimate network driver | measured on real hardware (round trip from 8 ms) |
 | C64 Ultimate ↔ VICE, game | built, **not yet tested on real hardware** |
-| C64 Game Server + bot | 38 automated tests, bot ↔ bot sessions without errors |
+| C64 Game Server + bot | 46 automated tests, bot ↔ bot sessions without errors |
 | C64 ↔ C64 Game Server | built, **not yet tested on real hardware** |
 
 ## Hardware
@@ -80,11 +82,13 @@ Requirements (Windows):
 - [cc65](https://cc65.github.io/) (only ca65/ld65, for the ip65 network stack)
 - .NET 8 SDK (only for the game server)
 
-Paths to VICE and cc65 are set at the top of `tools/build.py`, or with the environment variables `VICE_DIR` and `CC65_BIN`.
+VICE and cc65 are found by [framework/tools/c64env.py](../../framework/tools/c64env.py): the environment variables `VICE_DIR` and `CC65_BIN`, `paths.local.json` in the repository root, a `c64` folder next to the repository, or the PATH.
 
 ```bash
 build.bat
 ```
+
+From the repository root, `python build.py wizardofwor` does the same.
 
 This produces, in `build/`:
 
@@ -94,7 +98,7 @@ This produces, in `build/`:
 | `wow_cart.crt` | the original cartridge, byte-identical to the disassembly (regression check) |
 | `nettest.prg`, `nettest_rrnet.prg` | network measurement tool (C64 Ultimate / RR-Net) |
 
-The game server:
+The game server (in the repository root):
 
 ```bash
 server\publish.bat
@@ -120,8 +124,9 @@ server\publish\win-x64\C64GameServer.exe
 - **LAN only:** no encryption, no accounts. Never expose it to the internet.
 - The server starts three bots (WORLUK, GARWOR, THORWOR) that accept every challenge, so there is always an opponent.
 - `C64Bot.exe` plays like a C64, so you can test without hardware.
+- The dashboard has a tab per game; Wizard of Wor players are on the *Wizard of Wor* tab.
 
-More in [`server/README.md`](server/README.md) and the protocol in [`server/docs/protocol.md`](server/docs/protocol.md) (both in Dutch).
+More in [`server/README.md`](../../server/README.md) and the protocol in [`docs/protocol.md`](../../docs/protocol.md).
 
 ## Testing tools
 
@@ -133,7 +138,7 @@ More in [`server/README.md`](server/README.md) and the protocol in [`server/docs
 | `tools/speedtest.py` | can a C64 keep up with 60 ticks per second? |
 | `tools/profile_run.py` | measures the cost of the original game loop (the cost model) |
 | `tools/netpeer.py` | PC peer for the network measurement tool |
-| `dotnet test server\tests\...` | game server tests (fake clock and network, fuzzing) |
+| `python build.py test` (root) | game server tests (fake clock and network, fuzzing) plus the game tests |
 
 ## Project layout
 
@@ -146,7 +151,7 @@ src/net/net_rrnet.asm    RR-Net driver on top of ip65 (UDP)
 src/net/ip65_glue.s      ip65 jump table and platform glue (ca65)
 src/loader.asm           PRG loader
 third_party/ip65         ip65 TCP/IP stack (Mozilla Public License)
-server/                  the C64 Game Server (.NET 8)
+game.json                the game for the root build.py
 docs/                    design notes and measurements (Dutch)
 tools/                   build and test scripts
 orig/                    the untouched upstream disassembly

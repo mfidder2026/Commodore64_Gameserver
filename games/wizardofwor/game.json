@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "name": "Wizard of Wor",
+  "short": "WoW",
+  "module": "wizardofwor",
+  "lobby": "in-game",
+  "build": ["python", "tools/build.py"],
+  "disk": "build/wow.d64",
+  "tests": [["python", "tools/dettest.py"]],
+  "readme": "README.md"
+}

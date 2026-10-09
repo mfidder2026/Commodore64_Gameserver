@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Make the screenshots for the documentation (docs/images/).
 
-Starts the server (raw Ethernet + two built-in bots in the Bubble Bobble
-lobby) and two VICEs with RR-Net: ALICE is driven by keystrokes, BOB invites
+Starts the server (raw Ethernet + the built-in bots BUBBLUN and BOBBLUN in
+the Bubble Bobble lobby) and two VICEs with RR-Net: ALICE is driven by keystrokes, BOB invites
 her automatically. Needs build/bblan-test.d64 (python tools/build.py testdisk).
 """
 import json
@@ -36,9 +36,10 @@ def main():
     iface = os.environ.get("NPCAP_IF", nettest.DEFAULT_IF)
     srv = nettest.SRV_DIR
     with open(os.path.join(srv, "server.json"), "w") as f:
-        json.dump({"gamePort": 6465, "dashboardPort": 8080, "bots": ["WORLUK", "GARWOR"], "botGame": 3,
+        json.dump({"gamePort": 6465, "dashboardPort": 8080,
                    "logFile": "server.log", "pcapInterface": iface, "pcapMac": "02:BB:4C:41:4E:01",
                    "games": [{"id": 3, "name": "Bubble Bobble", "module": "bubblebobble", "version": 1,
+                              "bots": ["BUBBLUN", "BOBBLUN"],
                               "settings": {"inputDelay": 2, "inputDelayWiC64": 4,
                                            "inputTimeoutSeconds": 10, "loadTimeoutSeconds": 150}}]}, f)
     server = subprocess.Popen([os.path.join(srv, "bin", "C64GameServer.exe"), "server.json"], cwd=srv,

@@ -1,4 +1,4 @@
-/* Standard lobby: network layer over the Ultimate Command Interface or RR-Net */
+/* Standard lobby: network layer over the Ultimate Command Interface, the WiC64 or RR-Net */
 #ifndef NET_H
 #define NET_H
 

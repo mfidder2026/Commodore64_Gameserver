@@ -1,6 +1,9 @@
-# BB-LAN — Bubble Bobble for two C64s over the LAN
+# Bubble Bobble OME: Bub and Bob on two C64s
 
-**Bub on one Commodore 64, Bob on another, one game.** BB-LAN turns the C64
+> Part of the **[Commodore 64 Game Server](../../README.md)**: one server, a shared framework and several *Online Multiplayer Enabled* C64 games.
+
+**Bub on one Commodore 64, Bob on another, one game.** Bubble Bobble OME
+(Online Multiplayer Enabled, formerly BB-LAN) turns the C64
 version of Bubble Bobble into a two-player network game. Each player uses
 their own machine: **VICE**, a **C64 Ultimate / Ultimate 64**, or a C64 with
 a **WiC64**, in any combination. A small game server on the LAN brings them
@@ -25,7 +28,7 @@ original game behave identically on two machines took some work; see
 
 | Lobby | Invited | Server dashboard |
 |---|---|---|
-| ![players](docs/images/lobby-players.png) | ![invited](docs/images/lobby-invited.png) | ![dashboard](docs/images/dashboard.png) |
+| ![players](docs/images/lobby-players.png) | ![invited](docs/images/lobby-invited.png) | ![dashboard](../../docs/images/dashboard-bb.png) |
 
 ## What you need
 
@@ -41,14 +44,17 @@ Plus:
 - **One PC on the LAN for the game server** (Windows, Linux, Raspberry Pi). It
   needs the .NET 8 runtime. A Raspberry Pi works fine.
 - **PAL machines.** The game is PAL only; the lobby refuses NTSC for LAN play.
-- **The disk image `bblan.d64`**: `release/bblan.d64`, or build it yourself (see below).
+- **The disk image `bblan.d64`**: [`release/bblan.d64`](release/bblan.d64), or build it yourself (see below).
+
+No second player? The server has two **bots**, BUBBLUN and BOBBLUN. They sit in
+the lobby and accept every invitation.
 
 ## Quick start
 
 1. **Start the server** on a PC on the LAN:
 
    ```bash
-   cd server
+   cd server        # in the repository root
    dotnet run --project src/C64GameServer -c Release
    ```
 
@@ -60,7 +66,7 @@ Plus:
 3. **Configure the lobby** with `S` (settings): your name and, for the Ultimate and the WiC64, the server's IP address.
    - VICE with RR-Net needs no address: it finds the server by itself.
 
-4. **Play.** Press `RETURN`. You now see the other players. Pick one with the joystick or the cursor keys and press `FIRE`/`RETURN` to invite them.
+4. **Play.** Press `RETURN`. You now see the other players, people and bots. Pick one with the joystick or the cursor keys and press `FIRE`/`RETURN` to invite them.
    - The other player accepts with `FIRE` or `Y`.
    - Both C64s then load the game. Bub (green) is the player who invited, Bob (blue) the one who accepted.
 
@@ -71,7 +77,7 @@ configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
 
 | Where | Key / joystick | Action |
 |---|---|---|
-| Menu | `F1` / `RETURN` | Play on the LAN |
+| Menu | `F1` / `RETURN` | Play online |
 | Menu | `L` | Local game, two joysticks, as the original |
 | Menu | `S` | Settings |
 | Lobby | joystick up/down or cursor keys | Choose a player |
@@ -85,15 +91,16 @@ configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
 ## Building from source
 
 You need Python 3, [cc65](https://cc65.github.io/) (ca65/ld65/cl65), VICE
-(`c1541` for the disk image) and the .NET 8 SDK for the server.
+(`c1541` for the disk image) and the .NET 8 SDK for the server. The tools are found by
+[framework/tools/c64env.py](../../framework/tools/c64env.py) (see the [main README](../../README.md#building-and-testing)).
 
 ```bash
 python tools/build.py disk      # build/bblan.d64: lobby + game files
 python tools/build.py verify    # the original game, byte-identical (SHA256 check)
-dotnet test server/tests/C64GameServer.Tests
 ```
 
-`tools/build.py` finds cc65 via `$CC65_HOME`, `../c64/cc65` or the `PATH`, and VICE via `$VICE_DIR` or `../c64/vice/bin`.
+From the repository root, `python build.py bubblebobble` does the same, and
+`python build.py test` also runs the server tests.
 
 Tests (they start VICE instances, minimized):
 
@@ -102,6 +109,8 @@ python tools/dettest.py         # determinism: PAL/NTSC/jitter/stalls give ident
 python tools/soak.py 300 8      # a bot plays from level 8; reports crashes and hangs
 python tools/nettest.py 120     # server + two VICEs (RR-Net), complete LAN session
 python tools/nettest.py 120 --wic64   # the same with VICE's WiC64 emulation
+python tools/nettest.py 120 --bot     # one VICE against the server's bot BUBBLUN
+python tools/screenshots.py           # the screenshots in docs/images
 ```
 
 ## Project layout
@@ -109,15 +118,18 @@ python tools/nettest.py 120 --wic64   # the same with VICE's WiC64 emulation
 | Path | Contents |
 |---|---|
 | `src/` | The game: the reconstructed source of the C64 version (ca65), plus `bblan.s` (deterministic tick core) and `bbnet.s` (lockstep and network drivers) |
-| `lobby/` | The lobby program (C with cc65, drivers in assembly) |
-| `server/` | The game server (C#/.NET 8): lobby, sessions, relay, checksums, dashboard; UDP, TCP and raw Ethernet |
-| `tools/` | Build, packer, test and debug tools |
-| `docs/` | Manual, technical description, plan (Dutch), images |
+| `lobby/game.h` | Settings for the framework's [standard lobby](../../framework/c64/lobby/README.md) (title, file names, player names) |
+| `tools/` | Build, test and debug tools |
+| `docs/` | Manual, technical description, the original plan (Dutch), images |
+| `release/` | The ready-made disk image |
+| `game.json` | The game for the root `build.py` |
+
+The game server is in [`../../server`](../../server/README.md), the lobby and the packer in [`../../framework`](../../framework).
 
 ## Credits and license
 
 - The game source is based on **[rebb64](https://github.com/zaidka/rebb64)** by zaidka, a reconstruction of the C64 version that builds byte for byte identical to the original. Its README and technical notes are in [docs/REBB64-README.md](docs/REBB64-README.md) and [docs/REBB64-TECHNICAL.md](docs/REBB64-TECHNICAL.md).
 - **Bubble Bobble** © 1986 Taito Corporation. The C64 version is by Software Creations and was published by Firebird. This is a non-commercial fan project; all rights to the game stay with their owners.
-- The game server started as the server of the **WoW-LAN** project (Wizard of Wor over the LAN).
+- The game server is shared with [Wizard of Wor OME](../wizardofwor/README.md).
 - The WiC64 protocol follows the WiC64 team's [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The CS8900a set-up follows [ip65](https://github.com/cc65/ip65) (Mozilla Public License 1.1, see [third_party/ip65-LICENSE.txt](third_party/ip65-LICENSE.txt)).

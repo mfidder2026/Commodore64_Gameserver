@@ -1,0 +1,11 @@
+{
+  "id": 3,
+  "name": "Bubble Bobble",
+  "short": "BB",
+  "module": "bubblebobble",
+  "lobby": "framework",
+  "build": ["python", "tools/build.py", "disk"],
+  "disk": "build/bblan.d64",
+  "tests": [["python", "tools/build.py", "verify"], ["python", "tools/dettest.py"]],
+  "readme": "README.md"
+}

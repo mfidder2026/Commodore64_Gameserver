@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pack the raw $0400-$FFFA game image into a self-extracting, autostartable PRG.
 
-The unpacker (tools/sfx.s) is assembled with ca65/ld65.
+The unpacker (sfx.s next to this file) is assembled with ca65/ld65.
 
 Stream format (optimal parse):
   0LLLLLLL               literal run, L+1 bytes follow (1..128)

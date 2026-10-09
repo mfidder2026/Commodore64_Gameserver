@@ -29,10 +29,10 @@ public sealed class ServerConfig
     /// </summary>
     public bool AutoPair { get; set; }
 
-    /// <summary>Bots the server starts together with itself; they accept every challenge.</summary>
+    /// <summary>Older form of games[].bots: bots for the game BotGame. Prefer the "bots" list of each game.</summary>
     public List<string> Bots { get; set; } = [];
 
-    /// <summary>Game the built-in bots play.</summary>
+    /// <summary>Game of the bots in the top level "bots" list.</summary>
     public byte BotGame { get; set; } = 1;
     public int PingIntervalMs { get; set; } = 2000;
 
@@ -52,9 +52,11 @@ public sealed class ServerConfig
 
     public List<GameConfig> Games { get; set; } =
     [
+        new GameConfig { Id = 1, Name = "Wizard of Wor", Module = "wizardofwor", Version = 1,
+            Bots = ["WORLUK", "GARWOR", "THORWOR"] },
         new GameConfig { Id = 3, Name = "Bubble Bobble", Module = "bubblebobble", Version = 1,
+            Bots = ["BUBBLUN", "BOBBLUN"],
             Settings = new() { ["inputDelay"] = 2, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 10, ["loadTimeoutSeconds"] = 150 } },
-        new GameConfig { Id = 1, Name = "Wizard of Wor", Module = "wizardofwor", Version = 1 },
         new GameConfig { Id = 2, Name = "Relay demo", Module = "relay", Version = 1, MinPlayers = 2, MaxPlayers = 4 },
     ];
 
@@ -90,6 +92,10 @@ public sealed class GameConfig
     public byte Version { get; set; } = 1;
     public int MinPlayers { get; set; } = 2;
     public int MaxPlayers { get; set; } = 2;
+
+    /// <summary>Built-in bots for this game: they show up in its lobby and accept every challenge,
+    /// so a player always finds an opponent. A bot plays random moves (see Bots/BotClient.cs).</summary>
+    public List<string> Bots { get; set; } = [];
 
     /// <summary>Module settings, e.g. inputDelay / tickRate for Wizard of Wor.</summary>
     public Dictionary<string, int> Settings { get; set; } = new() { ["inputDelay"] = 4, ["tickRate"] = 60, ["inputTimeoutSeconds"] = 10 };

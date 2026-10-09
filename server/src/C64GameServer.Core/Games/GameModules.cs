@@ -314,7 +314,7 @@ public sealed class GameRegistry
 
     public IEnumerable<IGameModule> All => _games.Values;
 
-    /// <summary>Creates the modules from server.json: "wizardofwor" or "relay" (a new relay game needs only an entry there).</summary>
+    /// <summary>Creates the modules from server.json: "wizardofwor", "bubblebobble" or "relay" (a new relay game needs only an entry there).</summary>
     public static GameRegistry FromConfig(ServerConfig config)
     {
         var r = new GameRegistry();

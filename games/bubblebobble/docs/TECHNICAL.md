@@ -1,4 +1,4 @@
-# BB-LAN technical description
+# Bubble Bobble OME technical description
 
 This document explains how BB-LAN turns the C64 Bubble Bobble into a
 lockstep network game, and what was learned on the way. It is meant for
@@ -18,14 +18,14 @@ people who want to change the code or reuse the approach for another game.
    UDP (Ultimate) · TCP (WiC64) · raw Ethernet (VICE RR-Net)
 ```
 
-- **Lobby** (`lobby/`, C with cc65):
+- **Lobby** (the framework's standard lobby, `framework/c64/lobby` with `lobby/game.h`, C with cc65):
   - finds the network hardware;
   - talks to the server until a session starts;
   - writes a handoff block to `$03C0` and loads the game file for its network type.
 - **Game** (`src/`): the reconstructed original with:
   - a deterministic tick core (`bblan.s`);
   - the network code (`bbnet.s`).
-- **Server** (`server/`): relays the inputs, compares checksums and handles timeouts. It is not authoritative: it does not know the game.
+- **Server** (`server/` in the repository root): relays the inputs, compares checksums and handles timeouts. It is not authoritative: it does not know the game.
 
 ## 1. The source
 
@@ -185,7 +185,7 @@ The unpacker copies the block into the game (`bb_hb`) and clears the marker. Wit
 
 ## 4. The server
 
-The server started as the WoW-LAN game server. Its core:
+The server is shared by all games of the project (it started as the WoW-LAN game server). Its core:
 
 - the lobby;
 - invitations;

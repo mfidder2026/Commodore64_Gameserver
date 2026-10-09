@@ -293,7 +293,7 @@ public sealed class ServerCore
         {
             if (now - ch.Created > TimeSpan.FromSeconds(_config.ChallengeTimeoutSeconds))
             {
-                LogEvent("challenge", $"no answer within {_config.ChallengeTimeoutSeconds:0} s");
+                LogEvent("challenge", $"no answer within {_config.ChallengeTimeoutSeconds:0} s", game: ch.GameId);
                 CancelChallenge(ch, CancelReason.Timeout, cooldown: true);
             }
             else if (now - ch.LastSent >= TimeSpan.FromMilliseconds(_config.ChallengeResendMs))
@@ -413,7 +413,7 @@ public sealed class ServerCore
         if (acceptedBy != null) ch.Accepted.Add(acceptedBy); // the inviting player
         _challenges.Add(ch);
         _playersChanged = true;
-        LogEvent("challenge", $"{game.Name}: {string.Join(" vs ", players.Select(p => p.Nick))}");
+        LogEvent("challenge", $"{game.Name}: {string.Join(" vs ", players.Select(p => p.Nick))}", game: game.GameId);
         SendChallenge(ch);
         return ch;
     }
@@ -546,8 +546,9 @@ public sealed class ServerCore
 
     private void Send(Client c, ReadOnlySpan<byte> message) => _transport.Send(c.EndPoint, message);
 
-    private void LogEvent(string category, string text, Client? player = null, Session? session = null) =>
-        _log.Add(_now, category, text, player?.Nick, session?.Id);
+    private void LogEvent(string category, string text, Client? player = null, Session? session = null,
+        byte? game = null) =>
+        _log.Add(_now, category, text, player?.Nick, session?.Id, game ?? session?.GameId ?? player?.GameId);
 
     private static byte NextId(ref byte counter, IEnumerable<byte> inUse)
     {

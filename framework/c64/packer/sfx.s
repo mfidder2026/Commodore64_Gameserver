@@ -1,5 +1,5 @@
 ; =============================================================================
-; BB-LAN self-extracting loader (used by tools/pack.py)
+; Framework self-extracting loader (used by framework/c64/packer/pack.py)
 ; =============================================================================
 ; PRG layout (load $0801):
 ;   BASIC "10 SYS2061" -> stub: copy unpacker (+raw tail) to $0200, jump there

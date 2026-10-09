@@ -2,10 +2,12 @@
 """End-to-end LAN test: the game server (raw Ethernet via pcap) and two VICEs
 with RR-Net, each with its own copy of the test disk.
 
-    python tools/nettest.py [seconds] [--no-build] [--iface NAME] [--warp] [--dump N] [--wic64]
+    python tools/nettest.py [seconds] [--no-build] [--iface NAME] [--warp] [--dump N] [--wic64] [--bot]
 
 --wic64: the C64s use VICE's WiC64 emulation (TCP to 127.0.0.1:6466)
 instead of RR-Net.
+
+--bot: only one C64 (ALICE), which invites the server's built-in bot BUBBLUN.
 
 --dump N: after N polls save the RAM of both C64s (build/dump_a.bin, dump_b.bin);
 use with a test disk built with -D HALT_AT=tick to compare them at one tick.
@@ -74,21 +76,27 @@ def main():
                     "-c", "Release", "-o", os.path.dirname(srv_exe), "-v", "q"],
                    check=True, stdout=subprocess.DEVNULL)
     with open(os.path.join(SRV_DIR, "server.json"), "w") as f:
-        json.dump({"gamePort": 6465, "dashboardPort": 8080, "bots": [], "logFile": "server.log",
+        json.dump({"gamePort": 6465, "dashboardPort": 8080, "logFile": "server.log",
                    "pcapInterface": iface, "pcapMac": "02:BB:4C:41:4E:01",
                    "games": [{"id": 3, "name": "Bubble Bobble", "module": "bubblebobble", "version": 1,
+                              "bots": ["BUBBLUN"] if "--bot" in sys.argv else [],
                               "settings": {"inputDelay": 2, "inputDelayWiC64": 4, "inputTimeoutSeconds": 10,
-                                           "loadTimeoutSeconds": 150}}]}, f, indent=1)
+                                           "loadTimeoutSeconds": 150}}]
+                   + ([{"id": 1, "name": "Wizard of Wor", "module": "wizardofwor", "version": 1,
+                        "bots": ["WORLUK", "GARWOR"]}] if "--bot" in sys.argv else [])}, f, indent=1)
     log = os.path.join(SRV_DIR, "server.log")
     if os.path.exists(log):
         os.remove(log)
     server = subprocess.Popen([srv_exe, "server.json"], cwd=SRV_DIR,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     vices = []
+    players = PLAYERS[:1] if "--bot" in sys.argv else PLAYERS
     try:
         time.sleep(3)
         wic = "--wic64" in sys.argv
-        for tag, nick, auto, mac, port in PLAYERS:
+        for tag, nick, auto, mac, port in players:
+            if "--bot" in sys.argv:
+                auto = "B"
             disk = make_disk(tag, nick, auto, mac, "127.0.0.1" if wic else "")
             hw = (["-userportdevice", "23"] if wic else
                   ["-ethernetcart", "-ethernetcartmode", "1", "-ethernetioif", iface])
@@ -113,13 +121,13 @@ def main():
                     line += f" | session {s.get('id')} {s.get('duration')}: " + ", ".join(
                         f"{f['name']}={f['value']}" for f in (s.get("status") or []))
             print(line, flush=True)
-            for tag, _, _, _, port in PLAYERS:
+            for tag, _, _, _, port in players:
                 try:
                     monitor(port, f'screenshot "{os.path.join(BUILD, f"net_{tag}_{n}.png")}" 2')
                 except OSError:
                     pass
             if "--dump" in sys.argv and n >= int(arg("--dump")):
-                for tag, _, _, _, port in PLAYERS:
+                for tag, _, _, _, port in players:
                     path = os.path.join(BUILD, f"dump_{tag}.bin").replace("\\", "/")
                     monitor(port, "bank ram", f'save "{path}" 0 0000 ffff')
                     dumps[tag] = path

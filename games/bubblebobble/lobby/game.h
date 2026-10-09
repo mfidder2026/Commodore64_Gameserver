@@ -24,6 +24,13 @@
 #define FILE_WIC      "bbw"   /* WiC64 */
 #define FILE_RR       "bbr"   /* RR-Net (VICE) */
 
+/* the game runs on PAL machines only (the lobby warns on NTSC) */
+#define GAME_PAL_ONLY 1
+
+/* menu key L: the game without network (the handoff block is empty);
+   leave undefined when the game has no local mode */
+#define LOCAL_GAME_TEXT "local game (2 joysticks)"
+
 /* what the players are called in the game: slot 0 invited, slot 1 accepted */
 #define SLOT0_NAME    "BUB (green)"
 #define SLOT1_NAME    "BOB (blue)"
