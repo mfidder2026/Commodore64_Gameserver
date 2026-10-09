@@ -574,3 +574,100 @@ public class ChooseOpponentTests
         Assert.All(h.Core.Clients, c => Assert.Equal(ClientState.Lobby, c.State));
     }
 }
+
+public class BubbleBobbleTests
+{
+    private const byte Game = 3;
+
+    private static byte StartBubbleBobble(Harness h, IPEndPoint a, IPEndPoint b)
+    {
+        h.Hello(a, "ALICE", Game);
+        h.Hello(b, "BOB", Game);
+        h.Advance(20);
+        h.Recv(a, MsgType.Accept, h.Net.Last(a, MsgType.Challenge)![1]);
+        h.Recv(b, MsgType.Accept, h.Net.Last(b, MsgType.Challenge)![1]);
+        var start = h.Net.Last(a, MsgType.Start)!;
+        h.Recv(a, MsgType.StartAck, start[1]);
+        h.Recv(b, MsgType.StartAck, start[1]);
+        return start[1];
+    }
+
+    private static byte[] Input(byte session, ushort newest, ushort chkTick, ushort chk)
+    {
+        var m = new byte[BubbleBobbleModule.InputLength];
+        m[0] = BubbleBobbleModule.Input;
+        m[1] = session;
+        m[2] = (byte)newest; m[3] = (byte)(newest >> 8);
+        m[4] = (byte)chkTick; m[5] = (byte)(chkTick >> 8);
+        m[6] = (byte)chk; m[7] = (byte)(chk >> 8);
+        for (int i = 8; i < m.Length; i++) m[i] = 0x1F;
+        return m;
+    }
+
+    [Fact]
+    public void Start_has_a_non_zero_seed_and_the_input_delay()
+    {
+        var h = new Harness();
+        StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
+        var start = h.Net.Last(Harness.Ep(1), MsgType.Start)!;
+        Assert.Equal(3, start[4]);                       // three parameters
+        Assert.NotEqual(0, start[5] | start[6] << 8);    // seed
+        Assert.Equal(2, start[7]);                       // input delay over UDP
+    }
+
+    [Fact]
+    public void A_WiC64_player_gets_the_longer_input_delay()
+    {
+        var h = new Harness();
+        var wic = new IPEndPoint(IPAddress.Parse("192.168.1.9").MapToIPv6(), 50000);   // TCP client
+        StartBubbleBobble(h, Harness.Ep(1), wic);
+        Assert.Equal(4, h.Net.Last(Harness.Ep(1), MsgType.Start)![7]);
+    }
+
+    [Fact]
+    public void Padded_input_is_relayed_without_the_padding()
+    {
+        var h = new Harness();
+        byte s = StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
+        var padded = Input(s, 10, 0xFFFF, 0).Concat(new byte[30]).ToArray();   // a raw Ethernet frame
+        h.Recv(Harness.Ep(1), padded);
+        Assert.Equal(BubbleBobbleModule.InputLength, h.Net.Last(Harness.Ep(2), BubbleBobbleModule.Input)!.Length);
+    }
+
+    [Fact]
+    public void A_player_may_stay_silent_while_loading_the_game()
+    {
+        var h = new Harness();
+        StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
+        h.Advance(60_000);                               // a 1541 needs about a minute
+        Assert.Single(h.Core.Sessions);
+        Assert.Equal(2, h.Core.Clients.Count);
+    }
+
+    [Fact]
+    public void Loading_for_too_long_ends_the_session()
+    {
+        var h = new Harness();
+        byte s = StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
+        for (int t = 0; t < 160; t++)                    // ALICE plays, BOB never starts
+        {
+            h.Recv(Harness.Ep(1), Input(s, (ushort)t, 0xFFFF, 0));
+            h.Advance(1000);
+        }
+        Assert.Empty(h.Core.Sessions);
+    }
+
+    [Fact]
+    public void Different_checksums_end_the_session_with_desync()
+    {
+        var h = new Harness();
+        byte s = StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
+        h.Recv(Harness.Ep(1), Input(s, 66, 64, 0x1234));
+        h.Recv(Harness.Ep(2), Input(s, 66, 64, 0x1234));
+        Assert.Single(h.Core.Sessions);
+        h.Recv(Harness.Ep(1), Input(s, 130, 128, 0x1111));
+        h.Recv(Harness.Ep(2), Input(s, 130, 128, 0x2222));
+        Assert.Empty(h.Core.Sessions);
+        Assert.Equal((byte)EndReason.Desync, h.Net.Last(Harness.Ep(1), MsgType.SessionEnd)![2]);
+    }
+}

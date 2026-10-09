@@ -60,6 +60,21 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
+        if (args.Contains("--list-interfaces"))
+        {
+            try
+            {
+                Console.WriteLine("Network interfaces for \"pcapInterface\" in server.json (raw Ethernet / VICE RR-Net):");
+                foreach (var (name, desc) in PcapTransport.ListInterfaces())
+                    Console.WriteLine($"  {name}\n      {desc}");
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"pcap is not available ({e.Message}). Windows: install Npcap; Linux: libpcap.");
+                return 1;
+            }
+            return 0;
+        }
         string configPath = args.Length > 0 ? args[0] : "server.json";
         var config = ServerConfig.Load(configPath);
         var log = new EventLog(config.LogFile, console: true);
@@ -79,8 +94,31 @@ internal static class Program
             return 1;
         }
         using var transport = transportOrNull;
-        var core = new ServerCore(config, transport, games, log, DateTime.UtcNow);
-        var host = new ServerHost(core, transport);
+        PcapTransport? pcap = null;
+        if (!string.IsNullOrWhiteSpace(config.PcapInterface))
+        {
+            try { pcap = new PcapTransport(config.PcapInterface, config.PcapMac); }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Raw Ethernet (pcapInterface) cannot be used: {e.Message}");
+                Console.Error.WriteLine("Windows: install Npcap. List the interfaces with: C64GameServer --list-interfaces");
+                return 1;
+            }
+        }
+        using var pcapDispose = pcap;
+        TcpTransport? tcp = null;
+        if (config.TcpPort > 0)
+        {
+            try { tcp = new TcpTransport(config.TcpPort); }
+            catch (SocketException e)
+            {
+                Console.Error.WriteLine($"TCP port {config.TcpPort} cannot be used ({e.Message}).");
+                return 1;
+            }
+        }
+        using var tcpDispose = tcp;
+        var core = new ServerCore(config, new MuxTransport(transport, pcap, tcp), games, log, DateTime.UtcNow);
+        var host = new ServerHost(core, transport, pcap, tcp);
 
         PrintBanner(config, games);
         using var cts = new CancellationTokenSource();
@@ -131,6 +169,10 @@ internal static class Program
         Console.WriteLine($" C64s connect to UDP port {config.GamePort} on:");
         foreach (var ip in LocalAddresses())
             Console.WriteLine($"     {ip}");
+        if (config.TcpPort > 0)
+            Console.WriteLine($" WiC64 (TCP) on port {config.TcpPort}");
+        if (!string.IsNullOrWhiteSpace(config.PcapInterface))
+            Console.WriteLine($" Raw Ethernet (VICE RR-Net) on {config.PcapInterface}, MAC {config.PcapMac}");
         Console.WriteLine($" Dashboard: http://localhost:{config.DashboardPort}/");
         Console.WriteLine(" Games: " + string.Join(", ", games.All.Select(g => $"{g.GameId} = {g.Name}")));
         if (config.Bots.Count > 0) Console.WriteLine(" Bots: " + string.Join(", ", config.Bots));
@@ -147,16 +189,20 @@ internal static class Program
 }
 
 /// <summary>Runs the core on one logical thread: datagrams and a 20 ms tick, all under one lock (the dashboard reads under it too).</summary>
-internal sealed class ServerHost(ServerCore core, UdpTransport transport)
+internal sealed class ServerHost(ServerCore core, UdpTransport transport, PcapTransport? pcap = null,
+    TcpTransport? tcp = null)
 {
     public ServerCore Core => core;
     public UdpTransport Transport => transport;
+    public PcapTransport? Pcap => pcap;
     public object Lock { get; } = new();
 
     public async Task Run(CancellationToken ct)
     {
         var channel = Channel.CreateUnbounded<(IPEndPoint, byte[])>();
         var receiver = transport.ReceiveLoop(channel.Writer, ct);
+        var rawReceiver = pcap?.ReceiveLoop(channel.Writer, ct) ?? Task.CompletedTask;
+        var tcpReceiver = tcp?.AcceptLoop(channel.Writer, ct) ?? Task.CompletedTask;
         var nextTick = DateTime.UtcNow;
         while (!ct.IsCancellationRequested)
         {
@@ -180,5 +226,7 @@ internal sealed class ServerHost(ServerCore core, UdpTransport transport)
             }
         }
         await receiver;
+        await rawReceiver;
+        await tcpReceiver;
     }
 }

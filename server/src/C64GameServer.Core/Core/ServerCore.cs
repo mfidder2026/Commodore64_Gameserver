@@ -264,8 +264,12 @@ public sealed class ServerCore
     {
         _now = now;
         var idle = TimeSpan.FromSeconds(_config.IdleTimeoutSeconds);
-        foreach (var c in _clients.Values.Where(c => now - c.LastSeen > idle).ToList())
-            RemoveClient(c, $"nothing heard for {_config.IdleTimeoutSeconds:0} s");
+        foreach (var c in _clients.Values.ToList())
+        {
+            var limit = c.Session is { } cs && _games.Get(cs.GameId) is { } gm ? gm.IdleTimeout(cs, c, idle) : idle;
+            if (now - c.LastSeen > limit)
+                RemoveClient(c, $"nothing heard for {limit.TotalSeconds:0} s");
+        }
 
         foreach (var c in _clients.Values)
         {

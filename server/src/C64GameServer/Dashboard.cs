@@ -191,10 +191,10 @@ internal sealed class Dashboard(ServerHost host, int port)
 <div class="connect" id="connect">...</div>
 <p class="connect-small" id="summary"></p>
 <div class="grid">
- <div class="panel"><h2>Spelers</h2><table id="players"></table></div>
- <div class="panel"><h2>Sessies</h2><div id="sessions"></div><h2 style="margin-top:12px">Uitdagingen</h2><table id="challenges"></table></div>
- <div class="panel" style="grid-column:1/-1"><h2>Gebeurtenissen</h2>
-  filter: <input id="filter" placeholder="speler, sessie of tekst"> <table id="log"></table></div>
+ <div class="panel"><h2>Players</h2><table id="players"></table></div>
+ <div class="panel"><h2>Sessions</h2><div id="sessions"></div><h2 style="margin-top:12px">Challenges</h2><table id="challenges"></table></div>
+ <div class="panel" style="grid-column:1/-1"><h2>Events</h2>
+  filter: <input id="filter" placeholder="player, session or text"> <table id="log"></table></div>
 </div>
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -204,15 +204,15 @@ function render(s) {
   last = s;
   document.getElementById('connect').textContent = s.addresses.map(a => a + ' : ' + s.port).join('   ');
   document.getElementById('summary').textContent =
-    `uptime ${s.uptime} · ${s.players.length} spelers · ${s.sessions.length} sessies · games: ${s.games.map(g => g.id + ' ' + g.name).join(', ')} · ongeldige pakketten: ${s.stats.invalid}`;
-  document.getElementById('players').innerHTML = '<tr><th>naam</th><th>soort</th><th>adres</th><th>game</th><th>status</th><th>ping</th><th>laatst</th><th></th></tr>' +
-    s.players.map(p => `<tr><td>${esc(p.nick)}</td><td>${p.kind === 'bot' ? 'bot' : 'mens'}</td><td>${esc(p.address)}</td><td>${esc(p.game)}</td><td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
-      <td><button onclick="post('/api/kick/${p.id}')">verwijder</button></td></tr>`).join('');
+    `uptime ${s.uptime} · ${s.players.length} players · ${s.sessions.length} sessions · games: ${s.games.map(g => g.id + ' ' + g.name).join(', ')} · invalid packets: ${s.stats.invalid}`;
+  document.getElementById('players').innerHTML = '<tr><th>name</th><th>kind</th><th>address</th><th>game</th><th>status</th><th>ping</th><th>last seen</th><th></th></tr>' +
+    s.players.map(p => `<tr><td>${esc(p.nick)}</td><td>${p.kind === 'bot' ? 'bot' : 'human'}</td><td>${esc(p.address)}</td><td>${esc(p.game)}</td><td>${esc(p.state)}</td><td>${esc(p.ping)}</td><td>${esc(p.seen)}</td>
+      <td><button onclick="post('/api/kick/${p.id}')">kick</button></td></tr>`).join('');
   document.getElementById('sessions').innerHTML = s.sessions.length ? s.sessions.map(x => `
-    <div style="margin-bottom:10px"><b>#${x.id} ${esc(x.game)}</b>: ${esc(x.players)} · ${x.duration} · gestart: ${x.started} · ${esc(x.traffic)} · ${esc(x.rate)}
-    <button onclick="post('/api/end/${x.id}')">beëindig</button>
+    <div style="margin-bottom:10px"><b>#${x.id} ${esc(x.game)}</b>: ${esc(x.players)} · ${x.duration} · started: ${x.started} · ${esc(x.traffic)} · ${esc(x.rate)}
+    <button onclick="post('/api/end/${x.id}')">end</button>
     <table>${(x.status || []).map(f => `<tr><th>${esc(f.name)}</th><td>${esc(f.value)}</td></tr>`).join('')}</table>
-    <pre>${x.recent.map(esc).join('\n')}</pre></div>`).join('') : '<span class="connect-small">geen</span>';
+    <pre>${x.recent.map(esc).join('\n')}</pre></div>`).join('') : '<span class="connect-small">none</span>';
   document.getElementById('challenges').innerHTML = s.challenges.map(c => `<tr><td>#${c.id}</td><td>${esc(c.players)}</td><td>${c.age}</td></tr>`).join('');
   renderLog();
 }

@@ -1,104 +1,79 @@
-# C64 Game Server
+# C64 Game Server (BB-LAN)
 
-Een server in het LAN waar C64's verbinding mee maken om tegen elkaar te spelen. De eerste game is **Wizard of Wor** (2 spelers, lockstep). De server is nodig voor **C64 Ultimate ↔ C64 Ultimate**: de Ultimate-firmware kan niet luisteren, maar wel verbinden met een vast adres.
+A server on the LAN that C64s connect to for two-player network games. In
+BB-LAN it runs the lobby for **Bubble Bobble** (game id 3). It:
 
-> ⚠️ **Alleen voor het LAN.** Er is geen encryptie, geen account en geen wachtwoord. Zet de server **nooit** open naar het internet (geen port forwarding op je router).
+- pairs the players;
+- relays their joystick inputs;
+- compares the state checksums of the two C64s.
 
-## Starten
+It is not authoritative: both C64s run the game in lockstep.
 
-1. Bouw de server (eenmalig), of gebruik de bestanden in `publish\`:
+It started as the server of the WoW-LAN project (Wizard of Wor, game id 1) and can host both games at once.
 
-   ```bash
-   publish.bat
-   ```
+> **LAN only.** There is no encryption, account or password. Never forward
+> its ports to the internet.
 
-   Dat levert op:
-   - `publish\win-x64\C64GameServer.exe` en `C64Bot.exe` (Windows, zonder installatie);
-   - `publish\linux-arm64\C64GameServer` en `C64Bot` (Raspberry Pi met 64-bit OS).
+## Running
 
-2. Start de server:
+```bash
+dotnet run --project src/C64GameServer -c Release            # .NET 8 SDK
+publish.bat                                                    # stand-alone builds: publish\win-x64, publish\linux-arm64
+```
 
-   ```bash
-   publish\win-x64\C64GameServer.exe
-   ```
+At the first start the server writes `server.json` with the defaults and prints the IP addresses the C64s can use.
 
-   Bij de eerste start maakt hij `server.json` aan. Het venster toont de IP-adressen waarmee de C64's moeten verbinden.
+- The dashboard is at `http://localhost:8080/`.
+- Ctrl+C stops the server.
+- `--list-interfaces` lists the network adapters for raw Ethernet (VICE RR-Net, see below).
 
-3. Open het dashboard in een browser: `http://localhost:8080/`, of vanaf een andere computer `http://<ip-van-de-server>:8080/`.
+## Transports
 
-4. Ctrl+C stopt de server.
+| C64 | Transport | Port |
+|---|---|---|
+| C64 Ultimate / Ultimate 64 | UDP | `gamePort` (6465) |
+| WiC64 (firmware 2.x, real or VICE) | TCP, messages framed as `[length][message]` | `tcpPort` (6466) |
+| VICE with RR-Net | raw Ethernet, EtherType `0x88B5`, via pcap (Npcap / libpcap) | `pcapInterface` |
 
-### Windows Firewall
+The raw Ethernet transport exists because VICE's pcap networking usually cannot reach a UDP server on the same PC. With `pcapInterface` set to the adapter VICE uses, the server answers on that adapter with its own MAC address (`pcapMac`).
 
-Windows vraagt bij de eerste start om toegang. Sta **privénetwerken** toe. Gebeurt dat niet, geef dan zelf toestemming (als administrator):
+## Windows Firewall
+
+Allow private networks when Windows asks, or add the rules yourself (as administrator):
 
 ```bash
 netsh advfirewall firewall add rule name="C64 Game Server (UDP)" dir=in action=allow protocol=UDP localport=6465
 ```
 
 ```bash
-netsh advfirewall firewall add rule name="C64 Game Server (dashboard)" dir=in action=allow protocol=TCP localport=8080
+netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=allow protocol=TCP localport=6466,8080
 ```
 
-### VICE en de server op dezelfde PC
+## Configuration
 
-VICE met RR-Net (Npcap) kan meestal **niet** praten met de PC waarop het zelf draait. Draai de server dan op een andere machine (bijvoorbeeld een Raspberry Pi), of laat de C64 tegen de bot spelen. Voor Ultimate ↔ VICE is de server niet nodig: dat werkt direct (in het C64-programma: VICE kiest HOST, de Ultimate JOIN).
+See the [BB-LAN manual](../docs/MANUAL.md#serverjson) for `server.json`.
 
-## Configuratie (`server.json`)
+Each game in the `games` list has a `module`:
 
-| Instelling | Standaard | Betekenis |
-|---|---|---|
-| `gamePort` | 6465 | UDP-poort voor de C64's |
-| `dashboardPort` | 8080 | HTTP-poort van het dashboard |
-| `maxClients` | 32 | maximaal aantal verbonden C64's |
-| `idleTimeoutSeconds` | 10 | een client waarvan niets komt, is weg |
-| `challengeTimeoutSeconds` | 30 | tijd om een uitdaging te accepteren |
-| `autoPair` | `false` | `false`: spelers kiezen zelf hun tegenstander in de lobby; `true`: de server koppelt wachtende spelers zelf |
-| `bots` | `WORLUK`, `GARWOR`, `THORWOR` | bots die met de server mee starten; `[]` = geen |
-| `botGame` | 1 | game van de ingebouwde bots |
-| `declineCooldownSeconds` | 60 | `autoPair`: na een weigering worden dezelfde spelers zolang niet gekoppeld |
-| `logFile` | `server.log` | gebeurtenissenlog |
-| `games` | Wizard of Wor (1), Relay demo (2) | zie `docs/nieuwe-game-toevoegen.md` |
-
-Instellingen van Wizard of Wor (`games[].settings`): `inputDelay` (4), `tickRate` (60) en `inputTimeoutSeconds` (10).
-
-## De bots
-
-De server start zelf drie bots (`bots` in `server.json`). Ze staan in de lobby met de soort **bot**, accepteren elke uitdaging en spelen willekeurige zetten; het echte spel draait op de C64. Zo vindt een speler altijd een tegenstander.
-
-## Testen zonder C64: C64Bot
-
-`C64Bot` gedraagt zich als een C64 die Wizard of Wor speelt:
-
-```bash
-publish\win-x64\C64Bot.exe --nick ANNA --human --invite WORLUK --ticks 3600 --no-checksum
-```
-
-ANNA daagt de ingebouwde bot WORLUK uit en speelt een minuut. `--help` toont alle opties. De belangrijkste:
-
-| Optie | Doel |
+| Module | Game |
 |---|---|
-| `--server IP[:POORT]` | server elders in het LAN |
-| `--read-delay 40` | traag lezen zoals de C64 Ultimate |
-| `--loss 2` | 2% van de pakketten weggooien |
-| `--bad-checksum-at 300` | de server moet een desync melden |
-| `--quit-at 300` | wegvallen; de tegenstander moet OPPONENT_LEFT krijgen |
-| `--decline` | elke uitdaging weigeren |
-| `--invite NAAM` | NAAM uitdagen zodra die vrij is in de lobbylijst |
-| `--human` | niet als bot in de lobbylijsten staan |
-| `--no-checksum` | tegen een echte C64 spelen (de bot kent de echte spelstate niet) |
+| `bubblebobble` | BB-LAN |
+| `wizardofwor` | WoW-LAN |
+| `relay` | any other game: a transparent relay, no code needed |
 
-## Verbinden vanaf de C64
-
-De C64 stuurt `HELLO` met zijn nickname naar `<ip-van-de-server>:6465` (UDP) en toont dan het lobbyscherm met de andere spelers (mens of bot, vrij / bezig / speelt). De speler kiest een tegenstander en daagt die uit, of accepteert een uitdaging. Het protocol staat in [`docs/protocol.md`](docs/protocol.md).
-
-## Ontwikkeling
+## Tests
 
 ```bash
-dotnet test tests\C64GameServer.Tests
+dotnet test tests/C64GameServer.Tests
 ```
 
-- `src/C64GameServer.Core`: protocol, kern (lobby, uitdagingen, sessies) en game-modules;
-- `src/C64GameServer`: UDP, hoofdlus en dashboard;
-- `src/C64Bot`: testclient;
-- `tests/C64GameServer.Tests`: geautomatiseerde tests (nepklok en nep-transport).
+The tests drive the core with a fake clock and a fake transport (lobby, invitations, sessions, timeouts, checksums, the Bubble Bobble module).
+
+## Further documentation
+
+These documents come from the WoW-LAN project and are in Dutch:
+
+- [docs/protocol.md](docs/protocol.md): the message protocol.
+- [docs/nieuwe-game-toevoegen.md](docs/nieuwe-game-toevoegen.md): adding a game.
+
+The Bubble Bobble messages are described in [../docs/TECHNICAL.md](../docs/TECHNICAL.md).

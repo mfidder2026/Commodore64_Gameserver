@@ -30,7 +30,7 @@ public sealed class ServerConfig
     public bool AutoPair { get; set; }
 
     /// <summary>Bots the server starts together with itself; they accept every challenge.</summary>
-    public List<string> Bots { get; set; } = ["WORLUK", "GARWOR", "THORWOR"];
+    public List<string> Bots { get; set; } = [];
 
     /// <summary>Game the built-in bots play.</summary>
     public byte BotGame { get; set; } = 1;
@@ -38,8 +38,22 @@ public sealed class ServerConfig
 
     public string LogFile { get; set; } = "server.log";
 
+    /// <summary>TCP port for C64s with a WiC64 (no UDP in its firmware); 0 = off.</summary>
+    public int TcpPort { get; set; } = 6466;
+
+    /// <summary>
+    /// Raw Ethernet clients (RR-Net in VICE): the network interface to capture on with pcap (Npcap on
+    /// Windows, libpcap on Linux); empty = off. Run the server with --list-interfaces to see the names.
+    /// </summary>
+    public string PcapInterface { get; set; } = "";
+
+    /// <summary>The server's own MAC address on the raw Ethernet side (locally administered).</summary>
+    public string PcapMac { get; set; } = "02:BB:4C:41:4E:01";
+
     public List<GameConfig> Games { get; set; } =
     [
+        new GameConfig { Id = 3, Name = "Bubble Bobble", Module = "bubblebobble", Version = 1,
+            Settings = new() { ["inputDelay"] = 2, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 10, ["loadTimeoutSeconds"] = 150 } },
         new GameConfig { Id = 1, Name = "Wizard of Wor", Module = "wizardofwor", Version = 1 },
         new GameConfig { Id = 2, Name = "Relay demo", Module = "relay", Version = 1, MinPlayers = 2, MaxPlayers = 4 },
     ];
