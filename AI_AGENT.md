@@ -14,8 +14,10 @@ comments, docs and commit messages.
 |---|---|---|
 | `server/` | The game server (C#/.NET 8): core, transports, game modules, bots, dashboard, tests | all games |
 | `framework/c64/lobby/` | The standard C64 lobby (cc65) with Ultimate/WiC64/RR-Net drivers | every game with `"lobby": "framework"` |
+| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby | Exploding Fist (Bubble Bobble still has its own copy, `src/bbnet.s`) |
 | `framework/c64/packer/` | LZ packer + self-extracting loader | games that need it |
 | `framework/tools/c64env.py` | Finds VICE and cc65 | every build/test script |
+| `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
@@ -95,6 +97,20 @@ Wor) and the game still meets the standard above.
 - The lobby ↔ game handoff block at `$03C0` and the result at `$033C` are described in
   `docs/TECHNICAL.md`; the lobby and the game must agree on them.
 
+### The Way of the Exploding Fist OME (`games/explodingfist`)
+
+- **No source code**: the base is `orig/fist-1158.bin`, the RAM image at the game's entry (made by
+  `tools/snapshot.py` from the clean disk; its hash is in `orig/fist-1158.json`). Never edit it; all changes are
+  ca65 patches in `src/main.s`. A segment `P_xxxx` lands at `$xxxx`; every patched byte must lie in an area of
+  `src/areas.json` (the build checks it). Same-size patches in the original code, new code in `$F540-$FF3F`
+  (the invisible floor rows of the bitmap; about 1.1 KB left).
+- Our code lies under the KERNAL ROM: never switch the KERNAL in from there (`$01` must keep `$E000` as RAM);
+  the framework's `net_end` copies its last part to `NET_TAIL` for that reason.
+- Determinism: `python tools/dettest.py 6200` (a whole match: PAL, NTSC, 0-3 frames of jitter) must PASS. The
+  IRQ's display, the music and its zero page (`$14-$33`, `$F9-$FE`) may differ; the checksum
+  (`src/netgame.inc`) leaves them out.
+- End to end: `python ../../framework/tools/nettest.py . 120 [--wic64|--bot]`.
+
 ### Wizard of Wor OME (`games/wizardofwor`)
 
 - Every change to the original image is a same-size patch. The cartridge build must
@@ -105,6 +121,14 @@ Wor) and the game still meets the standard above.
   170 bytes are left there. The drivers are `uci.asm`, `net_rrnet.asm` (ip65, UDP) and `wic64.asm`
   (TCP). A WiC64 sends every 4th tick and the server gives WiC64 sessions an input delay of 8.
 - `python tools/servertest.py 90 [--bot]`: the server plus two VICEs with the WiC64 (or one against a bot).
+
+## Open framework work
+
+- Bubble Bobble still uses its own copy of the network code (`games/bubblebobble/src/bbnet.s`). Move it to
+  `framework/c64/net/net.s` when there is room: it has only 2 bytes free in its RR-Net build, and `net.s` counts
+  frames by the raster instead of the game's IRQ.
+- Bubble Bobble's `tools/nettest.py` and `screenshots.py` can move to `framework/tools/nettest.py` (needs a
+  "nettest" section in its `game.json`).
 
 ## Conventions
 

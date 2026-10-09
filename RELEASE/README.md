@@ -12,6 +12,7 @@ information is in the [main README](../README.md).
 | `vice-rrnet.bat` | Starts VICE with an **RR-Net** cartridge and a game |
 | `games/wizardofwor.d64` | Wizard of Wor OME |
 | `games/bubblebobble.d64` | Bubble Bobble OME |
+| `games/explodingfist.d64` | The Way of the Exploding Fist OME |
 | `server/win-x64/` | The server for Windows (no .NET installation needed) |
 | `server/linux-arm64/` | The server for a Raspberry Pi with a 64-bit OS |
 | `VERSION.txt` | When and from which commit this folder was made |
@@ -74,5 +75,6 @@ The lobby shows everyone online for the game, people and bots.
 |---|---|---|---|
 | Wizard of Wor OME | yes | yes | yes, server on another PC |
 | Bubble Bobble OME | yes | yes | yes |
+| The Way of the Exploding Fist OME | yes | yes | yes |
 
 > The server is for your own network (LAN). It has no encryption or passwords: do not open its ports to the internet.

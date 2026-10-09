@@ -24,6 +24,7 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
     public static BotProfile For(byte game) => game switch
     {
         3 => BubbleBobble,
+        4 => ExplodingFist,
         _ => WizardOfWor,
     };
 
@@ -47,6 +48,11 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
         if ((Hash(tick, slot + 7, seed) & 3) == 0) v &= 0x0F; // fire
         return v;
     });
+
+    /// <summary>The Way of the Exploding Fist OME: one tick per pass of the bout loop (about 39/s), the
+    /// framework's 16-byte INPUT. A new joystick position (any of the 32) every 8 ticks.</summary>
+    public static readonly BotProfile ExplodingFist = new(16, 8, 40, 0x1F, 150, (tick, slot, seed) =>
+        (byte)(Hash(tick >> 3, slot, seed) & 0x1F));
 
     private static uint Hash(int a, int slot, byte seed)
     {

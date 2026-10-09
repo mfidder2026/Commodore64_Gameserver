@@ -77,24 +77,26 @@ screenshots.
 | Part | Role |
 |---|---|
 | `c64/lobby` | The standard C64 lobby, configured per game with `game.h`. It hands the connection to the game through a block at `$03C0`. See its [README](../framework/c64/lobby/README.md). |
+| `c64/net` | In-game network code for lockstep games: the handoff block, lockstep with an input ring, state checksums, the three drivers, back to the lobby. Configured per game with `netgame.inc` |
 | `c64/packer` | An optimal-parse LZ packer with a self-extracting loader. It copies the handoff block into the game and clears the stack page, so the game starts from a known state. |
 | `tools/c64env.py` | Finds VICE and cc65 for every script |
+| `tools/vicemon.py`, `dis6502.py`, `nettest.py` | Driving VICE's monitor (breakpoints, RAM dumps), a 6502 disassembler, the generic end-to-end test |
 
 ## Games (`games/`)
 
 Each game folder is self-contained (source, tools, docs, release) and
 described by its `game.json`. The root `build.py` reads these files.
 
-| | Wizard of Wor OME | Bubble Bobble OME |
-|---|---|---|
-| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 |
-| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` |
-| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) |
-| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time |
-| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs |
-| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) |
-| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB |
-| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) |
+| | Wizard of Wor OME | Bubble Bobble OME | Exploding Fist OME |
+|---|---|---|---|
+| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 | none: the RAM image at the game's entry + ca65 patches |
+| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` |
+| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) | the same, from `framework/c64/net` |
+| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time | one pass of the bout loop (about 46/s) |
+| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs |
+| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) | the original game (one or two players) |
+| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB | the invisible floor rows of the bitmap (2.5 KB) |
+| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) | patches only in the areas of `src/areas.json` |
 
 Both games keep the original game logic and add the same three things:
 
@@ -108,5 +110,5 @@ Both games keep the original game logic and add the same three things:
 |---|---|
 | Server core | `dotnet test` (in `server/`): a fake clock and a fake transport; lobby, invitations, sessions, timeouts, checksums, modules |
 | Determinism | each game's `tools/dettest.py`: two VICEs (PAL/NTSC, jitter, stalls) must produce the same checksums |
-| End to end | `games/bubblebobble/tools/nettest.py` (RR-Net, `--wic64`, `--bot`) and `games/wizardofwor/tools/servertest.py` (WiC64, `--bot`): the server plus two VICEs, or one VICE against a bot |
+| End to end | `framework/tools/nettest.py <game>` (Exploding Fist), `games/bubblebobble/tools/nettest.py` and `games/wizardofwor/tools/servertest.py`: the server plus two VICEs over RR-Net or WiC64, or one VICE against a bot |
 | Everything | `python build.py test` |

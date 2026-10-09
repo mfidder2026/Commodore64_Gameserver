@@ -594,8 +594,8 @@ public class BubbleBobbleTests
 
     private static byte[] Input(byte session, ushort newest, ushort chkTick, ushort chk)
     {
-        var m = new byte[BubbleBobbleModule.InputLength];
-        m[0] = BubbleBobbleModule.Input;
+        var m = new byte[LockstepModule.InputLength];
+        m[0] = LockstepModule.Input;
         m[1] = session;
         m[2] = (byte)newest; m[3] = (byte)(newest >> 8);
         m[4] = (byte)chkTick; m[5] = (byte)(chkTick >> 8);
@@ -631,7 +631,7 @@ public class BubbleBobbleTests
         byte s = StartBubbleBobble(h, Harness.Ep(1), Harness.Ep(2));
         var padded = Input(s, 10, 0xFFFF, 0).Concat(new byte[30]).ToArray();   // a raw Ethernet frame
         h.Recv(Harness.Ep(1), padded);
-        Assert.Equal(BubbleBobbleModule.InputLength, h.Net.Last(Harness.Ep(2), BubbleBobbleModule.Input)!.Length);
+        Assert.Equal(LockstepModule.InputLength, h.Net.Last(Harness.Ep(2), LockstepModule.Input)!.Length);
     }
 
     [Fact]
@@ -679,7 +679,8 @@ public class FrameworkTests
     {
         var config = new ServerConfig();
         Assert.Equal(WizardOfWorModule.InputLength, Bots.BotProfile.For(1).InputLength);
-        Assert.Equal(BubbleBobbleModule.InputLength, Bots.BotProfile.For(3).InputLength);
+        Assert.Equal(LockstepModule.InputLength, Bots.BotProfile.For(3).InputLength);
+        Assert.Equal(LockstepModule.InputLength, Bots.BotProfile.For(4).InputLength);
         foreach (var g in config.Games.Where(g => g.Bots.Count > 0))
         {
             var p = Bots.BotProfile.For(g.Id);

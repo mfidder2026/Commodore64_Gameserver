@@ -87,6 +87,10 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
       "bots": ["BUBBLUN", "BOBBLUN"],
       "settings": { "inputDelay": 2, "inputDelayWiC64": 4,
                     "inputTimeoutSeconds": 10, "loadTimeoutSeconds": 150 } },
+    { "id": 4, "name": "Exploding Fist", "module": "lockstep", "version": 1,
+      "bots": ["BRUCE", "CHUCK"],
+      "settings": { "inputDelay": 3, "inputDelayWiC64": 4,
+                    "inputTimeoutSeconds": 20, "loadTimeoutSeconds": 150 } },
     { "id": 2, "name": "Relay demo", "module": "relay", "version": 1 }
   ]
 }
@@ -98,7 +102,7 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
 | `pcapInterface`, `pcapMac` | Raw Ethernet: the adapter, and the server's MAC (a locally administered address; keep the default) |
 | `logFile` | Event log on disk |
 | `games[].id`, `version` | Must match the HELLO of the game's C64 program |
-| `games[].module` | `wizardofwor`, `bubblebobble`, or `relay` (any other game: forwards unchanged, no code needed) |
+| `games[].module` | `wizardofwor`, `lockstep` (games on the framework's network code: Bubble Bobble, Exploding Fist; `bubblebobble` is the same), or `relay` (any other game: forwards unchanged, no code needed) |
 | `games[].bots` | Built-in bots for this game: A-Z/0-9, at most 8 characters. They are in the lobby and accept every challenge |
 | `games[].settings` | Settings of the module, see below |
 | `bots`, `botGame` | Older form: bots for one game. Prefer `games[].bots` |
@@ -109,7 +113,7 @@ Other settings, such as `idleTimeoutSeconds`, `challengeTimeoutSeconds`,
 
 ### Module settings
 
-**Bubble Bobble** (`bubblebobble`):
+**Bubble Bobble** and **Exploding Fist** (`lockstep`):
 
 | Setting | Default | Meaning |
 |---|---|---|

@@ -18,6 +18,12 @@ joystick inputs cross the network. That needs:
 - **Room** for the network code: about 1-3 KB, depending on the drivers. The
   standard lobby is a separate program, so it costs the game no memory.
 
+No source code? The Way of the Exploding Fist shows the way: take the RAM image the
+game's loader leaves at its entry (`tools/snapshot.py`), and write every change as a
+checked patch to it (`tools/build.py`, `src/areas.json`). VICE's monitor
+(`framework/tools/vicemon.py`: breakpoints, watchpoints, RAM dumps) and
+`framework/tools/dis6502.py` help to find the routines.
+
 Bubble Bobble and Wizard of Wor both needed work to get there. See
 [games/bubblebobble/docs/TECHNICAL.md](../games/bubblebobble/docs/TECHNICAL.md)
 and `games/wizardofwor/docs/fase2_determinisme.md` (in Dutch).
@@ -81,8 +87,11 @@ change then exists for every game (see [AI_AGENT.md](../AI_AGENT.md)).
 
 ## 3. The game side: lockstep
 
-Follow the lockstep pattern in [protocol.md](protocol.md#the-lockstep-pattern-both-games).
-Bubble Bobble's `src/bbnet.s` is a complete example with all three drivers:
+Use the framework's network code, [framework/c64/net/net.s](../framework/c64/net/net.s): the
+handoff, the lockstep, the checksums, all three drivers and the way back to the lobby. The game
+supplies a `netgame.inc` (lobby name, checksum areas, `NET_TAIL`) and calls `net_start`,
+`net_step` once per tick, `net_idle` while it waits without ticks, and `net_end`. The Way of the
+Exploding Fist (`games/explodingfist/src/main.s`) is the example. What the code does:
 
 1. **At start:** read the handoff block at `$03C0` (driver, slot, session,
    start parameters, socket or MACs). Seed the game's random generator from the
@@ -190,9 +199,9 @@ public static readonly BotProfile MyGame = new(
 ```
 
 A bot plays real lockstep with random inputs and sends no checksums. Test it
-against a real (emulated) C64. For Bubble Bobble that is
-`python tools/nettest.py 120 --bot`, with `auto=b` in the lobby's
-configuration file.
+against a real (emulated) C64. Give the game a "nettest"
+section in `game.json` and run `python framework/tools/nettest.py games/<name> 120 --bot`
+(it puts `auto=b` in the lobby's configuration file).
 
 ### d) The dashboard
 

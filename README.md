@@ -11,9 +11,9 @@ the lobby with everyone who is online, and choose an opponent, either a person o
 one of the server's bots.
 
 <p align="center">
-  <img src="games/bubblebobble/docs/images/game-alice-2.png" width="45%" alt="Bubble Bobble OME">
-  &nbsp;
-  <img src="games/wizardofwor/docs/images/game_a.png" width="45%" alt="Wizard of Wor OME">
+  <img src="games/bubblebobble/docs/images/game-alice-2.png" width="32%" alt="Bubble Bobble OME">
+  <img src="games/wizardofwor/docs/images/game_a.png" width="32%" alt="Wizard of Wor OME">
+  <img src="games/explodingfist/docs/images/game-bob-2.png" width="32%" alt="The Way of the Exploding Fist OME">
 </p>
 
 > **LAN only.** The server has no encryption, accounts or passwords. Never
@@ -53,6 +53,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 |---|---|---|---|---|
 | ![](games/wizardofwor/docs/images/lobby.png) | **Wizard of Wor OME**<br>Two Worriors in the dungeon, 60 ticks per second. The lobby is part of the game. | 1 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/wizardofwor](games/wizardofwor/README.md) |
 | ![](games/bubblebobble/docs/images/lobby-players.png) | **Bubble Bobble OME**<br>Bub on one C64, Bob on the other, 25 ticks per second. Uses the framework's standard lobby. | 3 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/bubblebobble](games/bubblebobble/README.md) |
+| ![](games/explodingfist/docs/images/lobby-players.png) | **The Way of the Exploding Fist OME**<br>White against red, four bouts. The standard lobby and the framework's network code. | 4 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/explodingfist](games/explodingfist/README.md) |
 
 Both games run on the same networks. In VICE the WiC64 emulation is the
 simplest: `RELEASE/vice-wic64.bat` sets it up.
@@ -89,6 +90,23 @@ compute exactly the same game. No byte of the original moves. PAL only.
 → [Bubble Bobble OME README](games/bubblebobble/README.md) ·
 [manual](games/bubblebobble/docs/MANUAL.md) ·
 [technical description](games/bubblebobble/docs/TECHNICAL.md)
+
+### The Way of the Exploding Fist OME
+
+<p align="center">
+  <img src="games/explodingfist/docs/images/lobby-invited.png" width="32%" alt="Invited">
+  <img src="games/explodingfist/docs/images/game-alice-2.png" width="32%" alt="White's C64">
+  <img src="games/explodingfist/docs/images/game-bob-2.png" width="32%" alt="Red's C64">
+</p>
+
+The karate classic by Beam Software (Melbourne House, 1985): the original
+two-player match of four bouts, one fighter per C64. There is no source code
+of this game: the base is the RAM image its own loader leaves when the game
+starts, and every change is a checked patch to it. The boot picture and the
+scream are gone; the standard lobby is in front. It is the first game on the
+framework's shared network code ([framework/c64/net](framework/c64/net/net.s)).
+Deterministic over a whole match on PAL, NTSC and with network-like delays.
+→ [Exploding Fist OME README](games/explodingfist/README.md)
 
 ## How it works
 
@@ -275,12 +293,14 @@ server/                   the game server (C#/.NET 8) and its tests
   tests/                    unit tests (fake clock, fake network)
 framework/                shared by all games
   c64/lobby/                the standard lobby (cc65): Ultimate, WiC64, RR-Net drivers
+  c64/net/                  in-game network code for lockstep games (Ultimate, WiC64, RR-Net)
   c64/packer/               LZ packer with a self-extracting loader
   tools/c64env.py           finds VICE and cc65 for every build and test script
   release/                  start scripts and README for RELEASE/
 games/
   wizardofwor/              Wizard of Wor OME   (game.json, README.md, src, tools, docs)
   bubblebobble/             Bubble Bobble OME   (game.json, README.md, src, lobby/game.h, tools, docs)
+  explodingfist/            Exploding Fist OME  (game.json, README.md, orig, src, lobby/game.h, tools, docs)
 ```
 
 Each game folder is self-contained and has a `game.json` (id, module, build
@@ -338,7 +358,7 @@ Read [docs/adding-a-game.md](docs/adding-a-game.md). In short:
 
 1. Make the game deterministic and tick based, with inputs as the only thing that crosses the network.
 2. Create `games/<name>/` with a `game.json`, a `README.md` and the source.
-3. Use the standard lobby: write `games/<name>/lobby/game.h`.
+3. Use the standard lobby (`games/<name>/lobby/game.h`) and the network code in `framework/c64/net` (`netgame.inc`).
 4. On the server, use the `relay` module, or write a module in
    `server/src/C64GameServer.Core/Games/`. Add a bot profile and the game to
    the default `server.json`. The dashboard tab appears by itself.
@@ -367,6 +387,7 @@ Some older design notes inside the game folders are in Dutch.
 | Server, lobby, sessions, bots, dashboard | 46 unit tests; bot ↔ bot and C64 ↔ bot sessions run without errors |
 | Wizard of Wor OME | VICE ↔ VICE verified (direct over RR-Net, and via the server with the WiC64 emulation, matching checksums); PAL ↔ NTSC deterministic. With the WiC64 in VICE the game runs at about 35 instead of 60 ticks per second |
 | Bubble Bobble OME | VICE ↔ VICE over RR-Net and WiC64 verified, with matching checksums; C64 ↔ bot |
+| The Way of the Exploding Fist OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums, back to the lobby after the match; deterministic over a whole match (PAL, NTSC, delays). In VICE about 32 (RR-Net) / 18 (WiC64) instead of 46 ticks per second |
 | Real C64 Ultimate / WiC64 hardware | built, **not yet tested on real hardware** |
 
 ## Credits and legal
@@ -375,6 +396,8 @@ Some older design notes inside the game folders are in Dutch.
   disassembly by [dabadab](https://github.com/dabadab/wizardofwor).
 - **Bubble Bobble** © 1986 Taito Corporation; the C64 version is by Software Creations and was
   published by Firebird. It is based on [rebb64](https://github.com/zaidka/rebb64) by zaidka.
+- **The Way of the Exploding Fist** © 1985 Beam Software / Melbourne House. The analysis by
+  [Games Explained](https://github.com/gamesexplained/gamesexplained) helped to find the way around.
 - [ip65](https://github.com/cc65/ip65) is used under the Mozilla Public License 1.1.
 - The WiC64 protocol follows the [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The Ultimate Command Interface follows [Gideon Zweijtzer's firmware](https://github.com/GideonZ/1541ultimate)

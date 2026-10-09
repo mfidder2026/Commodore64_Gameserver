@@ -184,13 +184,15 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
 }
 
 /// <summary>
-/// Bubble Bobble (BB-LAN): lockstep on the C64s like Wizard of Wor. After START the C64 loads the game
-/// from disk (up to a minute on a 1541), so a player may stay silent for loadTimeoutSeconds until his
-/// first INPUT; after that the normal idle and input timeouts apply.
+/// Lockstep games built on the framework's network code (framework/c64/net/net.s, and Bubble Bobble's
+/// copy of it): Bubble Bobble, The Way of the Exploding Fist. Module name "lockstep" ("bubblebobble"
+/// is the same). After START the C64 loads the game from disk (up to a minute on a 1541), so a player
+/// may stay silent for loadTimeoutSeconds until his first INPUT; after that the normal idle and input
+/// timeouts apply.
 /// START params: seed lo, seed hi, input delay (1-4).
 /// INPUT: $80, session, newest tick (16), checksum tick (16, $FFFF = none), checksum (16), 8 inputs.
 /// </summary>
-public sealed class BubbleBobbleModule(GameConfig config) : RelayModule(config)
+public sealed class LockstepModule(GameConfig config) : RelayModule(config)
 {
     public const byte Input = 0x80;
     public const int InputLength = 16;
@@ -319,7 +321,8 @@ public sealed class GameRegistry
 
     public IEnumerable<IGameModule> All => _games.Values;
 
-    /// <summary>Creates the modules from server.json: "wizardofwor", "bubblebobble" or "relay" (a new relay game needs only an entry there).</summary>
+    /// <summary>Creates the modules from server.json: "wizardofwor", "lockstep" (alias "bubblebobble") or "relay"
+    /// (a new relay game needs only an entry there).</summary>
     public static GameRegistry FromConfig(ServerConfig config)
     {
         var r = new GameRegistry();
@@ -328,7 +331,7 @@ public sealed class GameRegistry
             IGameModule module = g.Module.ToLowerInvariant() switch
             {
                 "wizardofwor" => new WizardOfWorModule(g),
-                "bubblebobble" => new BubbleBobbleModule(g),
+                "lockstep" or "bubblebobble" => new LockstepModule(g),
                 "relay" => new RelayModule(g),
                 _ => throw new InvalidDataException($"server.json: unknown module '{g.Module}' for game {g.Id}"),
             };

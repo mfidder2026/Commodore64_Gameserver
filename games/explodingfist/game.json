@@ -1,0 +1,21 @@
+{
+  "id": 4,
+  "name": "Exploding Fist",
+  "title": "The Way of the Exploding Fist",
+  "short": "Fist",
+  "module": "lockstep",
+  "lobby": "framework",
+  "build": ["python", "tools/build.py", "disk"],
+  "disk": "build/fist.d64",
+  "tests": [["python", "tools/dettest.py", "6200"]],
+  "readme": "README.md",
+  "nettest": {
+    "testdisk": ["python", "tools/build.py", "testdisk"],
+    "disk": "build/fist-test.d64",
+    "cfg": "fist.cfg",
+    "server": {"id": 4, "name": "Exploding Fist", "module": "lockstep", "version": 1,
+               "settings": {"inputDelay": 3, "inputDelayWiC64": 4, "inputTimeoutSeconds": 20,
+                            "loadTimeoutSeconds": 150}},
+    "bot": "BRUCE"
+  }
+}

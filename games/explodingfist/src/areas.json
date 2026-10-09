@@ -1,0 +1,12 @@
+[
+  {"start": "C000", "end": "C03E", "what": "entry: restores low memory (cleared later by the game's init $1608)"},
+  {"start": "C100", "end": "C4FF", "what": "copy of $0000-$03FF of the snapshot (fighter build buffers, written by the game before use)"},
+  {"start": "15AA", "end": "15B0", "what": "bout loop: raster wait -> JSR fist_tick"},
+  {"start": "15C4", "end": "15C6", "what": "bout loop: JSR $1948 (keys) -> JSR fist_keys"},
+  {"start": "2270", "end": "227E", "what": "input: joystick read -> LDA fist_joy,X"},
+  {"start": "28A5", "end": "28A7", "what": "NMI: JMP fist_nmi (keeps the WiC64 FLAG2 bit)"},
+  {"start": "191C", "end": "1922", "what": "walk-back wait: raster $FE -> JSR fist_wait_fe (keeps the network alive)"},
+  {"start": "193C", "end": "1942", "what": "walk-back wait: raster $FE -> JSR fist_wait_fe"},
+  {"start": "1C79", "end": "1C86", "what": "frame delay (judge): -> JSR fist_frame + NOPs"},
+  {"start": "F540", "end": "FF3F", "what": "new code: the floor rows of the bitmap (invisible, unused)", "segments": ["FIST", "NET"]}
+]

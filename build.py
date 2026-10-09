@@ -71,7 +71,7 @@ def release(all_games: dict[str, dict]) -> None:
         build(g)
     for sub in ("games", "server"):
         shutil.rmtree(os.path.join(RELEASE, sub), ignore_errors=True)
-    os.makedirs(os.path.join(RELEASE, "games"))
+    os.makedirs(os.path.join(RELEASE, "games"), exist_ok=True)  # (OneDrive may keep the folder a moment)
     for name, g in all_games.items():
         shutil.copy(os.path.join(g["folder"], g["disk"]), os.path.join(RELEASE, "games", name + ".d64"))
     for rid in RELEASE_RIDS:

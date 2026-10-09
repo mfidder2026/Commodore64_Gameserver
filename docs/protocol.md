@@ -307,7 +307,7 @@ Waiting C64s repeat their last INPUT about every 20 ms. A WiC64 sends INPUT only
 (each packet still carries 16 ticks) and repeats it about every 64 ms. Details:
 [games/wizardofwor/docs/netcode.md](../games/wizardofwor/docs/netcode.md) (in Dutch).
 
-## Game: Bubble Bobble (id `$03`, version `$01`, module `bubblebobble`)
+## Game: Bubble Bobble (id `$03`, version `$01`, module `lockstep`, also called `bubblebobble`)
 
 After START the C64 **loads the game file from disk**. A real 1541 needs about a
 minute. Until a player's first INPUT the server waits up to
@@ -343,6 +343,14 @@ Input byte:
 A WiC64 sends only every other tick, because each transfer costs the C64 time.
 
 Details: [games/bubblebobble/docs/TECHNICAL.md](../games/bubblebobble/docs/TECHNICAL.md).
+
+## Game: The Way of the Exploding Fist (id `$04`, version `$01`, module `lockstep`)
+
+The same messages and start parameters as Bubble Bobble: the game uses the framework's network code
+([framework/c64/net/net.s](../framework/c64/net/net.s)), which Bubble Bobble's is a copy of. One tick
+is one pass of the bout loop (about 46 per second). Slot 0 (the inviter) plays the white fighter,
+slot 1 the red one. Input byte bit 6 (Q) ends the match for both. The default input delay is 3;
+a WiC64 sends only every 4th tick, with an input delay of 4.
 
 ## Game: Relay demo (id `$02`, module `relay`)
 
