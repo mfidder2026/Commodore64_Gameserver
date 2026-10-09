@@ -1,5 +1,5 @@
 ; ============================================================================
-; BB-LAN lobby: WiC64 (userport WiFi, firmware 2.x), cc65 C callable
+; Standard lobby: WiC64 (userport WiFi, firmware 2.x), cc65 C callable
 ; ============================================================================
 ; Request:  "R", command, length (16 bit), payload       (C64 -> WiC64)
 ; Response: status, length (16 bit), payload             (WiC64 -> C64)

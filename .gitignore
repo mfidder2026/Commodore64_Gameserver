@@ -1,0 +1,11 @@
+# local tool paths (see framework/tools/c64env.py)
+/paths.local.json
+__pycache__/
+*.pyc
+
+# server build output and runtime files
+server/**/bin/
+server/**/obj/
+server/publish/
+server.json
+server.log

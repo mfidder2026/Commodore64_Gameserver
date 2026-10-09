@@ -164,9 +164,9 @@ def pack(raw_prg, out_prg, entry, hb_addr=0):
     with open(os.path.join(build, "sfx-tail.bin"), "wb") as f:
         f.write(tail)
 
-    sys.path.insert(0, HERE)
-    from build import find_tool
-    ca65, ld65 = find_tool("ca65"), find_tool("ld65")
+    sys.path.insert(0, os.path.join(HERE, "..", "..", "tools"))
+    import c64env
+    ca65, ld65 = c64env.cc65("ca65"), c64env.cc65("ld65")
     defs = {"ENTRY": entry, "BLOB_END": BLOB_END, "OUT_END": BLOB_END - tail_len,
             "CLEN": len(stream), "TAIL_LEN": tail_len, "HB_ADDR": hb_addr}
     dargs = []

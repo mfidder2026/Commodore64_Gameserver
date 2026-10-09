@@ -1,7 +1,10 @@
 /*
- * BB-LAN lobby - Bubble Bobble over the LAN
+ * The standard lobby of the C64 Game Server framework (used by every game
+ * that follows the "lobby loads the game" pattern; see README.md here).
+ * Everything game specific comes from the game's game.h (build with
+ * -I games/<game>/lobby).
  *
- * Finds the network hardware, connects to the BB-LAN game server, shows the
+ * Finds the network hardware, connects to the C64 Game Server, shows the
  * other players and lets you invite one. When the server starts a session
  * this program writes a handoff block to $03C0 and loads the game, which
  * takes over the connection (see src/bbnet.s). After the game the game loads
@@ -28,9 +31,8 @@
 #include <errno.h>
 
 #include "net.h"
+#include "game.h"
 
-#define GAME_ID      3
-#define GAME_VERSION 1
 #define PROTO        1
 #define SERVER_PORT  6465
 
@@ -105,9 +107,9 @@ static void title(void)
     bordercolor(COLOR_BLACK);
     clrscr();
     textcolor(COLOR_LIGHTGREEN);
-    cputs("        BUBBLE BOBBLE  *  LAN\r\n");
+    cputs(GAME_TITLE "\r\n");
     textcolor(COLOR_GRAY2);
-    cputs("     two C64s, one game, one network\r\n\r\n");
+    cputs(GAME_TAGLINE "\r\n\r\n");
     textcolor(COLOR_WHITE);
 }
 
@@ -173,7 +175,7 @@ static unsigned char joy2(void)
 
 static void cfg_load(void)
 {
-    FILE *f = fopen("bblan.cfg", "r");
+    FILE *f = fopen(CFG_FILE, "r");
     char line[40];
     char *v;
     if (!f) return;
@@ -202,8 +204,8 @@ static void cfg_save(void)
 {
     FILE *f;
     if (!cfg_dirty) return;
-    remove("bblan.cfg");
-    f = fopen("bblan.cfg", "w");
+    remove(CFG_FILE);
+    f = fopen(CFG_FILE, "w");
     if (!f) return;
     fprintf(f, "name=%s\r", nick);
     if (*server) fprintf(f, "server=%s\r", server);
@@ -273,12 +275,12 @@ static void draw_players(void)
         revers(0);
         gotoxy(12, y);
         textcolor(players[i].flags & 1 ? COLOR_LIGHTBLUE : COLOR_YELLOW);
-        cputs(players[i].flags & 1 ? "bot   " : "player");
+        cputs(players[i].flags & 1 ? "BOT   " : "PERSON");
         gotoxy(20, y);
         switch (players[i].flags & 6) {
-        case 0: textcolor(COLOR_GREEN); cputs("free"); break;
-        case 2: textcolor(COLOR_ORANGE); cputs("busy"); break;
-        default: textcolor(COLOR_RED); cputs("playing"); break;
+        case 0: textcolor(COLOR_GREEN); cputs("FREE"); break;
+        case 2: textcolor(COLOR_ORANGE); cputs("BUSY"); break;
+        default: textcolor(COLOR_RED); cputs("PLAYING"); break;
         }
     }
     textcolor(COLOR_WHITE);
@@ -305,7 +307,7 @@ static void take_players(void)
 /* the game file for this network hardware */
 static const char *game_file(void)
 {
-    return drv == DRV_UCI ? "bbu" : drv == DRV_WIC ? "bbw" : "bbr";
+    return drv == DRV_UCI ? FILE_UCI : drv == DRV_WIC ? FILE_WIC : FILE_RR;
 }
 
 /* START: write the handoff block and load the game */
@@ -331,7 +333,7 @@ static void start_session(void)
     memcpy(HB + HB_MYMAC, mymac, 6);
     cfg_save();
     title();
-    cprintf("You play %s.\r\n\r\nLoading the game...", slot ? "BOB (blue)" : "BUB (green)");
+    cprintf("You play %s.\r\n\r\nLoading the game...", slot ? SLOT1_NAME : SLOT0_NAME);
     start_game(game_file());
 }
 

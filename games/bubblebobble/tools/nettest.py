@@ -27,9 +27,9 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dettest import BUILD, ROOT, VICE, monitor  # noqa: E402
+from dettest import BUILD, ROOT, VICE, monitor, c64env  # noqa: E402
 
-C1541 = os.path.join(os.path.dirname(VICE), "c1541.exe")
+C1541 = c64env.vice("c1541")
 SRV_DIR = os.path.join(BUILD, "srvtest")
 DEFAULT_IF = r"\Device\NPF_{BD187BD7-EF69-4A3B-B098-BEC90E6A20AA}"
 PLAYERS = [("a", "ALICE", "I", "021111111101", 6520), ("b", "BOB", "A", "021111111102", 6521)]
@@ -70,7 +70,7 @@ def main():
                        check=True, stdout=subprocess.DEVNULL)
     os.makedirs(SRV_DIR, exist_ok=True)
     srv_exe = os.path.join(SRV_DIR, "bin", "C64GameServer.exe")
-    subprocess.run(["dotnet", "build", os.path.join(ROOT, "server", "src", "C64GameServer"),
+    subprocess.run(["dotnet", "build", os.path.join(c64env.SERVER, "src", "C64GameServer"),
                     "-c", "Release", "-o", os.path.dirname(srv_exe), "-v", "q"],
                    check=True, stdout=subprocess.DEVNULL)
     with open(os.path.join(SRV_DIR, "server.json"), "w") as f:

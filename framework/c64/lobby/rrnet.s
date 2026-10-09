@@ -1,5 +1,5 @@
 ; ============================================================================
-; BB-LAN lobby: RR-Net (CS8900a) raw Ethernet driver, cc65 C callable
+; Standard lobby: RR-Net (CS8900a) raw Ethernet driver, cc65 C callable
 ; ============================================================================
 ; Frames: destination MAC, source MAC, EtherType $88B5, length, message.
 ; The game server talks this on its pcap interface (server.json

@@ -1,5 +1,5 @@
 ; ============================================================================
-; BB-LAN lobby: load and start the game. The game file loads over the lobby
+; Standard lobby: load and start the game. The game file loads over the lobby
 ; ($0801-...), so a small stub runs from the cassette buffer at $033C.
 ; The handoff block at $03C0 (written by C) is not touched by LOAD; the
 ; game's unpacker copies it into the game.

@@ -56,17 +56,17 @@ def main() -> None:
     win = os.path.join(DIST, f"C64GameServer-{version}-win-x64.zip")
     with zipfile.ZipFile(win, "w", zipfile.ZIP_DEFLATED) as z:
         for f in ("C64GameServer.exe", "C64Bot.exe"):
-            z.write(need(f"server/publish/win-x64/{f}", "run server\\publish.bat"), f)
+            z.write(need(f"../../server/publish/win-x64/{f}", "run server\\publish.bat"), f)
         z.writestr("START.txt", START_TXT.replace("\n", "\r\n"))
 
     arm = os.path.join(DIST, f"C64GameServer-{version}-linux-arm64.tar.gz")
     with tarfile.open(arm, "w:gz") as t:
         for f in ("C64GameServer", "C64Bot"):
-            info = t.gettarinfo(need(f"server/publish/linux-arm64/{f}", "run server\\publish.bat"), f)
+            info = t.gettarinfo(need(f"../../server/publish/linux-arm64/{f}", "run server\\publish.bat"), f)
             info.mode = 0o755  # executable on the Pi
             info.uid = info.gid = 0
             info.uname = info.gname = ""
-            with open(os.path.join(ROOT, "server", "publish", "linux-arm64", f), "rb") as src:
+            with open(os.path.join(ROOT, "..", "..", "server", "publish", "linux-arm64", f), "rb") as src:
                 t.addfile(info, src)
         data = START_TXT.encode()
         info = tarfile.TarInfo("START.txt")

@@ -18,8 +18,7 @@ chosen so the I/O shadow is full, which frees PRG_MID space for BBLAN_CODE.
 Options:
     -D NAME[=VALUE]                    extra ca65 define (e.g. -D DETTEST=1)
 
-Tools: ca65/ld65 are taken from $CC65_HOME/bin, else ../c64/cc65/bin next to
-this repo, else PATH.
+Tools (cc65, VICE): see framework/tools/c64env.py.
 """
 import argparse
 import glob
@@ -30,6 +29,9 @@ import re
 import shutil
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "framework", "tools"))
+import c64env  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build")
@@ -70,18 +72,7 @@ TGA_CONVERSIONS = [
 
 
 def find_tool(name):
-    exe = name + (".exe" if os.name == "nt" else "")
-    candidates = []
-    if os.environ.get("CC65_HOME"):
-        candidates.append(os.path.join(os.environ["CC65_HOME"], "bin", exe))
-    candidates.append(os.path.join(ROOT, "..", "c64", "cc65", "bin", exe))
-    for c in candidates:
-        if os.path.isfile(c):
-            return os.path.normpath(c)
-    found = shutil.which(name)
-    if found:
-        return found
-    sys.exit(f"error: {name} not found (set CC65_HOME)")
+    return c64env.cc65(name)
 
 
 def run(cmd):
@@ -230,7 +221,7 @@ def label(name):
 
 
 def release(raw, out):
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(c64env.FRAMEWORK, "c64", "packer"))
     import pack
     entry = label("game_entry")
     try:
@@ -250,11 +241,12 @@ def clean():
 
 
 def lobby():
-    """The lobby program (C, cc65): build/lobby.prg"""
+    """The framework's lobby (framework/c64/lobby) with this game's game.h: build/lobby.prg"""
     cl65 = find_tool("cl65")
-    src = os.path.join(ROOT, "lobby")
+    src = os.path.join(c64env.FRAMEWORK, "c64", "lobby")
     files = [os.path.join(src, f) for f in ("main.c", "net.c", "rrnet.s", "uci.s", "wic64.s", "loader.s")]
-    run([cl65, "-t", "c64", "-O", "-o", "lobby.prg", "-m", "lobby.map", *files])
+    run([cl65, "-t", "c64", "-O", "-I", os.path.join(ROOT, "lobby"), "-o", "lobby.prg", "-m", "lobby.map",
+         *files])
     size = os.path.getsize(os.path.join(BUILD, "lobby.prg"))
     if 0x0801 + size > 0xC5F2:                  # the game's bb_end runs from $C5F2+
         sys.exit("error: the lobby is too large")
@@ -281,18 +273,7 @@ def d64(image, files, label="bb-lan,bb"):
 
 
 def find_vice_tool(name):
-    exe = name + (".exe" if os.name == "nt" else "")
-    candidates = []
-    if os.environ.get("VICE_DIR"):
-        candidates.append(os.path.join(os.environ["VICE_DIR"], exe))
-    candidates.append(os.path.join(ROOT, "..", "c64", "vice", "bin", exe))
-    for c in candidates:
-        if os.path.isfile(c):
-            return os.path.normpath(c)
-    found = shutil.which(name)
-    if found:
-        return found
-    sys.exit(f"error: {name} not found (set VICE_DIR)")
+    return c64env.vice(name)
 
 
 def main():

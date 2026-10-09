@@ -1,4 +1,4 @@
-/* BB-LAN lobby: network layer (Ultimate Command Interface or RR-Net) */
+/* Standard lobby: network layer (Ultimate Command Interface or RR-Net) */
 #include <string.h>
 #include <stdio.h>
 #include <peekpoke.h>

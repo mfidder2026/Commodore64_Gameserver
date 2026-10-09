@@ -1,5 +1,5 @@
 ; ============================================================================
-; BB-LAN lobby: Ultimate Command Interface (Ultimate 64 / C64 Ultimate),
+; Standard lobby: Ultimate Command Interface (Ultimate 64 / C64 Ultimate),
 ; cc65 C callable. One synchronous command at a time; uci.c builds them.
 ; ============================================================================
 ; Registers (only when "Command Interface" is enabled in the Ultimate menu):

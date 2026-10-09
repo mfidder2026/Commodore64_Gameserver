@@ -25,10 +25,12 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "framework", "tools"))
+import c64env  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build")
-VICE = os.environ.get("VICE") or os.path.normpath(
-    os.path.join(ROOT, "..", "c64", "vice", "bin", "x64sc.exe"))
+VICE = c64env.vice("x64sc")
 
 VARIANTS = [  # (run name, build name, video)
     ("pal", "dettest", "pal"),

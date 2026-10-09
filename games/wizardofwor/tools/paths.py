@@ -1,30 +1,15 @@
 """
-Where the external tools live. Order: environment variable, tools/paths.local.json (not in git), the PATH.
-
-tools/paths.local.json example:
-    {"VICE_DIR": "C:\\vice\\bin", "CC65_BIN": "C:\\cc65\\bin"}
+Where the external tools live: the framework's shared lookup (framework/tools/c64env.py):
+an environment variable, paths.local.json in the repository root, a c64/ folder next to
+the repository, or the PATH.
 """
 from __future__ import annotations
 
-import json
 import os
-import shutil
+import sys
 
-_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "paths.local.json")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "framework", "tools"))
+import c64env  # noqa: E402
 
-
-def tool_dir(name: str, exe: str, fallback: str) -> str:
-    """Directory of a tool: $name, paths.local.json[name], the directory of `exe` on the PATH, or fallback."""
-    if os.environ.get(name):
-        return os.environ[name]
-    if os.path.exists(_LOCAL):
-        with open(_LOCAL, encoding="utf-8") as f:
-            value = json.load(f).get(name)
-        if value:
-            return value
-    found = shutil.which(exe)
-    return os.path.dirname(found) if found else fallback
-
-
-VICE_DIR = tool_dir("VICE_DIR", "x64sc", r"C:\VICE\bin")
-CC65_BIN = tool_dir("CC65_BIN", "ca65", r"C:\cc65\bin")
+VICE_DIR = c64env.VICE_DIR or r"C:\VICE\bin"
+CC65_BIN = c64env.CC65_BIN or r"C:\cc65\bin"
