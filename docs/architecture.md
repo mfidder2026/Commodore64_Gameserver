@@ -87,16 +87,16 @@ screenshots.
 Each game folder is self-contained (source, tools, docs, release) and
 described by its `game.json`. The root `build.py` reads these files.
 
-| | Wizard of Wor OME | Bubble Bobble OME | Exploding Fist OME |
-|---|---|---|---|
-| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 | none: the RAM image at the game's entry + ca65 patches |
-| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` |
-| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) | the same, from `framework/c64/net` |
-| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time | one pass of the bout loop (about 46/s) |
-| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs |
-| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) | the original game (one or two players) |
-| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB | the invisible floor rows of the bitmap (2.5 KB) |
-| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) | patches only in the areas of `src/areas.json` |
+| | Wizard of Wor OME | Bubble Bobble OME | Exploding Fist OME | Pitstop II OME |
+|---|---|---|---|---|
+| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 | none: the RAM image at the game's entry + ca65 patches | the same (from the tape version) |
+| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` |
+| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) | the same, from `framework/c64/net` | the same |
+| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time | one pass of the bout loop (about 46/s) | one drawing pass; the logic runs in fixed slots of the main loop instead of the raster IRQ |
+| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs |
+| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) | the original game (one or two players) | the original game (a separate file, `LOCAL_GAME_FILE`) |
+| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB | the invisible floor rows of the bitmap (2.5 KB) | the menu and name entry code (never run online) |
+| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) | patches only in the areas of `src/areas.json` | the same (`src/areas-online.json`) |
 
 Both games keep the original game logic and add the same three things:
 

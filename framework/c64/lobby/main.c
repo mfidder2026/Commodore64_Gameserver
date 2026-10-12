@@ -543,7 +543,11 @@ int main(void)
 
         if (key == 's') { settings(NEEDS_SERVER); cfg_save(); continue; }
 #ifdef LOCAL_GAME_TEXT
+#ifdef LOCAL_GAME_FILE
+        if (key == 'l') { memset(HB, 0, HB_SIZE); start_game(LOCAL_GAME_FILE); }
+#else
         if (key == 'l') { memset(HB, 0, HB_SIZE); start_game(game_file()); }
+#endif
 #endif
         if (key != CH_ENTER && key != CH_F1) continue;
         if (drv == DRV_NONE || !PAL_OK) continue;

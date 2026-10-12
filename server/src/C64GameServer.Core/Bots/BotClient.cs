@@ -25,6 +25,7 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
     {
         3 => BubbleBobble,
         4 => ExplodingFist,
+        5 => PitstopII,
         _ => WizardOfWor,
     };
 
@@ -52,6 +53,11 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
     /// <summary>The Way of the Exploding Fist OME: one tick per pass of the bout loop (about 39/s), the
     /// framework's 16-byte INPUT. A new joystick position (any of the 32) every 8 ticks.</summary>
     public static readonly BotProfile ExplodingFist = new(16, 8, 40, 0x1F, 150, (tick, slot, seed) =>
+        (byte)(Hash(tick >> 3, slot, seed) & 0x1F));
+
+    /// <summary>Pitstop II OME: one tick per drawing pass of the race (about 38/s in VICE), the framework's
+    /// 16-byte INPUT. A new joystick position (any of the 32) every 8 ticks.</summary>
+    public static readonly BotProfile PitstopII = new(16, 8, 38, 0x1F, 150, (tick, slot, seed) =>
         (byte)(Hash(tick >> 3, slot, seed) & 0x1F));
 
     private static uint Hash(int a, int slot, byte seed)

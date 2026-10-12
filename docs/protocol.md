@@ -352,6 +352,14 @@ is one pass of the bout loop (about 46 per second). Slot 0 (the inviter) plays t
 slot 1 the red one. Input byte bit 6 (Q) ends the match for both. The default input delay is 3;
 a WiC64 sends only every 4th tick, with an input delay of 4.
 
+## Game: Pitstop II (id `$05`, version `$01`, module `lockstep`)
+
+The same messages and start parameters as Exploding Fist (the framework's network code). One
+tick is one drawing pass of the race (about 38 per second in VICE); the joysticks are read once
+per tick. Slot 0 (the inviter) is driver 1 (the top half of the screen), slot 1 driver 2. The
+seed picks the track (seed mod 7). Input byte bit 6 (Q) ends the race for both. The default
+input delay is 3; a WiC64 sends every other tick, with an input delay of 4.
+
 ## Game: Relay demo (id `$02`, module `relay`)
 
 No start parameters. The server forwards every game message unchanged to the

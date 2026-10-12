@@ -1,0 +1,21 @@
+{
+  "id": 5,
+  "name": "Pitstop II",
+  "title": "Pitstop II",
+  "short": "Pitstop",
+  "module": "lockstep",
+  "lobby": "framework",
+  "build": ["python", "tools/build.py", "disk"],
+  "disk": "build/pitstop.d64",
+  "tests": [["python", "tools/dettest.py", "6000"]],
+  "readme": "README.md",
+  "nettest": {
+    "testdisk": ["python", "tools/build.py", "testdisk"],
+    "disk": "build/pitstop-test.d64",
+    "cfg": "pitstop.cfg",
+    "server": {"id": 5, "name": "Pitstop II", "module": "lockstep", "version": 1,
+               "settings": {"inputDelay": 3, "inputDelayWiC64": 4, "inputTimeoutSeconds": 20,
+                            "loadTimeoutSeconds": 150}},
+    "bot": "TURBO"
+  }
+}

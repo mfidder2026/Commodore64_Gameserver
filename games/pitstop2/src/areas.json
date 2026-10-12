@@ -1,10 +1,5 @@
 [
   {"start": "E000", "end": "E0FF", "what": "entry: restores low memory (empty at the entry; the game's init fills it)"},
   {"start": "E100", "end": "E4FF", "what": "copy of $0000-$03FF of the snapshot (idem)"},
-  {"start": "0800", "end": "0FFF", "what": "provisional: the game builds tables here at the race start", "segments": ["NET"]},
-  {"start": "387A", "end": "388B", "what": "race logic (IRQ): joystick reads -> JSR pit_tick"},
-  {"start": "9AB9", "end": "9C71", "what": "name entry code (not run online): test code"},
-  {"start": "4FB6", "end": "4FB8", "what": "race start: no 'press your button' for driver 1 (port 2)"},
-  {"start": "4FF9", "end": "4FFB", "what": "race start: no 'press your button' for driver 2"},
-  {"start": "94AB", "end": "94B1", "what": "menu: wait for $09 -> JSR pit_menu (session options); no name entry"}
+  {"start": "0800", "end": "0FFF", "what": "unused framework code: the game builds its tables here at the race start", "segments": ["NET"]}
 ]

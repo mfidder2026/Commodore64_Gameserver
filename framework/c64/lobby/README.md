@@ -45,6 +45,7 @@ build compiles this folder with `-I games/<game>/lobby`:
 #define FILE_RR       "bbr"
 #define GAME_PAL_ONLY 1                   /* warn on NTSC machines */
 #define LOCAL_GAME_TEXT "local game (2 joysticks)"   /* key L; leave undefined if none */
+/* #define LOCAL_GAME_FILE "bbl"            optional: key L loads this file (default: the game file) */
 #define SLOT0_NAME    "BUB (green)"       /* slot 0 = the inviter */
 #define SLOT1_NAME    "BOB (blue)"
 ```

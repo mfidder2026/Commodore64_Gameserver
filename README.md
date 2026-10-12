@@ -54,8 +54,9 @@ the repository (*Code → Download ZIP*) and open that folder:
 | ![](games/wizardofwor/docs/images/lobby.png) | **Wizard of Wor OME**<br>Two Worriors in the dungeon, 60 ticks per second. The lobby is part of the game. | 1 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/wizardofwor](games/wizardofwor/README.md) |
 | ![](games/bubblebobble/docs/images/lobby-players.png) | **Bubble Bobble OME**<br>Bub on one C64, Bob on the other, 25 ticks per second. Uses the framework's standard lobby. | 3 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/bubblebobble](games/bubblebobble/README.md) |
 | ![](games/explodingfist/docs/images/lobby-players.png) | **The Way of the Exploding Fist OME**<br>White against red, four bouts. The standard lobby and the framework's network code. | 4 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/explodingfist](games/explodingfist/README.md) |
+| ![](games/pitstop2/docs/images/race-driver1.png) | **Pitstop II OME**<br>Split-screen Formula 1, one driver per C64, three laps. The standard lobby and the framework's network code. | 5 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/pitstop2](games/pitstop2/README.md) |
 
-Both games run on the same networks. In VICE the WiC64 emulation is the
+All games run on the same networks. In VICE the WiC64 emulation is the
 simplest: `RELEASE/vice-wic64.bat` sets it up.
 
 Game id 2 is the *Relay demo*: a configuration-only example of a game that needs
@@ -107,6 +108,22 @@ scream are gone; the standard lobby is in front. It is the first game on the
 framework's shared network code ([framework/c64/net](framework/c64/net/net.s)).
 Deterministic over a whole match on PAL, NTSC and with network-like delays.
 → [Exploding Fist OME README](games/explodingfist/README.md)
+
+### Pitstop II OME
+
+<p align="center">
+  <img src="games/pitstop2/docs/images/race-driver1.png" width="45%" alt="Driver 1's C64">
+  <img src="games/pitstop2/docs/images/race-driver2.png" width="45%" alt="Driver 2's C64">
+</p>
+
+The racing classic by Epyx (1984): split-screen Formula 1 with pit stops, one driver per C64.
+Both C64s show the whole split screen. The session picks the track; three laps. Built like
+Exploding Fist, from the RAM image at the game's start plus checked patches (from the tape
+version, without the crack's intro, documents and trainer). The race logic ran in the raster
+IRQ, interleaved with the drawing by timing; the online version runs it in fixed slots of the
+main loop, so it is deterministic on PAL, NTSC and with network delays. Key `L` in the lobby
+loads the original game.
+→ [Pitstop II OME README](games/pitstop2/README.md)
 
 ## How it works
 
@@ -301,6 +318,7 @@ games/
   wizardofwor/              Wizard of Wor OME   (game.json, README.md, src, tools, docs)
   bubblebobble/             Bubble Bobble OME   (game.json, README.md, src, lobby/game.h, tools, docs)
   explodingfist/            Exploding Fist OME  (game.json, README.md, orig, src, lobby/game.h, tools, docs)
+  pitstop2/                 Pitstop II OME      (game.json, README.md, orig, src, lobby/game.h, tools, docs)
 ```
 
 Each game folder is self-contained and has a `game.json` (id, module, build
@@ -388,6 +406,7 @@ Some older design notes inside the game folders are in Dutch.
 | Wizard of Wor OME | VICE ↔ VICE verified (direct over RR-Net, and via the server with the WiC64 emulation, matching checksums); PAL ↔ NTSC deterministic. With the WiC64 in VICE the game runs at about 35 instead of 60 ticks per second |
 | Bubble Bobble OME | VICE ↔ VICE over RR-Net and WiC64 verified, with matching checksums; C64 ↔ bot |
 | The Way of the Exploding Fist OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums, back to the lobby after the match; deterministic over a whole match (PAL, NTSC, delays). In VICE about 32 (RR-Net) / 18 (WiC64) instead of 46 ticks per second |
+| Pitstop II OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums over whole races, back to the lobby after the finish; deterministic over 6000 ticks (PAL, NTSC, delays). In VICE about 38 (RR-Net) / 23 (WiC64) ticks per second |
 | Real C64 Ultimate / WiC64 hardware | built, **not yet tested on real hardware** |
 
 ## Credits and legal
@@ -398,6 +417,7 @@ Some older design notes inside the game folders are in Dutch.
   published by Firebird. It is based on [rebb64](https://github.com/zaidka/rebb64) by zaidka.
 - **The Way of the Exploding Fist** © 1985 Beam Software / Melbourne House. The analysis by
   [Games Explained](https://github.com/gamesexplained/gamesexplained) helped to find the way around.
+- **Pitstop II** © 1984 Epyx, by Stephen H. Landrum with Dennis Caswell.
 - [ip65](https://github.com/cc65/ip65) is used under the Mozilla Public License 1.1.
 - The WiC64 protocol follows the [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The Ultimate Command Interface follows [Gideon Zweijtzer's firmware](https://github.com/GideonZ/1541ultimate)

@@ -1,36 +1,53 @@
-# Pitstop II (work in progress)
+# Pitstop II OME
 
-> Part of the **[Commodore 64 Game Server](../../README.md)**. Not yet *Online Multiplayer Enabled*: see the status below.
+> Part of the **[Commodore 64 Game Server](../../README.md)**. *Online Multiplayer Enabled*: two C64s race each other over the network, one driver per C64.
 
 **Pitstop II** (Epyx, 1984): split-screen Formula 1 racing for two players on one
 C64, with pit stops for tyres and fuel.
+
+## Playing
+
+Load the disk's first file (`LOAD"*",8,1` / `RUN`): the framework's standard lobby
+([framework/c64/lobby](../../framework/c64/lobby/README.md)). Invite a player with FIRE.
+- Slot 0 (the inviter) is **driver 1** (the top half of the screen), slot 1 is **driver 2** (the
+  bottom half). Both C64s show the whole split screen; each player uses joystick **port 2**.
+- The session picks one of the seven tracks (from its seed); three laps, rookie.
+- `Q` (either player) ends the race for both. After the finish the screen stays for three
+  seconds, then both C64s go back to the lobby.
+- Key `L` in the lobby loads the **original game** (`pitl`: menu, one or two players, all options).
 
 ## Status
 
 | Part | State |
 |---|---|
-| Single PRG | **done**: `python tools/build.py` makes `build/pitstop.prg` (33.6 KB), which starts straight in the game's options menu. No crack intro, no documents reader, no title picture, no trainer |
-| Analysis | menu, options, race start, joystick reads, race loop and race end found (below) |
-| Online (lockstep) | **not yet possible as it is**: the game is not deterministic under timing differences (`tools/dettest.py`) |
+| Single PRG | `python tools/build.py` makes `build/pitstop.prg`: the clean original as one file, straight into the options menu. No crack intro, no documents reader, no title picture, no trainer |
+| Determinism | `python tools/dettest.py 6000`: PAL, PAL with 0-3 frames of network-like waiting per tick, and NTSC end in the same race state |
+| Online | see the top-level README's status table |
 
-### Why online is harder here
+## How the online version works
 
-The race logic, including the joystick reads, runs in the **raster IRQ**, every other frame.
-The **main loop** draws the two halves of the screen as fast as it can, and it also changes
-the cars' state:
-- `$41CE-$424B`: crash, recovery and pit states in `$50,X` and `$039C,X`;
-- track sections in `$61DE,X` / `$61EA,X`.
+In the original the race logic, including the joystick reads, runs in the **raster IRQ**: one
+car per screen half. The **main loop** draws the views as fast as it can, and also changes the
+cars' state (crash, recovery and pit states). How far the main loop got between two logic runs
+depended on timing, so two C64s would drift apart (2105 bytes of game state differed after 1000
+ticks in the first test).
 
-How far the main loop gets between two logic ticks depends on timing. A network wait in the IRQ
-therefore makes the two C64s diverge. `tools/dettest.py` shows it: after 1000 ticks with a bot on
-both cars, PAL with network-like waits differs from plain PAL in 2105 bytes of game state.
+The online build makes the interleaving fixed (`src/main.s`):
+- the raster IRQ only draws and counts screen halves (`pit_due`);
+- the main loop runs the logic itself, as **slots**, at the start of every drawing pass
+  (`$41A0`): one slot per car, after waiting for two screen halves, so the game is never faster
+  than the original. A **tick** of the lockstep is one pass; the inputs are read once per tick;
+- the logic reads its car numbers from our variables instead of the IRQ's (`$16`/`$17`);
+- the main loop's waits for the logic counter `$04` (start countdown, pit stop) run slots;
+- the steering state `$620B,X`, which the display IRQ derived from `$70,X` and the logic reads,
+  is computed at the start of each slot (`src/areas-online.json` lists every patch).
 
-Possible ways forward:
-1. Make the interleaving deterministic. After every tick the IRQ resumes at exactly the same raster
-   cycle, with network waits rounded to whole frames (PAL only).
-2. Hand the main loop's state changes over at fixed ticks.
+A flow trace of the IRQ, the logic and the main loop (every address read and written) found
+the couplings; `tools/dettest.py` confirmed them.
 
-Both need more study of the race code.
+The state checksum (`src/netgame.inc`) covers the race state: zero page `$24-$EC` (without
+the IRQ's sprite temporary `$27` and our frame counter `$E4`), `$0380-$039F` and `$61D0-$6226`
+(without the sprite drawing temporaries).
 
 ## What the analysis found
 
@@ -44,14 +61,17 @@ Both need more study of the race code.
 | `$387A` | In the raster IRQ: both joysticks read into `$03D2` / `$03D3` (every other frame) |
 | `$4254` → `$42B3` | Race over: results to `$03A2-$03A7`, then `JMP $6D18` → `$9400` (title, menu) |
 | `$9D4B`, `$9D82` | A random generator that mixes in the raster line; only used outside the race |
-| `$0800-$0FFF`, `$8C00-$8EFF`, `$C000-$CFFF`, `$E000-$EFFF` | All used by the game (tables, screens, charsets, sprites): free memory for new code is scarce. Online, the menu and name entry code (`$94xx-$9Cxx`) would be free during the race |
+| `$0800-$0FFF`, `$8C00-$8EFF`, `$C000-$CFFF`, `$E000-$EFFF` | All used by the game (tables, screens, charsets, sprites): free memory for new code is scarce. Online, the menu and name entry code is free: the network code goes to `$953E-$9C71`, the scheduler to `$9C87-$9FFF` |
+| `$3670`-`$3834`, `$3ECD`-`$4053` | The raster IRQ: display of the two halves; the logic block `$3835`-`$3EC9` (ends with RTI) |
 
 ## Building
 
 ```bash
 python tools/snapshot.py      # orig/pitstop2-9403.bin from orig/pitstop2.prg (the tape version)
 python tools/build.py         # build/pitstop.prg: the original game as one PRG
-python tools/dettest.py 1000  # determinism test (test build: a bot drives both cars)
+python tools/build.py disk    # build/pitstop.d64: lobby, original game (pitl), pitu / pitw / pitr
+python tools/dettest.py 6000  # determinism test (test build: a bot drives both cars)
+python ../../framework/tools/nettest.py . 180   # server + two VICEs over RR-Net (--wic64, --bot)
 ```
 
 `tools/snapshot.py` runs the tape version's boot chain in VICE:

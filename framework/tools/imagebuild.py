@@ -42,7 +42,7 @@ IMAGE_START, IMAGE_END = 0x0400, 0xFFFB  # what the framework packer takes ($040
 
 class ImageGame:
     def __init__(self, root: str, snapshot: str, lobby_file: str, files: dict[str, str], disk_title: str,
-                 entry_label: str = "game_entry"):
+                 entry_label: str = "game_entry", local_file: str | None = None):
         self.root = root
         self.build_dir = os.path.join(root, "build")
         self.src = os.path.join(root, "src")
@@ -51,6 +51,9 @@ class ImageGame:
         self.files = files
         self.disk_title = disk_title
         self.entry_label = entry_label
+        self.local_file = local_file  # a build without defines on the disk too (lobby key L, LOCAL_GAME_FILE)
+        self.areas_file = "areas.json"
+        self.variants: dict[str, str] = {}  # define -> areas file (e.g. {"ONLINE": "areas-online.json"})
 
     # --- helpers -----------------------------------------------------------------
     def run(self, cmd: list[str]) -> None:
@@ -69,7 +72,7 @@ class ImageGame:
         return bytearray(ram)
 
     def areas(self) -> list[dict]:
-        with open(os.path.join(self.src, "areas.json"), encoding="utf-8") as f:
+        with open(os.path.join(self.src, self.areas_file), encoding="utf-8") as f:
             return json.load(f)
 
     def read_labels(self) -> dict[str, int]:
@@ -131,11 +134,13 @@ class ImageGame:
     def build(self, defines: list[str] | None = None, name: str | None = None) -> str:
         """The patched image (build/<name>-raw.prg) and the packed game file (build/<name>.prg)."""
         name = name or self.lobby_file
+        defines = defines or []
+        self.areas_file = next((f for d, f in self.variants.items() if d in defines), "areas.json")
         os.makedirs(self.build_dir, exist_ok=True)
         ram = self.snapshot()
         with open(os.path.join(self.build_dir, "low.bin"), "wb") as f:
             f.write(ram[0:0x400])
-        patch = self.assemble(defines or [])
+        patch = self.assemble(defines)
         self.check_areas(patch)
         for a, v in patch.items():
             ram[a] = v
@@ -166,10 +171,13 @@ class ImageGame:
         return os.path.join(self.build_dir, "lobby.prg")
 
     def disk(self, test: bool = False) -> str:
-        """build/<lobby_file>.d64: the lobby (first file) and the game per network type.
+        """build/<lobby_file>.d64: the lobby (first file), the local game (local_file, if set) and the
+        game per network type.
         test=True: <lobby_file>-test.d64 with NETBOT game files (a bot plays when the cfg says bot=1)."""
         os.makedirs(self.build_dir, exist_ok=True)
         files = [(self.lobby(), self.lobby_file)]
+        if self.local_file:
+            files.append((self.build([], name=self.local_file), self.local_file))
         for define, name in self.files.items():
             extra = ["NETBOT"] if test else []
             files.append((self.build([define, *extra], name=name + ("-test" if test else "")), name))

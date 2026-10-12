@@ -60,6 +60,9 @@ public sealed class ServerConfig
         new GameConfig { Id = 4, Name = "Exploding Fist", Module = "lockstep", Version = 1,
             Bots = ["BRUCE", "CHUCK"],
             Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
+        new GameConfig { Id = 5, Name = "Pitstop II", Module = "lockstep", Version = 1,
+            Bots = ["TURBO", "CHICANE"],
+            Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
         new GameConfig { Id = 2, Name = "Relay demo", Module = "relay", Version = 1, MinPlayers = 2, MaxPlayers = 4 },
     ];
 

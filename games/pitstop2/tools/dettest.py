@@ -4,10 +4,11 @@ Determinism test for Pitstop II OME (framework/tools/determinism.py does the wor
 
     python tools/dettest.py [ticks]
 
-The race logic runs in the raster IRQ (every other frame); the main loop draws
-both halves of the screen as fast as it can. A bot drives both cars; the runs
-differ in timing: PAL, PAL with 0-39 raster lines of waiting per tick with
-interrupts off (as the network will), and NTSC.
+The race logic runs in logic slots from the main loop (src/main.s, pit_pass);
+the raster IRQ only draws. A bot drives both cars; the runs differ in timing:
+PAL, PAL with 0-3 whole frames of waiting per tick (as the network will), and
+NTSC. The halt comes at a different raster position in each run, so the
+display IRQ's own state is ignored.
 """
 from __future__ import annotations
 
@@ -21,8 +22,17 @@ import determinism  # noqa: E402  (framework/tools/determinism.py)
 
 IGNORE = [
     (0x0000, 0x0001, "CPU port"),
+    (0x0010, 0x0010, "display IRQ: raster offset of the current half"),
+    (0x0015, 0x0018, "display IRQ: line counter, the half's car ($16/$17), next raster line"),
+    (0x001D, 0x0022, "IRQ: saved registers, $22 (handler $3ECD)"),
+    (0x00E4, 0x00E4, "our frame counter (pit_due)"),
+    (0x00F0, 0x00F0, "sprite multiplexer ($7C8E, IRQ only)"),
     (0x0100, 0x01FF, "stack"),
-    (0x9AB9, 0x9C71, "the test code"),
+    (0x6200, 0x6204, "sprite drawing temporaries ($4821, IRQ only)"),
+    (0x6207, 0x6207, "sprite drawing temporary ($4821, IRQ only)"),
+    (0x9C87, 0x9FFF, "our code and data (the test builds differ)"),
+    (0xC3F8, 0xC3FF, "sprite pointers (display)"),
+    (0xC7F8, 0xC7FF, "sprite pointers (display)"),
 ]
 RUNS = [("pal", [], ["-pal"]), ("pal_jitter", ["JITTER"], ["-pal"]), ("ntsc", [], ["-ntsc"])]
 

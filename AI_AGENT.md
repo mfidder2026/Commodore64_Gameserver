@@ -123,13 +123,16 @@ Wor) and the game still meets the standard above.
   (TCP). A WiC64 sends every 4th tick and the server gives WiC64 sessions an input delay of 8.
 - `python tools/servertest.py 90 [--bot]`: the server plus two VICEs with the WiC64 (or one against a bot).
 
-### Pitstop II (`games/pitstop2`, work in progress)
+### Pitstop II (`games/pitstop2`)
 
 - Same "snapshot + patches" build as Exploding Fist (`orig/pitstop2-9403.bin`, from the tape version with
-  the trainer question answered N). `python tools/build.py` is the clean original game as one PRG.
-- Not online yet: the race logic (raster IRQ) and the main loop interleave depending on timing, so
-  `tools/dettest.py` fails. See its README before trying lockstep. No `game.json` yet, so it is not in
-  `build.py` or `RELEASE/`.
+  the trainer question answered N). `python tools/build.py` is the clean original game as one PRG (`pitl`
+  on the disk, loaded by the lobby's key L through `LOCAL_GAME_FILE`).
+- Online builds (`ONLINE`, implied by `NET_*` and `DETTEST`) use `src/areas-online.json`. The raster IRQ
+  only draws; the race logic (`$3835`-`$3EC9`, ends with RTI) runs as slots from the main loop
+  (`pit_pass` at `$41A0`). Anything the display IRQ writes that the logic reads breaks lockstep: check new
+  patches with a flow trace (IRQ writes vs logic/main reads) and `python tools/dettest.py 6000`.
+- `python ../../framework/tools/nettest.py . 180 [--wic64|--bot]` is the end-to-end test.
 
 ## Open framework work
 
