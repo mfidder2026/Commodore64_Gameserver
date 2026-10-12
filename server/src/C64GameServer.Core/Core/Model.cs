@@ -8,7 +8,7 @@ public interface ITransport
     void Send(IPEndPoint to, ReadOnlySpan<byte> message);
 }
 
-public enum ClientState { Lobby, Challenged, InSession }
+public enum ClientState { Lobby, Challenged, InSession, AtTable }
 
 public sealed class Client
 {
@@ -31,6 +31,7 @@ public sealed class Client
     public DateTime LobbySince { get; set; }
 
     public Challenge? Challenge { get; set; }
+    public Table? Table { get; set; }
     public Session? Session { get; set; }
 
     public double? PingMs { get; set; }
@@ -52,6 +53,22 @@ public sealed class Challenge
     public HashSet<Client> Accepted { get; } = [];
     public DateTime Created { get; init; }
     public DateTime LastSent { get; set; }
+}
+
+/// <summary>
+/// A table of a game with more than two seats: a host opened it with an option (e.g. the level), others
+/// sit down until it is full, and the host starts the session (players by seat). Its id is the host's.
+/// </summary>
+public sealed class Table
+{
+    public required byte Id { get; init; }
+    public required byte GameId { get; init; }
+    public required byte Option { get; init; }
+
+    /// <summary>Seat 0 is the host.</summary>
+    public List<Client> Seats { get; } = [];
+    public Client Host => Seats[0];
+    public DateTime Created { get; init; }
 }
 
 public sealed class Session

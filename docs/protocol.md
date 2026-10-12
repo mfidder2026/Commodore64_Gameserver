@@ -47,6 +47,12 @@ Internally the server identifies a client by an `IPEndPoint`:
 | `$0F` | CHALLENGE_CANCELLED | server → C64 |
 | `$10` | PLAYERS | server → C64 |
 | `$11` | INVITE | C64 → server |
+| `$12` | TABLE_OPEN | C64 → server |
+| `$13` | TABLE_JOIN | C64 → server |
+| `$14` | TABLE_LEAVE | C64 → server |
+| `$15` | TABLE_START | C64 → server |
+| `$16` | TABLES | server → C64 |
+| `$17` | TABLE | server → C64 |
 | `$80-$FF` | game specific | both, only within a session |
 
 Types `$00-$7F` belong to the platform and are the same for every game. The
@@ -173,6 +179,63 @@ A bot accepts every challenge.
 | 2 | 1 | reason: 1 = declined (or withdrawn), 2 = no answer within 30 s, 3 = a player left, 4 = not free (answer to INVITE, challenge id 0) |
 
 The player is back in the lobby.
+
+## Tables (games with more than two seats)
+
+A game configured with `"tables": true` (M.U.L.E.) has tables instead of invitations. A host
+opens a table with an option (M.U.L.E.: the level), others sit down until it is full
+(`maxPlayers`), and the host starts the session whenever he likes, also alone: the game plays
+the empty seats. The players get the slots of their seats (the host 0). Auto pairing never
+pairs players of such a game.
+
+The C64 repeats each request (about every 0.5 s) until its answer comes: TABLE for
+OPEN, JOIN and LEAVE, START for TABLE_START. The server handles repeats without side effects.
+
+### `$12` TABLE_OPEN (C64 → server)
+
+| Offset | Size | Contents |
+|---|---|---|
+| 0 | 1 | `$12` |
+| 1 | 1 | the table's option (0-15; M.U.L.E.: 0 beginner, 1 standard, 2 tournament) |
+
+### `$13` TABLE_JOIN (C64 → server)
+
+| Offset | Size | Contents |
+|---|---|---|
+| 0 | 1 | `$13` |
+| 1 | 1 | table id (from TABLES) |
+
+A full or closed table: the answer is TABLE with seat `$FF`.
+
+### `$14` TABLE_LEAVE / `$15` TABLE_START (C64 → server)
+
+One byte each. The host leaving closes the table (everyone at it gets TABLE with seat `$FF`).
+Only the host can start: the session's START parameters are the game's own, followed by the
+table's option.
+
+### `$16` TABLES (server → C64)
+
+The open tables of the game, oldest first, at most 8. Sent with PLAYERS (after each change and
+every second) to everyone who is not playing.
+
+| Offset | Size | Contents |
+|---|---|---|
+| 0 | 1 | `$16` |
+| 1 | 1 | number of tables |
+| 2 | … | per table: table id (1), option (1), seats taken (1), length of the host's nickname (1), nickname (n) |
+
+### `$17` TABLE (server → C64)
+
+Your own table: after each change, with PLAYERS, and as the answer to a request.
+
+| Offset | Size | Contents |
+|---|---|---|
+| 0 | 1 | `$17` |
+| 1 | 1 | table id |
+| 2 | 1 | option |
+| 3 | 1 | your seat (0 = host), `$FF` = you are at no table (left, closed, full) |
+| 4 | 1 | number of seats taken |
+| 5 | … | per seat: nickname length (1), nickname (n) |
 
 ### `$08` START (server → C64)
 

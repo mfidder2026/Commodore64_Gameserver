@@ -22,6 +22,12 @@ public static class MsgType
     public const byte ChallengeCancelled = 0x0F;
     public const byte Players = 0x10;
     public const byte Invite = 0x11;
+    public const byte TableOpen = 0x12;
+    public const byte TableJoin = 0x13;
+    public const byte TableLeave = 0x14;
+    public const byte TableStart = 0x15;
+    public const byte Tables = 0x16;
+    public const byte Table = 0x17;
 
     /// <summary>First game specific type. Byte 1 of every game message is the session id.</summary>
     public const byte GameFirst = 0x80;
@@ -47,6 +53,12 @@ public static class MsgType
         ChallengeCancelled => "CHALLENGE_CANCELLED",
         Players => "PLAYERS",
         Invite => "INVITE",
+        TableOpen => "TABLE_OPEN",
+        TableJoin => "TABLE_JOIN",
+        TableLeave => "TABLE_LEAVE",
+        TableStart => "TABLE_START",
+        Tables => "TABLES",
+        Table => "TABLE",
         _ when type >= GameFirst => $"GAME_{type:X2}",
         _ => $"?{type:X2}",
     };
@@ -63,7 +75,7 @@ public static class PlayerFlags
 {
     public const byte Bot = 0x01;
     public const byte Free = 0x00;
-    public const byte Busy = 0x02;     // answering or waiting for a challenge
+    public const byte Busy = 0x02;     // answering or waiting for a challenge, or at a table
     public const byte Playing = 0x04;
 }
 
@@ -78,6 +90,9 @@ public static class ProtocolConst
 
     /// <summary>PLAYERS: at most this many entries per message (the C64 reads up to 128 bytes).</summary>
     public const int PlayersPerMessage = 6;
+
+    /// <summary>TABLES: at most this many tables (the C64 reads up to 128 bytes).</summary>
+    public const int MaxTables = 8;
 
     /// <summary>PLAYERS: the list holds at most this many other players.</summary>
     public const int MaxListed = 16;
@@ -203,6 +218,37 @@ public static class Messages
 
     /// <summary>INVITE: challenge the player with this client id; the sequence number tells repeats from new invites.</summary>
     public static byte[] Invite(byte targetId, byte seq) => [MsgType.Invite, targetId, seq];
+
+    /// <summary>TABLES: the open tables of the game: [count], per table [id] [option] [seats taken]
+    /// [length] [host's nickname].</summary>
+    public static byte[] Tables(IReadOnlyList<(byte Id, byte Option, int Seats, string Host)> tables)
+    {
+        var m = new List<byte> { MsgType.Tables, (byte)tables.Count };
+        foreach (var t in tables)
+        {
+            var n = Encoding.ASCII.GetBytes(t.Host);
+            m.Add(t.Id);
+            m.Add(t.Option);
+            m.Add((byte)t.Seats);
+            m.Add((byte)n.Length);
+            m.AddRange(n);
+        }
+        return [.. m];
+    }
+
+    /// <summary>TABLE: your table: [id] [option] [your seat, $FF = you are at no table] [count], per seat
+    /// [length] [nickname] (seat 0 is the host).</summary>
+    public static byte[] Table(byte id, byte option, byte mySeat, IReadOnlyList<string> seats)
+    {
+        var m = new List<byte> { MsgType.Table, id, option, mySeat, (byte)seats.Count };
+        foreach (var s in seats)
+        {
+            var n = Encoding.ASCII.GetBytes(s);
+            m.Add((byte)n.Length);
+            m.AddRange(n);
+        }
+        return [.. m];
+    }
 
     public static ushort U16(ReadOnlySpan<byte> m, int offset) => (ushort)(m[offset] | (m[offset + 1] << 8));
 

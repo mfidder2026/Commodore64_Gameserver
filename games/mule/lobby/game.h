@@ -30,8 +30,11 @@
 /* no menu key L: the original game (1-4 players on one C64) does not fit on this
    disk next to the three game files; it has a disk of its own (mule-original.d64) */
 
-/* what the players are called in the game: slot 0 invited, slot 1 accepted */
-#define SLOT0_NAME    "colonist 1"
-#define SLOT1_NAME    "colonist 2"
+/* tables instead of invitations (up to four colonists; the computer plays the empty seats) */
+#define GAME_TABLES
+#define TABLE_SEATS       4
+#define TABLE_OPTION_NAME "Level"
+#define TABLE_OPTIONS     "Beginner", "Standard", "Tournament"
+#define SEAT_NAME         "colonist"
 
 #endif

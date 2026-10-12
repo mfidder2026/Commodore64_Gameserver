@@ -20,6 +20,7 @@ public sealed class ServerCore
     private readonly Dictionary<IPEndPoint, Client> _clients = [];
     private readonly List<Challenge> _challenges = [];
     private readonly List<Session> _sessions = [];
+    private readonly List<Table> _tables = [];
     private readonly Dictionary<(string, string), DateTime> _cooldown = [];
 
     private byte _nextClientId, _nextChallengeId, _nextSessionId;
@@ -45,6 +46,7 @@ public sealed class ServerCore
     public IReadOnlyCollection<Client> Clients => _clients.Values;
     public IReadOnlyList<Challenge> Challenges => _challenges;
     public IReadOnlyList<Session> Sessions => _sessions;
+    public IReadOnlyList<Table> Tables => _tables;
     public GameRegistry Games => _games;
     public EventLog Log => _log;
 
@@ -90,6 +92,18 @@ public sealed class ServerCore
                 break;
             case MsgType.Invite when data.Length == 3:
                 HandleInvite(client, data[1], data[2]);
+                break;
+            case MsgType.TableOpen when data.Length == 2:
+                HandleTableOpen(client, data[1]);
+                break;
+            case MsgType.TableJoin when data.Length == 2:
+                HandleTableJoin(client, data[1]);
+                break;
+            case MsgType.TableLeave when data.Length == 1:
+                HandleTableLeave(client);
+                break;
+            case MsgType.TableStart when data.Length == 1:
+                HandleTableStart(client);
                 break;
             case MsgType.StartAck when data.Length == 2:
                 if (client.Session is { } s && s.Id == data[1] && s.StartAcked.Add(client))
@@ -241,6 +255,113 @@ public sealed class ServerCore
         CreateChallenge(game, [client, target], acceptedBy: client);
     }
 
+    // ------------------------------------------------------------------ tables
+
+    /// <summary>A game configured with tables has them instead of invitations.</summary>
+    private static bool HasTables(IGameModule game) => game.Tables;
+
+    private void HandleTableOpen(Client client, byte option)
+    {
+        var game = _games.Get(client.GameId)!;
+        if (client.Table is { } own)
+        {
+            SendTable(client); // a repeated TABLE_OPEN: the C64 has not seen its table yet
+            return;
+        }
+        if (client.State != ClientState.Lobby || !HasTables(game)) return;
+        var t = new Table { Id = client.Id, GameId = client.GameId, Option = option, Created = _now };
+        t.Seats.Add(client);
+        client.Table = t;
+        client.State = ClientState.AtTable;
+        _tables.Add(t);
+        _playersChanged = true;
+        LogEvent("table", $"{client.Nick} opened a table ({game.Name}, option {option})", client);
+        SendTable(client);
+    }
+
+    private void HandleTableJoin(Client client, byte tableId)
+    {
+        var game = _games.Get(client.GameId)!;
+        if (client.Table is { } own)
+        {
+            if (own.Id == tableId) SendTable(client); // repeated
+            return;
+        }
+        var t = _tables.FirstOrDefault(x => x.Id == tableId && x.GameId == client.GameId);
+        if (client.State != ClientState.Lobby || t == null || t.Seats.Count >= game.MaxPlayers)
+        {
+            Send(client, Messages.Table(tableId, 0, 0xFF, [])); // not (or no longer) possible
+            return;
+        }
+        t.Seats.Add(client);
+        client.Table = t;
+        client.State = ClientState.AtTable;
+        _playersChanged = true;
+        LogEvent("table", $"{client.Nick} sat down at {t.Host.Nick}'s table", client);
+        foreach (var p in t.Seats) SendTable(p);
+    }
+
+    private void HandleTableLeave(Client client)
+    {
+        if (client.Table is not { } t)
+        {
+            Send(client, Messages.Table(0, 0, 0xFF, [])); // repeated: already gone
+            return;
+        }
+        LeaveTable(client, t);
+    }
+
+    private void LeaveTable(Client client, Table t)
+    {
+        _playersChanged = true;
+        if (client == t.Host)
+        {
+            CloseTable(t, $"{client.Nick} closed the table");
+            return;
+        }
+        t.Seats.Remove(client);
+        client.Table = null;
+        if (_clients.ContainsKey(client.EndPoint))
+        {
+            client.State = ClientState.Lobby;
+            client.LobbySince = _now;
+            Send(client, Messages.Table(t.Id, 0, 0xFF, []));
+        }
+        LogEvent("table", $"{client.Nick} left {t.Host.Nick}'s table", client);
+        foreach (var p in t.Seats) SendTable(p);
+    }
+
+    private void CloseTable(Table t, string why)
+    {
+        _tables.Remove(t);
+        _playersChanged = true;
+        foreach (var p in t.Seats)
+        {
+            p.Table = null;
+            if (!_clients.ContainsKey(p.EndPoint)) continue;
+            p.State = ClientState.Lobby;
+            p.LobbySince = _now;
+            Send(p, Messages.Table(t.Id, 0, 0xFF, []));
+        }
+        LogEvent("table", why, game: t.GameId);
+    }
+
+    private void HandleTableStart(Client client)
+    {
+        if (client.Table is not { } t || client != t.Host) return; // (a repeat after START: already playing)
+        var game = _games.Get(t.GameId)!;
+        _tables.Remove(t);
+        foreach (var p in t.Seats) p.Table = null;
+        LogEvent("table", $"{client.Nick} starts the table with {t.Seats.Count} player(s)", client);
+        StartSession(game, [.. t.Seats], [t.Option]);
+    }
+
+    private void SendTable(Client c)
+    {
+        if (c.Table is not { } t) return;
+        Send(c, Messages.Table(t.Id, t.Option, (byte)t.Seats.IndexOf(c), t.Seats.Select(s => s.Nick).ToList()));
+    }
+
     private void HandleGameMessage(Client client, ReadOnlySpan<byte> data)
     {
         var s = client.Session;
@@ -344,6 +465,13 @@ public sealed class ServerCore
             int pages = Math.Max(1, (list.Count + per - 1) / per);
             for (int i = 0; i < pages; i++)
                 Send(c, Messages.Players(list.Count, i * per, list.Skip(i * per).Take(per).ToList()));
+            if (_games.Get(c.GameId) is { } g && HasTables(g))
+            {
+                Send(c, Messages.Tables(_tables.Where(t => t.GameId == c.GameId)
+                    .OrderBy(t => t.Created).Take(ProtocolConst.MaxTables)
+                    .Select(t => (t.Id, t.Option, t.Seats.Count, t.Host.Nick)).ToList()));
+                SendTable(c);
+            }
         }
     }
 
@@ -355,14 +483,14 @@ public sealed class ServerCore
             .Select(o => new PlayerEntry(o.Id, (byte)((o.IsBot ? PlayerFlags.Bot : 0) | o.State switch
             {
                 ClientState.Lobby => PlayerFlags.Free,
-                ClientState.Challenged => PlayerFlags.Busy,
+                ClientState.Challenged or ClientState.AtTable => PlayerFlags.Busy,
                 _ => PlayerFlags.Playing,
             }), o.Nick))
             .ToList();
 
     private void PairPlayers()
     {
-        foreach (var game in _games.All)
+        foreach (var game in _games.All.Where(g => !HasTables(g)))
         {
             var waiting = _clients.Values
                 .Where(c => c.GameId == game.GameId && c.State == ClientState.Lobby)
@@ -455,16 +583,22 @@ public sealed class ServerCore
     private void StartSession(Challenge ch)
     {
         _challenges.Remove(ch);
+        StartSession(_games.Get(ch.GameId)!, ch.Players, []);
+    }
+
+    /// <summary>A session of these players (by slot); extra start parameters (a table's option) follow the
+    /// module's own.</summary>
+    private void StartSession(IGameModule game, List<Client> players, byte[] extra)
+    {
         _playersChanged = true;
-        var game = _games.Get(ch.GameId)!;
         var s = new Session
         {
             Id = NextId(ref _nextSessionId, _sessions.Select(x => x.Id)),
-            GameId = ch.GameId,
-            Players = ch.Players,
+            GameId = game.GameId,
+            Players = players,
             Started = _now,
         };
-        s.StartParameters = game.CreateSession(s, _random);
+        s.StartParameters = [.. game.CreateSession(s, _random), .. extra];
         foreach (var p in s.Players)
         {
             p.Challenge = null;
@@ -513,6 +647,8 @@ public sealed class ServerCore
         LogEvent("disconnect", $"{c.Nick} left: {why}", c);
         if (c.Challenge is { } ch)
             CancelChallenge(ch, CancelReason.PlayerLeft, cooldown: false);
+        if (c.Table is { } t)
+            LeaveTable(c, t);
         if (c.Session is { } s)
         {
             c.Session = null;

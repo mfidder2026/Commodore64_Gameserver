@@ -704,6 +704,84 @@ public class FourSeatLockstepTests
     }
 }
 
+public class TableTests
+{
+    private const byte Game = 6;                         // M.U.L.E.: up to four seats
+
+    private static (Harness h, IPEndPoint[] eps) Lobby(int n)
+    {
+        var h = new Harness();
+        var eps = Enumerable.Range(1, n).Select(i => Harness.Ep(i)).ToArray();
+        string[] nicks = ["ANNA", "BERT", "CARL", "DORA", "EMIL"];
+        for (int i = 0; i < n; i++) h.Hello(eps[i], nicks[i], Game);
+        h.Advance(20);
+        return (h, eps);
+    }
+
+    private static byte Seat(Harness h, IPEndPoint ep) => h.Net.Last(ep, MsgType.Table)![3];
+
+    [Fact]
+    public void A_host_opens_others_sit_down_and_the_host_starts()
+    {
+        var (h, eps) = Lobby(3);
+        h.Recv(eps[0], MsgType.TableOpen, 2);            // option 2 (e.g. the level)
+        Assert.Equal(0, Seat(h, eps[0]));
+        h.Advance(1100);
+        var tables = h.Net.Last(eps[1], MsgType.Tables)!;
+        Assert.Equal(1, tables[1]);                      // one table ...
+        byte id = tables[2];
+        Assert.Equal(2, tables[3]);                      // ... option 2, one seat taken
+        Assert.Equal(1, tables[4]);
+        h.Recv(eps[1], MsgType.TableJoin, id);
+        h.Recv(eps[2], MsgType.TableJoin, id);
+        Assert.Equal(1, Seat(h, eps[1]));
+        Assert.Equal(2, Seat(h, eps[2]));
+        Assert.Equal(3, h.Net.Last(eps[0], MsgType.Table)![4]); // the host sees three seats
+        Assert.Empty(h.Core.Sessions);
+
+        h.Recv(eps[0], MsgType.TableStart);
+        var s = Assert.Single(h.Core.Sessions);
+        Assert.Empty(h.Core.Tables);
+        for (int i = 0; i < 3; i++)
+        {
+            var start = h.Net.Last(eps[i], MsgType.Start)!;
+            Assert.Equal(i, start[2]);                   // slot = seat
+            Assert.Equal(3, start[3]);                   // players
+            Assert.Equal(4, start[4]);                   // seed (2), input delay, the table's option
+            Assert.Equal(2, start[8]);
+        }
+    }
+
+    [Fact]
+    public void Only_the_host_starts_and_a_host_may_start_alone()
+    {
+        var (h, eps) = Lobby(2);
+        h.Recv(eps[0], MsgType.TableOpen, 0);
+        h.Recv(eps[1], MsgType.TableJoin, h.Net.Last(eps[0], MsgType.Table)![1]);
+        h.Recv(eps[1], MsgType.TableStart);              // not the host
+        Assert.Empty(h.Core.Sessions);
+        h.Recv(eps[1], MsgType.TableLeave);
+        Assert.Equal(0xFF, Seat(h, eps[1]));
+        h.Recv(eps[0], MsgType.TableStart);              // the computer plays the other seats
+        Assert.Equal(1, Assert.Single(h.Core.Sessions).Players.Count);
+    }
+
+    [Fact]
+    public void The_host_leaving_closes_the_table_and_a_full_table_takes_no_one()
+    {
+        var (h, eps) = Lobby(5);
+        h.Recv(eps[0], MsgType.TableOpen, 0);
+        byte id = h.Net.Last(eps[0], MsgType.Table)![1];
+        for (int i = 1; i < 4; i++) h.Recv(eps[i], MsgType.TableJoin, id);
+        h.Recv(eps[4], MsgType.TableJoin, id);           // four seats: full
+        Assert.Equal(0xFF, Seat(h, eps[4]));
+        h.Recv(eps[0], MsgType.TableLeave);
+        Assert.Empty(h.Core.Tables);
+        for (int i = 1; i < 4; i++) Assert.Equal(0xFF, Seat(h, eps[i]));
+        Assert.All(h.Core.Clients, c => Assert.Equal(ClientState.Lobby, c.State));
+    }
+}
+
 public class FrameworkTests
 {
     [Fact]

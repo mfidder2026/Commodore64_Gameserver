@@ -63,6 +63,8 @@ public sealed class ServerConfig
         new GameConfig { Id = 5, Name = "Pitstop II", Module = "lockstep", Version = 1,
             Bots = ["TURBO", "CHICANE"],
             Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
+        new GameConfig { Id = 6, Name = "M.U.L.E.", Module = "lockstep", Version = 1, MinPlayers = 1, MaxPlayers = 4, Tables = true,
+            Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
         new GameConfig { Id = 2, Name = "Relay demo", Module = "relay", Version = 1, MinPlayers = 2, MaxPlayers = 4 },
     ];
 
@@ -98,6 +100,10 @@ public sealed class GameConfig
     public byte Version { get; set; } = 1;
     public int MinPlayers { get; set; } = 2;
     public int MaxPlayers { get; set; } = 2;
+
+    /// <summary>Tables instead of invitations: a host opens a table (with an option, e.g. the level),
+    /// up to MaxPlayers sit down, the host starts (also alone: the game plays the empty seats).</summary>
+    public bool Tables { get; set; }
 
     /// <summary>Built-in bots for this game: they show up in its lobby and accept every challenge,
     /// so a player always finds an opponent. A bot plays random moves (see Bots/BotClient.cs).</summary>

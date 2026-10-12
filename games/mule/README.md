@@ -13,8 +13,23 @@ players; the computer plays the empty seats.
 | 1. Deterministic game (computer players) | **done**: `python tools/dettest.py 50000`: PAL, PAL with 0-3 frames of network-like waiting per tick, and NTSC end in the same game state after 50,000 ticks (nearly a whole beginner game of six months) |
 | 2. Deterministic with human inputs | **done**: `python tools/dettest.py <ticks> humans=N` with a bot's random inputs for the human players: PASS for 1 (40,000 ticks), 2 (30,000), 3 (20,000) and 4 human players (10,000: the bots ruin the colony quickly) |
 | 3. Network code for 4 players (`framework/c64/net`) | **done**: `NET_PLAYERS = 4` in `net.s` (a ring per slot; the server relays INPUT as `$80 + slot` for games with more than two seats); verified VICE ↔ VICE over RR-Net with the existing invite (2 humans, 2 computer players): 15,680 ticks, 245 matching checksums, about 37 ticks/s in VICE |
-| 4. Server and lobby: tables (host opens one, up to 3 join; empty seats are the computer's) | planned |
+| 4. Server and lobby: tables (host opens one, up to 3 join; empty seats are the computer's) | **done**: TABLE_OPEN/JOIN/LEAVE/START, TABLES, TABLE (docs/protocol.md), `framework/c64/lobby/tables.c`; verified with 3 and 4 VICEs over RR-Net (4 players: 7,020 ticks, 660 matching checksums, about 30 ticks/s with four VICEs on one PC) |
 | 5. End-to-end test, docs, release | planned |
+
+## Playing
+
+<p align="center">
+  <img src="docs/images/tables.png" width="32%" alt="The tables">
+  <img src="docs/images/table-host.png" width="32%" alt="At a table">
+  <img src="docs/images/game-4players.png" width="32%" alt="In the game">
+</p>
+
+Load the disk's first file: the framework's standard lobby, with **tables**.
+- `N` opens a table: choose the level (Beginner, Standard, Tournament) with the joystick or the
+  cursor keys, FIRE opens it. Up to three others sit down (FIRE on a table).
+- The host starts with FIRE whenever he likes, also alone: the computer plays the empty seats.
+- The players are colonists 1-4 in the order they sat down; each uses joystick port 2.
+- `Q` (any player) ends the game for all; after the last month everyone is back at the lobby.
 
 ## The disk
 

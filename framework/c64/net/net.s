@@ -87,7 +87,8 @@ HB_DELAY        = 7                     ; input delay in ticks (1-4)
 HB_SOCKET       = 8                     ; UCI socket
 HB_FLAGS        = 9                     ; bit 0: test bot plays
 HB_DEVICE       = 10                    ; drive the lobby was loaded from
-HB_PLAYERS      = 11                    ; players in the session (START; 0 = 2)
+HB_PLAYERS      = 11                    ; bits 0-3: players in the session (START;
+                                        ; 0 = 2), 4-7: a table's option
 HB_DSTMAC       = 12                    ; RR-Net: server MAC
 HB_MYMAC        = 18                    ; RR-Net: our MAC
 HB_SIZE         = 24
@@ -192,9 +193,10 @@ net_start:
 :       sta     ls_lin,x
         dex
         bpl     :-
-        ldx     net_hb+HB_PLAYERS       ; 2..NET_PLAYERS (an old lobby: 0)
-        cpx     #2
-        bcs     :+
+        lda     net_hb+HB_PLAYERS       ; 1..NET_PLAYERS (an old lobby: 0 = 2)
+        and     #15
+        tax
+        bne     :+
         ldx     #2
 :       cpx     #NET_PLAYERS+1
         bcc     :+

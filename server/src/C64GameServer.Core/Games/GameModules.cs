@@ -32,6 +32,9 @@ public interface IGameModule
     int MinPlayers { get; }
     int MaxPlayers { get; }
 
+    /// <summary>The lobby has tables instead of invitations (see GameConfig.Tables).</summary>
+    bool Tables { get; }
+
     /// <summary>Called once when a session starts; returns the start parameters sent in START (same for all players).</summary>
     byte[] CreateSession(Session session, Random random);
 
@@ -57,6 +60,7 @@ public class RelayModule(GameConfig config) : IGameModule
     public byte Version => config.Version;
     public int MinPlayers => config.MinPlayers;
     public int MaxPlayers => config.MaxPlayers;
+    public bool Tables => config.Tables;
 
     public virtual byte[] CreateSession(Session session, Random random) => [];
 

@@ -20,6 +20,8 @@
  *   server=... IP address of the game server (Ultimate and WiC64)
  *   mac=...    MAC address of the RR-Net (made up once, RR-Net only)
  *   auto=...   tests: "invite" (a person), "bot" (invite a bot) or "accept"
+ *              (games with tables: "invite" opens a table, "accept" sits down)
+ *   seats=n    tests, games with tables: "invite" starts with n players
  *   bot=1      tests: a bot plays instead of the joystick (test game files)
  */
 #include <stdio.h>
@@ -65,7 +67,7 @@
 #define HB_SOCKET   8
 #define HB_FLAGS    9
 #define HB_DEVICE   10
-#define HB_PLAYERS  11      /* players in the session (START) */
+#define HB_PLAYERS  11      /* bits 0-3: players in the session (START), 4-7: a table's option */
 #define HB_DSTMAC   12
 #define HB_MYMAC    18
 #define HB_SIZE     24
@@ -81,6 +83,9 @@ static char server[32];
 static unsigned char mymac[6];
 static unsigned char auto_mode;          /* 0, 'i'nvite, 'a'ccept */
 static unsigned char bot;
+#ifdef GAME_TABLES
+static unsigned char auto_seats = 2;     /* config "seats": auto=i starts its table with this many */
+#endif
 static unsigned char cfg_dirty;
 
 static unsigned char drv;                /* DRV_* */
@@ -199,6 +204,9 @@ static void cfg_load(void)
         }
         else if (!strcmp(line, "auto")) auto_mode = v[0];
         else if (!strcmp(line, "bot")) bot = v[0] == '1';
+#ifdef GAME_TABLES
+        else if (!strcmp(line, "seats")) auto_seats = v[0] - '0';
+#endif
     }
     fclose(f);
 }
@@ -332,12 +340,16 @@ static void start_session(void)
     HB[HB_SOCKET] = net_socket();
     HB[HB_FLAGS] = bot;
     HB[HB_DEVICE] = PEEK(0xBA) ? PEEK(0xBA) : 8;
-    HB[HB_PLAYERS] = msg[3];
+    HB[HB_PLAYERS] = (msg[3] & 15) | (msg[4] >= 4 ? params[3] << 4 : 0);   /* start parameter 3: the option */
     memcpy(HB + HB_DSTMAC, net_server_mac(), 6);
     memcpy(HB + HB_MYMAC, mymac, 6);
     cfg_save();
     title();
+#ifdef GAME_TABLES
+    cprintf("You are %s %u.\r\n\r\nLoading the game...", SEAT_NAME, slot + 1);
+#else
     cprintf("You play %s.\r\n\r\nLoading the game...", slot ? SLOT1_NAME : SLOT0_NAME);
+#endif
     start_game(game_file());
 }
 
@@ -480,6 +492,10 @@ static void lobby(void)
     }
 }
 
+#ifdef GAME_TABLES
+#include "tables.c"
+#endif
+
 /* --------------------------------------------------------------- main */
 
 /* the server's address is needed for the Ultimate and the WiC64; RR-Net finds the server itself */
@@ -559,7 +575,11 @@ int main(void)
             sleep(3);
             continue;
         }
+#ifdef GAME_TABLES
+        table_lobby();
+#else
         lobby();
+#endif
         net_disconnect();
         auto_mode = 0;
     }

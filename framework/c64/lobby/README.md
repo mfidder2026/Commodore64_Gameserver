@@ -50,6 +50,19 @@ build compiles this folder with `-I games/<game>/lobby`:
 #define SLOT1_NAME    "BOB (blue)"
 ```
 
+A game with more than two seats has **tables** instead of invitations (`tables.c`, see
+docs/protocol.md): a host opens a table with an option, others sit down, the host starts.
+
+```c
+#define GAME_TABLES                       /* tables instead of invitations */
+#define TABLE_SEATS       4               /* the server's maxPlayers */
+#define TABLE_OPTION_NAME "Level"         /* the option the host chooses */
+#define TABLE_OPTIONS     "Beginner", "Standard", "Tournament"
+#define SEAT_NAME         "colonist"      /* "You are colonist 2." */
+```
+
+The option reaches the game as start parameter 3 (handoff byte 11, bits 4-7).
+
 Build, as in `games/bubblebobble/tools/build.py`:
 
 ```bash
@@ -75,7 +88,7 @@ it needs. A game with room for all drivers can use the same name for all three.
 | 8 | UCI socket (Ultimate) |
 | 9 | flags: bit 0 = test bot plays instead of the joystick |
 | 10 | drive number (to load the lobby again) |
-| 11 | players in the session (from START; games with more than two seats, `NET_PLAYERS` in `net.s`) |
+| 11 | bits 0-3: players in the session (from START; games with more than two seats, `NET_PLAYERS` in `net.s`); bits 4-7: start parameter 3, a table's option (games with tables) |
 | 12-17 | RR-Net: the server's MAC |
 | 18-23 | RR-Net: our own MAC |
 

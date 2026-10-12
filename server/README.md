@@ -108,6 +108,8 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
 | `games[].id`, `version` | Must match the HELLO of the game's C64 program |
 | `games[].module` | `wizardofwor`, `lockstep` (games on the framework's network code: Bubble Bobble, Exploding Fist, Pitstop II; `bubblebobble` is the same), or `relay` (any other game: forwards unchanged, no code needed) |
 | `games[].bots` | Built-in bots for this game: A-Z/0-9, at most 8 characters. They are in the lobby and accept every challenge |
+| `games[].minPlayers`, `maxPlayers` | Players per session (default 2) |
+| `games[].tables` | Tables instead of invitations (games with more than two seats, M.U.L.E.): a host opens a table, up to `maxPlayers` sit down, the host starts |
 | `games[].settings` | Settings of the module, see below |
 | `bots`, `botGame` | Older form: bots for one game. Prefer `games[].bots` |
 

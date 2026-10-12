@@ -82,13 +82,25 @@ game_entry:
 .else
         jsr     net_start               ; C=1: no handoff: four computer
         lda     #0                      ; players (a demo)
-        bcs     :+
+        bcs     @players
         lda     net_hb+HB_SEED          ; the session's random start
         sta     $EC54
         ora     #1
         sta     mule_rnd
-        lda     net_hb+HB_PLAYERS       ; the session's players
-:
+        lda     net_hb+HB_PLAYERS       ; the table's option: the level (0-2)
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        cmp     #3
+        bcc     @level
+        lda     #0
+@level: sta     $E504
+        lda     net_hb+HB_PLAYERS       ; the session's players (0: an old
+        and     #15                     ; lobby, two)
+        bne     @players
+        lda     #2
+@players:
 .endif
         sta     mule_np
         ldx     #3                      ; players 0 .. n-1 are human (device
