@@ -15,7 +15,8 @@ The game folder has:
   src/main.s                    the patches; a segment P_xxxx is placed at $xxxx
   src/areas.json                every area a patch may touch:
                                 [{"start": "C000", "end": "C03E", "what": "...", "segments": ["X"]}]
-                                (named segments go to the start of their area, in that order)
+                                (named segments go to the start of their area, in that order;
+                                {"include": "other.json"} adds the areas of another file)
   src/netgame.inc               settings for framework/c64/net/net.s, which is linked in
   lobby/game.h                  settings for the standard lobby
 The build writes build/low.bin ($0000-$03FF of the snapshot) for src/main.s to include: the
@@ -71,9 +72,13 @@ class ImageGame:
             sys.exit(f"{self.snapshot_path} is not the expected image (make it again with tools/snapshot.py)")
         return bytearray(ram)
 
-    def areas(self) -> list[dict]:
-        with open(os.path.join(self.src, self.areas_file), encoding="utf-8") as f:
-            return json.load(f)
+    def areas(self, name: str | None = None) -> list[dict]:
+        """The areas file of this build; an entry {"include": "file.json"} adds that file's areas."""
+        with open(os.path.join(self.src, name or self.areas_file), encoding="utf-8") as f:
+            out = []
+            for a in json.load(f):
+                out += self.areas(a["include"]) if "include" in a else [a]
+            return out
 
     def read_labels(self) -> dict[str, int]:
         """Labels of the last build (ld65 -Ln; all labels, since ca65 runs with -g)."""

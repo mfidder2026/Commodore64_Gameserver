@@ -1,0 +1,15 @@
+{
+ "entry": 38699,
+ "registers": {
+  "pc": 38699,
+  "a": 11,
+  "x": 0,
+  "y": 204,
+  "sp": 255,
+  "00": 47,
+  "01": 55
+ },
+ "sha256": "01c07e774665ef2afeff27498ca30646fbf2056cef1ab8d566bbe8b4b1b024bf",
+ "orig_d64_sha256": "75533d9791cbc7f243e762c9a2c8a91512fe650011cbc2cffc21a1d5ec7bd362",
+ "options": "beginner, no human players"
+}

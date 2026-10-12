@@ -85,9 +85,11 @@ def registers(port: int) -> dict[str, int]:
 
 
 def stop_at(port: int, pc: int, ram_path: str, timeout: float = 120,
-            then: list[str] | None = None) -> tuple[dict[str, int], bytes]:
+            then: list[str] | None = None, io_path: str | None = None) -> tuple[dict[str, int], bytes]:
     """Sets an execution breakpoint at pc, waits until the CPU stops there and saves all 64 KB of RAM
     (bank ram: also under the ROMs and I/O) into ram_path. Returns the registers and the RAM.
+    io_path: also save $D000-$DFFF as the CPU sees it with I/O banked in (VIC, SID and CIA registers;
+    reading them has the usual side effects, e.g. on $DC0D/$DD0D).
     The connection stays open while waiting: VICE only reports a breakpoint to a connected client
     (otherwise it opens its own monitor window)."""
     if os.path.exists(ram_path):
@@ -117,6 +119,13 @@ def stop_at(port: int, pc: int, ram_path: str, timeout: float = 120,
         recv_all(s, 0.5)
         s.sendall(f'bsave "{vpath}" 0 0000 ffff\n'.encode())
         recv_all(s, 2.0)
+        if io_path:
+            if os.path.exists(io_path):
+                os.remove(io_path)
+            s.sendall(b"bank io\n")
+            recv_all(s, 0.5)
+            s.sendall(f'bsave "{io_path.replace(chr(92), "/")}" 0 d000 dfff\n'.encode())
+            recv_all(s, 2.0)
         s.sendall(b"x\n")
         recv_all(s, 0.2)
     for _ in range(20):
