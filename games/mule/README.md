@@ -12,7 +12,7 @@ players; the computer plays the empty seats.
 |---|---|
 | 1. Deterministic game (computer players) | **done**: `python tools/dettest.py 50000`: PAL, PAL with 0-3 frames of network-like waiting per tick, and NTSC end in the same game state after 50,000 ticks (nearly a whole beginner game of six months) |
 | 2. Deterministic with human inputs | **done**: `python tools/dettest.py <ticks> humans=N` with a bot's random inputs for the human players: PASS for 1 (40,000 ticks), 2 (30,000), 3 (20,000) and 4 human players (10,000: the bots ruin the colony quickly) |
-| 3. Network code for 4 players (`framework/c64/net`) | planned |
+| 3. Network code for 4 players (`framework/c64/net`) | **done**: `NET_PLAYERS = 4` in `net.s` (a ring per slot; the server relays INPUT as `$80 + slot` for games with more than two seats); verified VICE ↔ VICE over RR-Net with the existing invite (2 humans, 2 computer players): 15,680 ticks, 245 matching checksums, about 37 ticks/s in VICE |
 | 4. Server and lobby: tables (host opens one, up to 3 join; empty seats are the computer's) | planned |
 | 5. End-to-end test, docs, release | planned |
 
@@ -54,13 +54,37 @@ The online build (`src/main.s`) uses **virtual frames**:
   (`$6911`) are never pressed (the players' buttons come through the frame logic);
   no pause key and no attract mode.
 
+## Where our code lives
+
+The game uses almost all memory, so the online build fills the gaps (`src/areas-online.json`):
+
+| Area | What it was | Now |
+|---|---|---|
+| `$E9C9-$EC53` | never touched | `NET`: the lockstep (`net.s` with `NET_SPLIT`) |
+| `$CC00-$CDFF` | never touched | `NETRX` (receiving, `net_end`) and `MULE` (the tick code) |
+| `$8850-$897A` | the keyboard scanner (online never called) | `NETDRV`: the network driver |
+| `$8A56-$8B3B`, `$8B95-$8C2A` | the title of a new game (only after a game: online the session ends there) | `WAITS`, `WAITS2`: wait loop stubs |
+| `$60F3-$617C` | the attract mode (online off) | `WAITS3`, the test bot |
+| `$6087-$60C8` | the IRQ's pause code (online off) | `MULE2`: small routines |
+| `$0300-$03FF` | never used | `NETBSS`: the network state (never loaded; `net_start` clears it) |
+
+The raster handler `$8B3C-$8B94` in the middle of the old title stays: other screens use it
+(`$9E08`). After the last month the game jumps to `$972B`; online that ends the session.
+
+## Disks
+
+The three online game files are 153 blocks each, so the original game (`m.u.l.e.`, `&`,
+without the cracker's texts) is on a disk of its own: `build/mule-original.d64`.
+
 ## Building
 
 ```bash
 python tools/snapshot.py      # orig/mule-972b.bin (+ -io.bin) from the clean disk: four computer players
 python tools/build.py         # build/mule.prg: that game as one PRG
 python tools/crackfix.py      # build/mule-clean.d64: the original two files without the crack's texts
-python tools/dettest.py 50000 # determinism test
+python tools/dettest.py 50000 # determinism test (humans=N: N players with a bot's inputs)
+python tools/build.py disk    # build/mule.d64 (lobby + muleu/mulew/muler), build/mule-original.d64
+python ../../framework/tools/nettest.py . 420   # server + two VICEs over RR-Net
 ```
 
 `tools/dettest.py` ignores only the CPU port, the stack, our tick code and the raster IRQ

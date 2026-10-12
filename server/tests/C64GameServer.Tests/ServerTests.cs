@@ -26,8 +26,9 @@ internal sealed class Harness
     public readonly ServerCore Core;
     public DateTime Now = new(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc);
 
-    public Harness()
+    public Harness(Action<ServerConfig>? configure = null)
     {
+        configure?.Invoke(Config);
         Core = new ServerCore(Config, Net, GameRegistry.FromConfig(Config), new EventLog(), Now, new Random(1));
     }
 
@@ -669,6 +670,37 @@ public class BubbleBobbleTests
         h.Recv(Harness.Ep(2), Input(s, 130, 128, 0x2222));
         Assert.Empty(h.Core.Sessions);
         Assert.Equal((byte)EndReason.Desync, h.Net.Last(Harness.Ep(1), MsgType.SessionEnd)![2]);
+    }
+}
+
+public class FourSeatLockstepTests
+{
+    private const byte Game = 9;
+
+    [Fact]
+    public void Input_is_relayed_with_the_senders_slot_in_the_type()
+    {
+        var h = new Harness(c => c.Games.Add(new GameConfig
+            { Id = Game, Name = "Four seats", Module = "lockstep", Version = 1, MinPlayers = 3, MaxPlayers = 4 }));
+        var eps = new[] { Harness.Ep(1), Harness.Ep(2), Harness.Ep(3) };
+        string[] nicks = ["ANNA", "BERT", "CARL"];
+        for (int i = 0; i < 3; i++) h.Hello(eps[i], nicks[i], Game);
+        h.Advance(20);
+        foreach (var ep in eps) h.Recv(ep, MsgType.Accept, h.Net.Last(ep, MsgType.Challenge)![1]);
+        var start = h.Net.Last(eps[0], MsgType.Start)!;
+        Assert.Equal(3, start[3]);                       // players in the session
+        foreach (var ep in eps) h.Recv(ep, MsgType.StartAck, start[1]);
+        int slotOfBert = h.Net.Last(eps[1], MsgType.Start)![2];
+
+        var m = new byte[LockstepModule.InputLength];
+        m[0] = LockstepModule.Input;
+        m[1] = start[1];
+        m[4] = 0xFF; m[5] = 0xFF;                        // no checksum
+        h.Recv(eps[1], m);
+        var relayed = (byte)(LockstepModule.Input + slotOfBert);
+        Assert.NotNull(h.Net.Last(eps[0], relayed));
+        Assert.NotNull(h.Net.Last(eps[2], relayed));
+        Assert.Null(h.Net.Last(eps[1], relayed));
     }
 }
 

@@ -25,7 +25,8 @@ IGNORE = [
     (0x001C, 0x001D, "raster IRQ handlers ($8993, $89EE, ...): their saved A and Y"),
     (0x0029, 0x0029, "raster IRQ: the step of the screen split"),
     (0x0100, 0x01FF, "stack"),
-    (0xCC00, 0xCDFF, "our tick code and data (the test builds differ; mule_due)"),
+    (0x60F3, 0x617C, "the test builds' bot (JITTER differs)"),
+    (0xCC00, 0xCDFF, "our tick code and data (mule_due)"),
 ]
 RUNS = [("pal", [], ["-pal"]), ("pal_jitter", ["JITTER"], ["-pal"]), ("ntsc", [], ["-ntsc"])]
 

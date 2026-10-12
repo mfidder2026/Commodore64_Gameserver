@@ -27,6 +27,20 @@
 ;                                    not needed by the game after a session)
 ;   .define NET_CK_START a, b, ...   areas for the state checksum
 ;   .define NET_CK_LEN   n, m, ...   (lengths 1-256; 256 = 0)
+;   NET_PLAYERS = 4                  optional: up to 4 players (default 2).
+;                                    The session's players are slots 0 ..
+;                                    n-1 (handoff: HB_PLAYERS); net_in0 ..
+;                                    net_in3 follow each other, slots that
+;                                    are not in the session stay idle. The
+;                                    server relays a player's INPUT with the
+;                                    type $80+slot (games with more than two
+;                                    seats), so the receiver knows the sender
+;   NET_SPLIT = 1                    optional: four segments instead of one
+;                                    NET, for games without 1.3 KB in one
+;                                    piece: NET (the lockstep, net_hb),
+;                                    NETRX (receiving, net_end), NETDRV (the
+;                                    driver), NETBSS (state and buffers, never
+;                                    loaded: may lie below $0400)
 ; and calls:
 ;   net_start   when a session game starts (C=1: no handoff, a local game)
 ;   net_step    once per tick (session only)
@@ -54,6 +68,9 @@
 .ifndef NET_WIC_SEND_EVERY
 NET_WIC_SEND_EVERY = 2                  ; 1, 2 or 4; delay + this must be <= 8
 .endif
+.ifndef NET_PLAYERS
+NET_PLAYERS = 2
+.endif
 
 .export net_hb, net_start, net_step, net_idle, net_end
 .export net_in0, net_in1, net_keys, net_tick, net_flag2, net_waited
@@ -70,10 +87,11 @@ HB_DELAY        = 7                     ; input delay in ticks (1-4)
 HB_SOCKET       = 8                     ; UCI socket
 HB_FLAGS        = 9                     ; bit 0: test bot plays
 HB_DEVICE       = 10                    ; drive the lobby was loaded from
+HB_PLAYERS      = 11                    ; players in the session (START; 0 = 2)
 HB_DSTMAC       = 12                    ; RR-Net: server MAC
 HB_MYMAC        = 18                    ; RR-Net: our MAC
 HB_SIZE         = 24
-.export HB_SEED, HB_SLOT
+.export HB_SEED, HB_SLOT, HB_PLAYERS
 
 END_GAMEOVER    = 1
 END_TIMEOUT     = 3
@@ -93,25 +111,49 @@ IDLE_INPUT      = $1F                   ; no direction, no fire, no keys
 
 net_hb:         .res    HB_SIZE
 
+.ifdef NET_SPLIT
+.segment "NETBSS"
+.endif
 ; --- Lockstep state -------------------------------------------------------
+net_state:
 net_tick:       .word   0               ; ticks played in this session
 net_in0:        .byte   IDLE_INPUT      ; input of slot 0 for this tick
 net_in1:        .byte   IDLE_INPUT      ; input of slot 1
-net_keys:       .byte   0               ; key bits (5 pause, 6 quit) of both
+.if NET_PLAYERS > 2
+                .res    NET_PLAYERS-2, IDLE_INPUT ; slot 2, 3
+.endif
+net_keys:       .byte   0               ; key bits (5 pause, 6 quit) of all
 net_flag2:      .byte   0               ; a game's NMI handler ORs $DD0D here (WiC64)
 net_waited:     .word   0               ; raster wraps (2 per frame) spent waiting for the other C64
 ls_lin:         .res    RING
+.if NET_PLAYERS > 2
+ls_rin:         .res    RING*NET_PLAYERS ; slot n at n*RING (our own unused)
+ls_rnlo:        .res    NET_PLAYERS     ; newest tick received per slot
+ls_rnhi:        .res    NET_PLAYERS
+ls_np:          .byte   2               ; players in the session
+ls_slot:        .byte   0               ; rx_input: the sender
+ls_base:        .byte   0               ; rx_input: its ring
+ls_diff:        .byte   0
+.else
 ls_rin:         .res    RING
+.endif
 ls_got:         .byte   0               ; 1 once the other player was heard
 ls_lnew:        .word   0               ; newest local tick sent   } tx_buf+2
 ls_ckt:         .word   $FFFF           ; checksum tick            } +4
 ls_ck:          .word   0               ; checksum                 } +6
+.if NET_PLAYERS <= 2
 ls_rnew:        .word   0               ; newest remote tick received
+.endif
 ls_wait:        .word   0               ; raster wraps waited (2 per frame)
 ls_line:        .byte   0
 ls_idle:        .byte   0
 ls_tmp:         .res    2
 tx_buf:         .res    INPUT_LEN
+NET_STATE_LEN   = * - net_state
+.assert NET_STATE_LEN <= 255, lderror, "the lockstep state is too long"
+.ifdef NET_SPLIT
+.segment "NET"
+.endif
 
 ; ============================================================================
 ; net_start - C=1: no handoff (a local game); else the session starts
@@ -127,6 +169,48 @@ net_start:
         bne     :+
 @local: sec
         rts
+.ifdef NET_SPLIT
+:       ldx     #0                      ; the state was never loaded: from 0
+        txa
+@zero:  sta     net_state,x
+        inx
+        cpx     #NET_STATE_LEN
+        bne     @zero
+        ldx     #NET_PLAYERS-1
+        lda     #IDLE_INPUT
+@idle:  sta     net_in0,x
+        dex
+        bpl     @idle
+.endif
+.if NET_PLAYERS > 2
+:       ldx     #RING*NET_PLAYERS-1
+        lda     #IDLE_INPUT
+:       sta     ls_rin,x
+        dex
+        bpl     :-
+        ldx     #RING-1
+:       sta     ls_lin,x
+        dex
+        bpl     :-
+        ldx     net_hb+HB_PLAYERS       ; 2..NET_PLAYERS (an old lobby: 0)
+        cpx     #2
+        bcs     :+
+        ldx     #2
+:       cpx     #NET_PLAYERS+1
+        bcc     :+
+        ldx     #NET_PLAYERS
+:       stx     ls_np
+        lda     net_hb+HB_DELAY         ; ticks 1..delay are idle everywhere
+        ldx     #NET_PLAYERS-1
+:       sta     ls_rnlo,x
+        pha
+        lda     #0
+        sta     ls_rnhi,x
+        pla
+        dex
+        bpl     :-
+        sta     ls_lnew
+.else
 :       ldx     #RING-1
         lda     #IDLE_INPUT
 :       sta     ls_lin,x
@@ -136,9 +220,12 @@ net_start:
         lda     net_hb+HB_DELAY         ; ticks 1..delay are idle on both sides
         sta     ls_lnew
         sta     ls_rnew
+.endif
         ldx     #0
         stx     ls_lnew+1
+.if NET_PLAYERS <= 2
         stx     ls_rnew+1
+.endif
         stx     ls_got
         stx     net_tick
         stx     net_tick+1
@@ -193,11 +280,17 @@ net_step:
         sta     ls_wait+1
         lda     $D012
         sta     ls_line
-@poll:  lda     ls_rnew                 ; the other's input for this tick?
+@poll:
+.if NET_PLAYERS > 2
+        jsr     all_ready               ; all others' inputs for this tick?
+        bcs     @ready                  ; (only poll when one is missing)
+.else
+        lda     ls_rnew                 ; the other's input for this tick?
         cmp     net_tick                ; (only poll when it is missing:
         lda     ls_rnew+1               ; a WiC64 poll costs frames)
         sbc     net_tick+1
         bcs     @ready
+.endif
         jsr     net_poll                ; may end the session (no return)
         lda     $D012                   ; a raster wrap (twice a frame)?
         cmp     ls_line
@@ -223,7 +316,57 @@ net_step:
         lda     #END_TIMEOUT
         jmp     net_end
 
-@ready: ldx     net_tick
+@ready:
+.if NET_PLAYERS > 2
+        ldx     net_tick                ; this tick's place in the rings
+        jsr     ring_x
+        stx     ls_tmp
+        lda     #0
+        sta     net_keys
+        ldy     #NET_PLAYERS-1
+@slot:  lda     #IDLE_INPUT             ; not in the session: idle
+        cpy     ls_np
+        bcs     @set
+        ldx     ls_tmp
+        lda     ls_lin,x                ; ours
+        cpy     net_hb+HB_SLOT
+        beq     @set
+        tya                             ; another's: ring y*RING
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        ora     ls_tmp
+        tax
+        lda     ls_rin,x
+@set:   sta     net_in0,y
+        and     #$60                    ; the keys of all players
+        ora     net_keys
+        sta     net_keys
+        dey
+        bpl     @slot
+        inc     net_tick
+        bne     :+
+        inc     net_tick+1
+:       rts
+
+; C=1 when every other player of the session has sent this tick's input
+all_ready:
+        ldx     ls_np
+        dex
+@s:     cpx     net_hb+HB_SLOT
+        beq     @n
+        lda     ls_rnlo,x
+        cmp     net_tick
+        lda     ls_rnhi,x
+        sbc     net_tick+1
+        bcc     @no
+@n:     dex
+        bpl     @s
+        sec
+@no:    rts
+.else
+        ldx     net_tick
         jsr     ring_x
         lda     ls_lin,x                ; ls_tmp = mine, theirs
         sta     ls_tmp
@@ -245,6 +388,7 @@ net_step:
         bne     :+
         inc     net_tick+1
 :       rts
+.endif
 
 ; ============================================================================
 ; net_idle - while the game waits without ticks: keep the session alive
@@ -384,6 +528,9 @@ ck_hi:          .hibytes NET_CK_START
 ck_len:         .lobytes NET_CK_LEN
 CK_RANGES       = * - ck_len
 
+.ifdef NET_SPLIT
+.segment "NETRX"
+.endif
 ; ============================================================================
 ; net_poll - let the driver work; handle one received message, if any
 ; ============================================================================
@@ -397,8 +544,17 @@ net_msg:                                ; (the WiC64 driver calls this itself)
         beq     :+
 rx_done:
         rts
-:       cpx     #MSG_INPUT
+:
+.if NET_PLAYERS > 2
+        cpx     #MSG_INPUT              ; INPUT from slot 0-3: $80-$83 (A is
+        bcc     :+                      ; the length)
+        cpx     #MSG_INPUT+NET_PLAYERS
+        bcc     rx_input
+:
+.else
+        cpx     #MSG_INPUT
         beq     rx_input
+.endif
         ldy     #END_LEFT
         cpx     #MSG_OPP_LEFT
         beq     :+
@@ -416,6 +572,21 @@ rx_done:
 rx_input:
         cmp     #INPUT_LEN
         bcc     rx_done
+.if NET_PLAYERS > 2
+        txa                             ; the sender: a player of the session,
+        and     #3                      ; not us
+        tax
+        cpx     ls_np
+        bcs     rx_done
+        cpx     net_hb+HB_SLOT
+        beq     rx_done
+        stx     ls_slot
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        sta     ls_base
+.endif
         lda     #1
         sta     ls_got
         lda     RX_DATA+2               ; t = newest - 7
@@ -426,7 +597,30 @@ rx_input:
         sbc     #0
         sta     ls_tmp+1
         ldy     #8
-@in:    lda     ls_tmp                  ; only ticks 1-255 newer than rnew
+@in:
+.if NET_PLAYERS > 2
+        ldx     ls_slot                 ; only ticks 1-255 newer than rnew
+        lda     ls_tmp
+        sec
+        sbc     ls_rnlo,x
+        sta     ls_diff
+        lda     ls_tmp+1
+        sbc     ls_rnhi,x
+        bne     @next
+        lda     ls_diff
+        beq     @next
+        lda     ls_tmp
+        sta     ls_rnlo,x
+        lda     ls_tmp+1
+        sta     ls_rnhi,x
+        lda     ls_tmp
+        and     #RING-1
+        ora     ls_base
+        tax
+        lda     RX_DATA,y
+        sta     ls_rin,x
+.else
+        lda     ls_tmp                  ; only ticks 1-255 newer than rnew
         sec
         sbc     ls_rnew
         tax
@@ -443,6 +637,7 @@ rx_input:
         sta     ls_rnew
         lda     ls_tmp+1
         sta     ls_rnew+1
+.endif
 @next:  inc     ls_tmp
         bne     :+
         inc     ls_tmp+1
@@ -539,6 +734,9 @@ tail_end:
 TAIL_LEN        = tail_end - NET_TAIL
 .assert TAIL_LEN <= 128, error, "net_end's tail is too long"
 
+.ifdef NET_SPLIT
+.segment "NETDRV"
+.endif
 ; ============================================================================
 ; Drivers:
 ;   drv_init            once per session
@@ -568,7 +766,13 @@ UCI_RXMAX       = 48
 
 uci_state:      .byte   0               ; 0 idle, 1 read, 2 write
 uci_pend:       .byte   0               ; length of a waiting send, 0 none
+.ifdef NET_SPLIT
+.segment "NETBSS"
+.endif
 uci_rx:         .res    UCI_RXMAX+2
+.ifdef NET_SPLIT
+.segment "NETDRV"
+.endif
 RX_DATA         = uci_rx + 2
 
 drv_init:
@@ -707,7 +911,13 @@ RR_RXMAX        = 15 + 47
 ETHERTYPE_HI    = $88
 ETHERTYPE_LO    = $B5
 
+.ifdef NET_SPLIT
+.segment "NETBSS"
+.endif
 rr_rx:          .res    RR_RXMAX
+.ifdef NET_SPLIT
+.segment "NETDRV"
+.endif
 RX_DATA         = rr_rx + 15
 rr_len:         .byte   0, 0
 
@@ -843,7 +1053,13 @@ WIC_TCP_READ    = $22
 WIC_TCP_WRITE   = $23
 MB_MAX          = INPUT_LEN
 
+.ifdef NET_SPLIT
+.segment "NETBSS"
+.endif
 wic_mbuf:       .res    MB_MAX          ; the message being received
+.ifdef NET_SPLIT
+.segment "NETDRV"
+.endif
 RX_DATA         = wic_mbuf
 wic_need:       .byte   0               ; bytes still missing of it
 wic_pos:        .byte   0

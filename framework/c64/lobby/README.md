@@ -75,7 +75,7 @@ it needs. A game with room for all drivers can use the same name for all three.
 | 8 | UCI socket (Ultimate) |
 | 9 | flags: bit 0 = test bot plays instead of the joystick |
 | 10 | drive number (to load the lobby again) |
-| 11 | free |
+| 11 | players in the session (from START; games with more than two seats, `NET_PLAYERS` in `net.s`) |
 | 12-17 | RR-Net: the server's MAC |
 | 18-23 | RR-Net: our own MAC |
 

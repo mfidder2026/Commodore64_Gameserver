@@ -65,6 +65,7 @@
 #define HB_SOCKET   8
 #define HB_FLAGS    9
 #define HB_DEVICE   10
+#define HB_PLAYERS  11      /* players in the session (START) */
 #define HB_DSTMAC   12
 #define HB_MYMAC    18
 #define HB_SIZE     24
@@ -331,6 +332,7 @@ static void start_session(void)
     HB[HB_SOCKET] = net_socket();
     HB[HB_FLAGS] = bot;
     HB[HB_DEVICE] = PEEK(0xBA) ? PEEK(0xBA) : 8;
+    HB[HB_PLAYERS] = msg[3];
     memcpy(HB + HB_DSTMAC, net_server_mac(), 6);
     memcpy(HB + HB_MYMAC, mymac, 6);
     cfg_save();

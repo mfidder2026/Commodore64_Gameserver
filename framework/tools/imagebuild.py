@@ -43,7 +43,8 @@ IMAGE_START, IMAGE_END = 0x0400, 0xFFFB  # what the framework packer takes ($040
 
 class ImageGame:
     def __init__(self, root: str, snapshot: str, lobby_file: str, files: dict[str, str], disk_title: str,
-                 entry_label: str = "game_entry", local_file: str | None = None):
+                 entry_label: str = "game_entry", local_file: str | None = None,
+                 extra_files=None):
         self.root = root
         self.build_dir = os.path.join(root, "build")
         self.src = os.path.join(root, "src")
@@ -53,6 +54,7 @@ class ImageGame:
         self.disk_title = disk_title
         self.entry_label = entry_label
         self.local_file = local_file  # a build without defines on the disk too (lobby key L, LOCAL_GAME_FILE)
+        self.extra_files = extra_files  # callable -> [(path, name on the disk)]: more files for the disk
         self.areas_file = "areas.json"
         self.variants: dict[str, str] = {}  # define -> areas file (e.g. {"ONLINE": "areas-online.json"})
 
@@ -183,6 +185,8 @@ class ImageGame:
         files = [(self.lobby(), self.lobby_file)]
         if self.local_file:
             files.append((self.build([], name=self.local_file), self.local_file))
+        if self.extra_files:
+            files += self.extra_files()
         for define, name in self.files.items():
             extra = ["NETBOT"] if test else []
             files.append((self.build([define, *extra], name=name + ("-test" if test else "")), name))

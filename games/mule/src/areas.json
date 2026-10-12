@@ -1,5 +1,23 @@
 [
-  {"start": "EC60", "end": "ECFF", "what": "entry: restores low memory and the I/O set-up (the game's init clears $EC55-$FEFE)"},
-  {"start": "ED00", "end": "F0FF", "what": "copy of $0000-$03FF of the snapshot (idem)"},
-  {"start": "F100", "end": "FEFE", "what": "unused framework code (idem: cleared by the game's init)", "segments": ["NET"]}
+ {
+  "start": "EC60",
+  "end": "ED7F",
+  "what": "entry: restores low memory and the I/O set-up (the game's init clears $EC55-$FEFE)"
+ },
+ {
+  "start": "ED80",
+  "end": "F17F",
+  "what": "copy of $0000-$03FF of the snapshot (idem)"
+ },
+ {
+  "start": "F180",
+  "end": "FEFE",
+  "what": "unused framework code (idem: cleared by the game's init)",
+  "segments": [
+   "NET",
+   "NETRX",
+   "NETDRV",
+   "NETBSS"
+  ]
+ }
 ]

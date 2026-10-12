@@ -191,6 +191,8 @@ public sealed class WizardOfWorModule(GameConfig config) : RelayModule(config)
 /// timeouts apply.
 /// START params: seed lo, seed hi, input delay (1-4).
 /// INPUT: $80, session, newest tick (16), checksum tick (16, $FFFF = none), checksum (16), 8 inputs.
+/// Games with more than two seats (maxPlayers > 2, e.g. M.U.L.E.): the relayed INPUT has the type
+/// $80 + the sender's slot, so every receiver knows whose inputs they are (NET_PLAYERS in net.s).
 /// </summary>
 public sealed class LockstepModule(GameConfig config) : RelayModule(config)
 {
@@ -249,10 +251,20 @@ public sealed class LockstepModule(GameConfig config) : RelayModule(config)
             return;
         }
         m = m[..InputLength]; // raw Ethernet frames can carry padding
-        ctx.SendToOthers(session, from, m);
-
         var st = (State)session.ModuleState!;
         int slot = session.SlotOf(from);
+        if (MaxPlayers > 2)
+        {
+            // more than two seats: the receivers must know the sender, so the type carries the slot ($80 + slot)
+            var relayed = m.ToArray();
+            relayed[0] = (byte)(Input + slot);
+            ctx.SendToOthers(session, from, relayed);
+        }
+        else
+        {
+            ctx.SendToOthers(session, from, m);
+        }
+
         st.NewestTick[slot] = Messages.U16(m, 2);
         st.LastInput[slot] = ctx.Now;
 

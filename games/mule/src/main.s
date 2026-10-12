@@ -19,6 +19,8 @@
 ; frames more per tick.
 ; =============================================================================
 
+        .import net_hb, net_start, net_step, net_end, net_in0, net_keys
+        .importzp HB_SEED, HB_PLAYERS, END_GAMEOVER, END_QUIT
         .export game_entry
 
 GAME_START = $972B      ; the game's own start: stack, init, the colony ...
@@ -76,16 +78,28 @@ game_entry:
         sta     mule_ticks
         sta     mule_ticks+1
 .ifdef DETTEST
-        ldx     #3                      ; players 0 .. HUMANS-1 are human
-:       lda     #$FF                    ; (device 8+X), the rest the computer's
-        cpx     #HUMANS
+        lda     #HUMANS
+.else
+        jsr     net_start               ; C=1: no handoff: four computer
+        lda     #0                      ; players (a demo)
+        bcs     :+
+        lda     net_hb+HB_SEED          ; the session's random start
+        sta     $EC54
+        ora     #1
+        sta     mule_rnd
+        lda     net_hb+HB_PLAYERS       ; the session's players
+:
+.endif
+        sta     mule_np
+        ldx     #3                      ; players 0 .. n-1 are human (device
+:       lda     #$FF                    ; 8+X), the rest the computer's
+        cpx     mule_np
         bcs     :+
         txa
         ora     #8
 :       sta     $E500,x
         dex
         bpl     :--
-.endif
 .endif
         ldx     #tramp_len-1            ; $01 = $37 as the first part left it
 :       lda     tramp,x                 ; (KERNAL in): from the stack page, as
@@ -95,10 +109,12 @@ game_entry:
         jmp     $0100
 tramp:  lda     #$37
         sta     $01
-        jmp     GAME_START
+        ldx     #$FF                    ; the game's first instructions (LDX
+        txs                             ; #$FF / TXS): $972B itself may be
+        jmp     GAME_START+3            ; patched (the end of a game)
 tramp_len = * - tramp
 
-        .segment "P_ED00"
+        .segment "P_ED80"
 low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
 
 .ifdef ONLINE
@@ -136,6 +152,12 @@ low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
         lda     #1
         rts
 
+.ifndef DETTEST
+; after the last month the game starts again ($972B): online the session ends
+        .segment "P_972B"
+        jmp     mule_over               ; was LDX #$FF / TXS
+.endif
+
 ; the main program's "wait n frames" (A = n): n ticks
         .segment "P_44EE"
         jmp     mule_waitn
@@ -153,6 +175,13 @@ mule_in:        .byte   $1F, $1F, $1F, $1F ; this tick's input of player 0-3
                                         ; (as $DC00: bits 0-3 directions, 4 fire;
                                         ; active low)
 mule_a:         .byte   0
+mule_np:        .byte   0               ; human players (the session's)
+
+; =============================================================================
+; Small routines in the IRQ's pause code ($6087-$60C8: online the pause key
+; is never pressed, $6084 jumps past it)
+; =============================================================================
+        .segment "MULE2"
 
 ; --- the IRQ's display part, then RTI ($60C9) -----------------------------------
 mule_irq:
@@ -166,6 +195,23 @@ mule_irq:
         sta     $D020
         inc     mule_due
         jmp     $60C9
+
+; --- the game is over ---------------------------------------------------------------
+.ifndef DETTEST
+        .segment "MULE"
+mule_over:
+        lda     mule_np                 ; a session: back to the lobby
+        beq     :+
+        lda     #<END_GAMEOVER
+        jmp     net_end
+:       lda     $E504                   ; a demo: the next one, without the
+        and     #$7F                    ; title of a new game (bit 7: our code
+        sta     $E504                   ; lies there)
+        ldx     #$FF
+        txs
+        jmp     GAME_START+3
+        .segment "MULE2"
+.endif
 
 ; --- the keyboard: nothing pressed ------------------------------------------------
 mule_keys:
@@ -184,6 +230,8 @@ mule_waitn:
 @done:  lda     $14
         rts
 
+        .segment "MULE"
+
 ; --- one tick: wait for a real frame, then the frame logic (A, X, Y kept) ------------
 mule_tick:
         sta     mule_a
@@ -194,6 +242,26 @@ mule_tick:
         beq     :-                      ; up after a slow stretch)
         lda     #0
         sta     mule_due
+.ifndef DETTEST
+        lda     mule_np                 ; a session: this tick's inputs
+        beq     @inputs_done
+        txa
+        pha
+        jsr     net_step
+        lda     net_keys
+        and     #$40                    ; Q (any player): the session ends
+        beq     :+
+        lda     #<END_QUIT
+        jmp     net_end
+:       ldx     #3
+:       lda     net_in0,x
+        sta     mule_in,x
+        dex
+        bpl     :-
+        pla
+        tax
+@inputs_done:
+.endif
         lda     mule_rnd                ; LFSR: the random mix of this tick
         asl     a
         bcc     :+
@@ -226,8 +294,9 @@ mule_frame:
         .include "waits.inc"
         .segment "MULE"
 
-; --- determinism test ---------------------------------------------------------------
+; --- determinism test (in the attract mode's code, $60F3: online never run) --------
 .ifdef DETTEST
+        .segment "MULEDT"
 .ifndef HUMANS
 HUMANS = 4
 .endif

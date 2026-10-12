@@ -1,12 +1,12 @@
 [
  {
   "start": "EC60",
-  "end": "ECFF",
+  "end": "ED7F",
   "what": "entry: restores low memory and the I/O set-up (the game's init clears $EC55-$FEFE)"
  },
  {
-  "start": "ED00",
-  "end": "F0FF",
+  "start": "ED80",
+  "end": "F17F",
   "what": "copy of $0000-$03FF of the snapshot (idem)"
  },
  {
@@ -40,23 +40,6 @@
   "what": "wait n frames -> n ticks"
  },
  {
-  "start": "CC00",
-  "end": "CDFF",
-  "what": "never touched by the game (VICE watchpoints, a whole game): the tick code",
-  "segments": [
-   "MULE"
-  ]
- },
- {
-  "start": "E9C9",
-  "end": "EC53",
-  "what": "never touched by the game (VICE watchpoints, a whole game): the wait loop stubs and the network code",
-  "segments": [
-   "WAITS",
-   "NET"
-  ]
- },
- {
   "start": "6911",
   "end": "6913",
   "what": "keys and fire read directly: never pressed (inputs come through the frame logic)"
@@ -75,6 +58,77 @@
   "start": "5FB2",
   "end": "5FB4",
   "what": "the keyboard of this machine: nothing pressed"
+ },
+ {
+  "start": "972B",
+  "end": "972D",
+  "what": "the game's start, which the game also jumps to after the last month: online the end of the session"
+ },
+ {
+  "start": "0300",
+  "end": "03FF",
+  "what": "never used by the game: the network state (NETBSS: not loaded, net_start clears it)",
+  "segments": [
+   "NETBSS"
+  ]
+ },
+ {
+  "start": "E9C9",
+  "end": "EC53",
+  "what": "never touched by the game (VICE watchpoints, a whole game): the lockstep",
+  "segments": [
+   "NET"
+  ]
+ },
+ {
+  "start": "CC00",
+  "end": "CDFF",
+  "what": "never touched by the game: receiving, net_end; the tick code",
+  "segments": [
+   "NETRX",
+   "MULE"
+  ]
+ },
+ {
+  "start": "8850",
+  "end": "897A",
+  "what": "the keyboard scanner (online never called: $5FB2 and the attract mode's $6152): the network driver",
+  "segments": [
+   "NETDRV"
+  ]
+ },
+ {
+  "start": "8A56",
+  "end": "8B3B",
+  "what": "the title of a new game (the init shows it when $E504 bit 7 is set: after a game; online the session ends there): wait loop stubs",
+  "segments": [
+   "WAITS"
+  ]
+ },
+ {
+  "start": "8B95",
+  "end": "8C2A",
+  "what": "idem: the title's raster handler and texts (the handler $8B3C-$8B94 before it is used by other screens, $9E08)",
+  "segments": [
+   "WAITS2"
+  ]
+ },
+ {
+  "start": "60F3",
+  "end": "617C",
+  "what": "the attract mode (online never called: $5FDB): wait loop stubs; the test builds' bot",
+  "segments": [
+   "WAITS3",
+   "MULEDT"
+  ]
+ },
+ {
+  "start": "6087",
+  "end": "60C8",
+  "what": "the IRQ's pause code (online never reached: $6084 jumps past it): small routines",
+  "segments": [
+   "MULE2"
+  ]
  },
  {
   "include": "areas-waits.json"
