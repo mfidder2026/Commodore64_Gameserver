@@ -79,7 +79,14 @@ game_entry:
         sta     $01
         ldx     #$F6                    ; the stack as the start left it
         txs
+.ifdef ONLINE
+        lda     #0                      ; the clock from 0, and no KERNAL IRQ
+        sta     $A0                     ; (it would count jiffies, PAL and NTSC
+        sta     $A1                     ; differently) until the game's own IRQ
+        sta     $A2                     ; set-up ($632D) allows interrupts
+.else
         cli
+.endif
         jmp     GAME_START
 
         .segment "P_C000"
@@ -96,6 +103,12 @@ low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
 ; the clock runs in ticks
         .segment "P_638B"
         jmp     arch_timer              ; was JMP ($BCCE): the KERNAL's IRQ
+
+; --- the start of a game: the options as F3/F5/F7 set them (no title, no demo) ---------
+.if .defined(DETTEST) .and .defined(HUMANS)
+        .segment "P_6129"
+        jsr     arch_options            ; was JSR $632D (the IRQ set-up)
+.endif
 
 ; --- the SID's noise: our random numbers ---------------------------------------------
         .segment "P_65EA"
@@ -137,7 +150,8 @@ low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
 
 ; --- the joysticks (X or Y: 0 port 2, 1 port 1): this tick's inputs ------------------
         .segment "P_6BE5"
-        lda     arch_in,x               ; was LDA $DC00,X
+        jsr     arch_joytick            ; was LDA $DC00,X: in a loop until the
+                                        ; button is let go (the spell menu)
         .segment "P_6BF2"
         lda     arch_in,x               ; was LDA $DC00,X
         .segment "P_6C00"
@@ -175,6 +189,37 @@ arch_fifth:     .byte   0               ; jiffies: 6 per 5 ticks (60 Hz on PAL)
 arch_irq:
         inc     arch_due
         jmp     $638E
+
+; --- the options of a game: two players, light first ---------------------------------
+.if .defined(DETTEST) .and .defined(HUMANS)
+arch_options:
+        jsr     $632D                   ; the IRQ set-up (what $6129 called)
+.if HUMANS = 1
+        lda     #$55                    ; the computer plays light (F3 once)
+        sta     $BCC0
+        sta     $BCC5
+        lda     #1
+        sta     $BCC1
+        lda     #0
+.else
+        lda     #0
+        sta     $BCC0                   ; the computer plays no side (F3: two players)
+        sta     $BCC1
+        sta     $BCC5
+.endif
+        sta     $BCC3                   ; not the options screen (F7)
+        sta     $BCCB
+        sta     $BCD1                   ; not the demo (any F key)
+        lda     #$55
+        sta     $BCC2                   ; light first (F5)
+        rts
+.endif
+
+; --- a joystick read in a wait loop: a tick first ------------------------------------
+arch_joytick:
+        jsr     arch_tick
+        lda     arch_in,x
+        rts
 
 ; --- the CIA timer IRQ: acknowledge (then the KERNAL's IRQ exit, $638E) ------------------
 arch_timer:
@@ -250,6 +295,9 @@ arch_jiffy:                             ; as the KERNAL's UDTIM: the clock
 ; --- determinism test ----------------------------------------------------------------
 .ifdef DETTEST
 dt_n:           .byte   0
+dt_rng:         .byte   $35, $A7
+dt_dirs:        .byte   $0F, $0E, $0D, $0B, $07, $0A, $06, $09 ; none, up, down, left,
+                                        ; right, up+left, up+right, down+left
 
 dt_step:                                ; (X and Y are the caller's)
         txa
@@ -266,6 +314,39 @@ dt_step:                                ; (X and Y are the caller's)
 arch_halt:
         jmp     arch_halt               ; tools/dettest.py saves the RAM here
 :
+.endif
+.ifdef HUMANS
+        lda     arch_ticks              ; the bot, as a person: a direction for
+        and     #31                     ; 6 ticks (a square or two), nothing,
+        cmp     #24                     ; then 4 ticks the button (as $DC00:
+        bcs     @fire                   ; bits 0-3 directions, 4 fire, active
+        cmp     #6                      ; low)
+        beq     @still
+        cmp     #0
+        bne     @keep
+        ldx     #1
+@bot:   lda     dt_rng,x                ; LFSR per player
+        asl     a
+        bcc     :+
+        eor     #$1D
+:       sta     dt_rng,x
+        and     #7
+        tay
+        lda     dt_dirs,y
+        ora     #$F0
+        sta     arch_in,x
+        dex
+        bpl     @bot
+        bmi     @keep
+@still: ldx     #$FF                    ; (6-23: nothing)
+        bne     @set
+@fire:  ldx     #$EF                    ; the button, no direction (24-27),
+        cmp     #28                     ; then nothing (28-31)
+        bcc     @set
+        ldx     #$FF
+@set:   stx     arch_in
+        stx     arch_in+1
+@keep:
 .endif
 .ifdef JITTER                           ; wait 0-3 whole frames more, as a
         lda     $D012                   ; network would

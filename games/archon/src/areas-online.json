@@ -175,6 +175,11 @@
   "what": "CIA timer IRQ: only acknowledged; the jiffy clock runs in ticks"
  },
  {
+  "start": "6129",
+  "end": "612B",
+  "what": "the start: the options of the session (two players, who starts) after the IRQ set-up"
+ },
+ {
   "include": "areas-waits.json"
  }
 ]
