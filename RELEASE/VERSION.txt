@@ -1,6 +1,8 @@
-C64 Game Server release, 2026-10-12 (based on commit a6eab6c)
+C64 Game Server release, 2026-10-12 (based on commit 2f6ce90)
   games/bubblebobble.d64  Bubble Bobble OME (game id 3)
   games/explodingfist.d64  Exploding Fist OME (game id 4)
+  games/mule.d64  M.U.L.E. OME (game id 6)
+  games/mule-original.d64  M.U.L.E.: the original game
   games/pitstop2.d64  Pitstop II OME (game id 5)
   games/wizardofwor.d64  Wizard of Wor OME (game id 1)
   server/: win-x64, linux-arm64

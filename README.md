@@ -1,6 +1,6 @@
 # Commodore 64 Game Server
 
-**Online multiplayer for the Commodore 64.** Two players, each on their own C64,
+**Online multiplayer for the Commodore 64.** Two to four players, each on their own C64,
 play together over the network: a real C64 with a **C64 Ultimate / Ultimate 64**
 or a **WiC64**, or the **VICE** emulator, in any combination. A small server on
 the LAN runs the lobby, pairs the players and relays their joystick inputs.
@@ -8,7 +8,8 @@ the LAN runs the lobby, pairs the players and relays their joystick inputs.
 This repository holds the server, a framework for C64 games, and the games
 themselves. Every game is **Online Multiplayer Enabled (OME)**: you start it, see
 the lobby with everyone who is online, and choose an opponent, either a person or
-one of the server's bots.
+one of the server's bots. Games for more than two (M.U.L.E.) have tables: open one,
+let others sit down, start; the game's own computer players fill the empty seats.
 
 <p align="center">
   <img src="games/bubblebobble/docs/images/game-alice-2.png" width="32%" alt="Bubble Bobble OME">
@@ -55,6 +56,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 | ![](games/bubblebobble/docs/images/lobby-players.png) | **Bubble Bobble OME**<br>Bub on one C64, Bob on the other, 25 ticks per second. Uses the framework's standard lobby. | 3 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/bubblebobble](games/bubblebobble/README.md) |
 | ![](games/explodingfist/docs/images/lobby-players.png) | **The Way of the Exploding Fist OME**<br>White against red, four bouts. The standard lobby and the framework's network code. | 4 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/explodingfist](games/explodingfist/README.md) |
 | ![](games/pitstop2/docs/images/race-driver1.png) | **Pitstop II OME**<br>Split-screen Formula 1, one driver per C64, three laps. The standard lobby and the framework's network code. | 5 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/pitstop2](games/pitstop2/README.md) |
+| ![](games/mule/docs/images/tables.png) | **M.U.L.E. OME**<br>Up to four colonists on planet Irata; the computer plays the empty seats. The lobby has tables. | 6 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/mule](games/mule/README.md) |
 
 All games run on the same networks. In VICE the WiC64 emulation is the
 simplest: `RELEASE/vice-wic64.bat` sets it up.
@@ -124,6 +126,23 @@ IRQ, interleaved with the drawing by timing; the online version runs it in fixed
 main loop, so it is deterministic on PAL, NTSC and with network delays. Key `L` in the lobby
 loads the original game.
 → [Pitstop II OME README](games/pitstop2/README.md)
+
+### M.U.L.E. OME
+
+<p align="center">
+  <img src="games/mule/docs/images/tables.png" width="32%" alt="The tables">
+  <img src="games/mule/docs/images/table-host.png" width="32%" alt="At a table">
+  <img src="games/mule/docs/images/game-4players.png" width="32%" alt="Four C64s in the town">
+</p>
+
+The economic strategy classic by Ozark Softscape (Electronic Arts, 1983): up to four
+colonists grab land, build M.U.L.E.s and trade on planet Irata. The first game for more
+than two: in the lobby a host opens a **table** with the level, up to three others sit
+down, and the host starts; M.U.L.E.'s own computer players take the empty seats. The
+game's frame logic ran in the raster IRQ; the online version runs it in "virtual frames"
+where the main program waits, so it is deterministic on PAL, NTSC and with network
+delays. The cracker's texts on the disk are removed; the original game is on its own disk.
+→ [M.U.L.E. OME README](games/mule/README.md)
 
 ## How it works
 
@@ -218,6 +237,7 @@ Every OME game has the same kind of lobby. This is a rule of the framework (see
 | Invited | The bottom line shows who invites you: **FIRE** plays, **N** declines. |
 | After the game | Back in the lobby, ready for the next game. |
 | Setup | **F1** in the lobby: name and server, or (Wizard of Wor, Bubble Bobble) a local game. |
+| Tables (M.U.L.E.) | Games for more than two show **tables** instead of players: **N** opens one (choose the level), **FIRE** sits down at one; the host starts with **FIRE**, the computer plays the empty seats. |
 
 | Wizard of Wor OME | Bubble Bobble OME |
 |---|---|
@@ -319,6 +339,7 @@ games/
   bubblebobble/             Bubble Bobble OME   (game.json, README.md, src, lobby/game.h, tools, docs)
   explodingfist/            Exploding Fist OME  (game.json, README.md, orig, src, lobby/game.h, tools, docs)
   pitstop2/                 Pitstop II OME      (game.json, README.md, orig, src, lobby/game.h, tools, docs)
+  mule/                     M.U.L.E. OME        (game.json, README.md, orig, src, lobby/game.h, tools, docs)
 ```
 
 Each game folder is self-contained and has a `game.json` (id, module, build
@@ -407,6 +428,7 @@ Some older design notes inside the game folders are in Dutch.
 | Bubble Bobble OME | VICE ↔ VICE over RR-Net and WiC64 verified, with matching checksums; C64 ↔ bot |
 | The Way of the Exploding Fist OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums, back to the lobby after the match; deterministic over a whole match (PAL, NTSC, delays). In VICE about 32 (RR-Net) / 18 (WiC64) instead of 46 ticks per second |
 | Pitstop II OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums over whole races, back to the lobby after the finish; deterministic over 6000 ticks (PAL, NTSC, delays). In VICE about 38 (RR-Net) / 23 (WiC64) ticks per second |
+| M.U.L.E. OME | 2, 3 and 4 VICEs over RR-Net and WiC64 at a table, matching checksums (four players: 660 compared in 4 minutes); deterministic with 0-4 human players (PAL, NTSC, delays), up to 50,000 ticks. In VICE about 37 ticks per second (50 on a real C64) |
 | Real C64 Ultimate / WiC64 hardware | built, **not yet tested on real hardware** |
 
 ## Credits and legal
@@ -418,6 +440,8 @@ Some older design notes inside the game folders are in Dutch.
 - **The Way of the Exploding Fist** © 1985 Beam Software / Melbourne House. The analysis by
   [Games Explained](https://github.com/gamesexplained/gamesexplained) helped to find the way around.
 - **Pitstop II** © 1984 Epyx, by Stephen H. Landrum with Dennis Caswell.
+- **M.U.L.E.** © 1983 Ozark Softscape (Dan Bunten, Bill Bunten, Jim Rushing, Alan Watson; music by
+  Roy Glover), published by Electronic Arts.
 - [ip65](https://github.com/cc65/ip65) is used under the Mozilla Public License 1.1.
 - The WiC64 protocol follows the [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The Ultimate Command Interface follows [Gideon Zweijtzer's firmware](https://github.com/GideonZ/1541ultimate)

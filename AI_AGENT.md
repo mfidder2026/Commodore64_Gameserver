@@ -13,12 +13,12 @@ comments, docs and commit messages.
 | Path | What | Who uses it |
 |---|---|---|
 | `server/` | The game server (C#/.NET 8): core, transports, game modules, bots, dashboard, tests | all games |
-| `framework/c64/lobby/` | The standard C64 lobby (cc65) with Ultimate/WiC64/RR-Net drivers | every game with `"lobby": "framework"` |
-| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby | Exploding Fist (Bubble Bobble still has its own copy, `src/bbnet.s`) |
+| `framework/c64/lobby/` | The standard C64 lobby (cc65) with Ultimate/WiC64/RR-Net drivers; `tables.c` for games with tables (`GAME_TABLES`) | every game with `"lobby": "framework"` |
+| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby. `NET_PLAYERS = 4` for up to four players, `NET_SPLIT = 1` for four segments (cramped games) | Exploding Fist, Pitstop II, M.U.L.E. (Bubble Bobble still has its own copy, `src/bbnet.s`) |
 | `framework/c64/packer/` | LZ packer + self-extracting loader | games that need it |
 | `framework/tools/c64env.py` | Finds VICE and cc65 | every build/test script |
 | `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
-| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source, and the determinism test (several VICEs, RAM compared) | Exploding Fist, Pitstop II |
+| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared) | Exploding Fist, Pitstop II, M.U.L.E. |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
@@ -133,6 +133,20 @@ Wor) and the game still meets the standard above.
   (`pit_pass` at `$41A0`). Anything the display IRQ writes that the logic reads breaks lockstep: check new
   patches with a flow trace (IRQ writes vs logic/main reads) and `python tools/dettest.py 6000`.
 - `python ../../framework/tools/nettest.py . 180 [--wic64|--bot]` is the end-to-end test.
+
+### M.U.L.E. (`games/mule`)
+
+- Two files on the disk: `m.u.l.e.` (title and options) loads `&` (the game, entry `$972B`). The snapshot
+  is taken at `$972B` from the disk without the cracker's texts (`tools/crackfix.py`).
+- Virtual frames: the raster IRQ `$5F17` only draws; its frame logic (clocks, inputs, count-downs, music,
+  the frame task `$58`) runs as `mule_tick`, where the main program waits. `tools/waits.py` generates the
+  wait loop patches (tight loops, loop heads, calls, jumps back): a new hang in the test build = a wait
+  loop to add there. Find it with `hunt`-style runs: sample the PC, read the stack at `mule_tick`.
+- Memory is scarce: our code fills gaps (`src/areas-online.json`; the README's table). Check every new
+  "dead" area for indirect use: the raster handler `$8B3C` inside the old title is set via `JSR $8571`.
+  VICE's memmap misses code above `$A000` and never sees VIC fetches below `$4000`.
+- Session: slots = seats; the table's option is the level (`$E504`); `$972B` (the game's restart) ends it.
+- `python tools/dettest.py <ticks> humans=N`; `python ../../framework/tools/nettest.py . 240 --players 4`.
 
 ## Open framework work
 

@@ -44,5 +44,8 @@
       "tables": true
     },
     "bot": "TRADER"
+  },
+  "extra_disks": {
+    "mule-original.d64": "build/mule-original.d64"
   }
 }

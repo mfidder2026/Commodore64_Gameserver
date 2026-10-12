@@ -74,6 +74,8 @@ def release(all_games: dict[str, dict]) -> None:
     os.makedirs(os.path.join(RELEASE, "games"), exist_ok=True)  # (OneDrive may keep the folder a moment)
     for name, g in all_games.items():
         shutil.copy(os.path.join(g["folder"], g["disk"]), os.path.join(RELEASE, "games", name + ".d64"))
+        for target, source in g.get("extra_disks", {}).items():  # e.g. the original game on its own disk
+            shutil.copy(os.path.join(g["folder"], source), os.path.join(RELEASE, "games", target))
     for rid in RELEASE_RIDS:
         out = os.path.join(RELEASE, "server", rid)
         run(["dotnet", "publish", "src/C64GameServer", "-c", "Release", "-r", rid, "--self-contained",
@@ -94,6 +96,8 @@ def release(all_games: dict[str, dict]) -> None:
         f.write(f"C64 Game Server release, {datetime.date.today()} (based on commit {commit})\n")
         for name, g in all_games.items():
             f.write(f"  games/{name}.d64  {g['name']} OME (game id {g['id']})\n")
+            for target in g.get("extra_disks", {}):
+                f.write(f"  games/{target}  {g['name']}: the original game\n")
         f.write("  server/: " + ", ".join(RELEASE_RIDS) + "\n")
     print(f"\nRELEASE/ is ready ({os.path.relpath(RELEASE, REPO)})")
 

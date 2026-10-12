@@ -1,6 +1,6 @@
-# M.U.L.E. (work in progress)
+# M.U.L.E. OME
 
-> Part of the **[Commodore 64 Game Server](../../README.md)**. Not yet *Online Multiplayer Enabled*: see the status below.
+> Part of the **[Commodore 64 Game Server](../../README.md)**. *Online Multiplayer Enabled*: up to four colonists, each on their own C64; the computer plays the empty seats.
 
 **M.U.L.E.** (Ozark Softscape / Electronic Arts, 1983): four colonists on the planet Irata
 grab land, build M.U.L.E.s and trade food, energy, smithore and crystite. Up to four
@@ -14,7 +14,7 @@ players; the computer plays the empty seats.
 | 2. Deterministic with human inputs | **done**: `python tools/dettest.py <ticks> humans=N` with a bot's random inputs for the human players: PASS for 1 (40,000 ticks), 2 (30,000), 3 (20,000) and 4 human players (10,000: the bots ruin the colony quickly) |
 | 3. Network code for 4 players (`framework/c64/net`) | **done**: `NET_PLAYERS = 4` in `net.s` (a ring per slot; the server relays INPUT as `$80 + slot` for games with more than two seats); verified VICE ↔ VICE over RR-Net with the existing invite (2 humans, 2 computer players): 15,680 ticks, 245 matching checksums, about 37 ticks/s in VICE |
 | 4. Server and lobby: tables (host opens one, up to 3 join; empty seats are the computer's) | **done**: TABLE_OPEN/JOIN/LEAVE/START, TABLES, TABLE (docs/protocol.md), `framework/c64/lobby/tables.c`; verified with 3 and 4 VICEs over RR-Net (4 players: 7,020 ticks, 660 matching checksums, about 30 ticks/s with four VICEs on one PC) |
-| 5. End-to-end test, docs, release | planned |
+| 5. End-to-end test, docs, release | **done**: also over WiC64 (3 VICEs: 6,620 ticks, 312 matching checksums, about 27 ticks/s); in `RELEASE/` (`mule.d64`, `mule-original.d64`) |
 
 ## Playing
 
