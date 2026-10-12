@@ -69,6 +69,21 @@
   ]
  },
  {
+  "start": "5F8D",
+  "end": "5F8F",
+  "what": "inputs: our table of this tick (device 8+X)"
+ },
+ {
+  "start": "74F3",
+  "end": "74F5",
+  "what": "inputs: idem"
+ },
+ {
+  "start": "5FB2",
+  "end": "5FB4",
+  "what": "the keyboard of this machine: nothing pressed"
+ },
+ {
   "include": "areas-waits.json"
  }
 ]

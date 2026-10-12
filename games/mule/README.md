@@ -11,7 +11,7 @@ players; the computer plays the empty seats.
 | Step | State |
 |---|---|
 | 1. Deterministic game (computer players) | **done**: `python tools/dettest.py 50000`: PAL, PAL with 0-3 frames of network-like waiting per tick, and NTSC end in the same game state after 50,000 ticks (nearly a whole beginner game of six months) |
-| 2. Deterministic with human inputs (4 players) | next |
+| 2. Deterministic with human inputs | **done**: `python tools/dettest.py <ticks> humans=N` with a bot's random inputs for the human players: PASS for 1 (40,000 ticks), 2 (30,000), 3 (20,000) and 4 human players (10,000: the bots ruin the colony quickly) |
 | 3. Network code for 4 players (`framework/c64/net`) | planned |
 | 4. Server and lobby: tables (host opens one, up to 3 join; empty seats are the computer's) | planned |
 | 5. End-to-end test, docs, release | planned |
@@ -46,6 +46,10 @@ The online build (`src/main.s`) uses **virtual frames**:
 - the main program's wait loops tick while they wait (`tools/waits.py`: tight loops,
   loop heads, calls and jumps back; found with a flow trace of the game and by running
   the test build until it hung);
+- a human player X has the input device 8+X (`$E500,X`); the frame logic and `$74F0` read
+  the device's port at `$DBF8+device`, which becomes our table of this tick's inputs
+  (`mule_in`: from the network, or the test bot). The keyboard scanner (`$8850`: keyboard
+  players, F1 pause, F3/F5/F7 restart) reads nothing; `$A8` stays "no key";
 - the SID's noise becomes our own generator; the keys and fire buttons read directly
   (`$6911`) are never pressed (the players' buttons come through the frame logic);
   no pause key and no attract mode.
@@ -58,6 +62,9 @@ python tools/build.py         # build/mule.prg: that game as one PRG
 python tools/crackfix.py      # build/mule-clean.d64: the original two files without the crack's texts
 python tools/dettest.py 50000 # determinism test
 ```
+
+`tools/dettest.py` ignores only the CPU port, the stack, our tick code and the raster IRQ
+handlers' own bytes (`$1C/$1D`: their saved registers, `$29`: the step of the screen split).
 
 Free memory in the game: `$CC00-$CDFF` and `$E9C9-$EC53` (never touched, VICE
 watchpoints over a whole game); the game's init clears `$EC55-$FEFE`, so the entry code

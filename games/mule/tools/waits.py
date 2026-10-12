@@ -86,6 +86,10 @@ CALLS = {
 # JMP back that closes a wait loop: what the loop waits for
 JUMPS = {
     0x5068: "the status summary: all buttons ($4D, $2C) or the count-down $5A",
+    0xA8F5: "the town: the player walking (the frame task), the time $6A",
+    0xA917: "the town: idem",
+    0xAA5A: "the town: idem",
+    0xADA2: "the map: the player walking, the time $6A",
 }
 
 

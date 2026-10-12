@@ -75,6 +75,17 @@ game_entry:
         sta     mule_due
         sta     mule_ticks
         sta     mule_ticks+1
+.ifdef DETTEST
+        ldx     #3                      ; players 0 .. HUMANS-1 are human
+:       lda     #$FF                    ; (device 8+X), the rest the computer's
+        cpx     #HUMANS
+        bcs     :+
+        txa
+        ora     #8
+:       sta     $E500,x
+        dex
+        bpl     :--
+.endif
 .endif
         ldx     #tramp_len-1            ; $01 = $37 as the first part left it
 :       lda     tramp,x                 ; (KERNAL in): from the stack page, as
@@ -106,6 +117,18 @@ low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
         .segment "P_6084"
         jmp     $60C9                   ; was LDA $A8 / CMP #$3F: the pause key
 
+; the players' inputs: a human player X has the device 8+X ($E500,X, set at
+; the entry); the frame logic and $74F0 read the device's port at $DBF8+device
+; ($DC00/$DC01 for 8/9): here our table of this tick's inputs
+        .segment "P_5F8D"
+        lda     mule_in-8,x             ; was LDA $DBF8,X
+        .segment "P_74F3"
+        lda     mule_in-8,y             ; was LDA $DBF8,Y
+; the keyboard of this machine ($8850: keyboard players, F1 pause, F3/F5/F7):
+; nothing pressed ($A8 = $49, as $8850 leaves it then)
+        .segment "P_5FB2"
+        jsr     mule_keys               ; was JSR $8850
+
 ; the keyboard and both fire buttons read directly ($6911: A = 0 when something
 ; is pressed): on this machine only, so never pressed here (the players'
 ; buttons come through the frame logic, $49,X)
@@ -126,6 +149,9 @@ mule_due:       .byte   0               ; real frames not yet run as ticks
 mule_ticks:     .word   0               ; ticks so far
 mule_rnd:       .byte   $5A             ; random byte, a new one per tick
 mule_cnt:       .byte   0
+mule_in:        .byte   $1F, $1F, $1F, $1F ; this tick's input of player 0-3
+                                        ; (as $DC00: bits 0-3 directions, 4 fire;
+                                        ; active low)
 mule_a:         .byte   0
 
 ; --- the IRQ's display part, then RTI ($60C9) -----------------------------------
@@ -140,6 +166,12 @@ mule_irq:
         sta     $D020
         inc     mule_due
         jmp     $60C9
+
+; --- the keyboard: nothing pressed ------------------------------------------------
+mule_keys:
+        lda     #$49
+        sta     $A8
+        rts
 
 ; --- wait n frames (was $44EE: A = n, waits on the clock $14) ---------------------
 mule_waitn:
@@ -196,9 +228,19 @@ mule_frame:
 
 ; --- determinism test ---------------------------------------------------------------
 .ifdef DETTEST
+.ifndef HUMANS
+HUMANS = 4
+.endif
 dt_n:           .byte   0
+dt_rng:         .byte   $35, $A7, $5C, $C3
+dt_dirs:        .byte   $0F, $0E, $0D, $0B, $07, $0A, $06, $0F ; none, up, down, left,
+                                        ; right, up+left, up+right, none
 
-dt_step:
+dt_step:                                ; (X and Y are the caller's)
+        txa
+        pha
+        tya
+        pha
 .ifdef HALT_AT
         lda     mule_ticks
         cmp     #<HALT_AT
@@ -210,6 +252,29 @@ mule_halt:
         jmp     mule_halt               ; tools/dettest.py saves the RAM here
 :
 .endif
+        lda     mule_ticks              ; the bot: a new input for each player
+        and     #7                      ; every 8 ticks
+        bne     @keep
+        ldx     #3
+@bot:   lda     dt_rng,x                ; LFSR per player
+        asl     a
+        bcc     :+
+        eor     #$1D
+:       sta     dt_rng,x
+        pha
+        and     #7
+        tay
+        lda     dt_dirs,y               ; a direction, fire pressed ...
+        sta     dt_n
+        pla
+        and     #$40                    ; ... one time in two
+        beq     :+
+        lda     #$10
+:       ora     dt_n
+        sta     mule_in,x
+        dex
+        bpl     @bot
+@keep:
 .ifdef JITTER                           ; wait 0-3 whole frames more, as a
         lda     $D012                   ; network would
         eor     mule_ticks
@@ -224,6 +289,10 @@ mule_halt:
         bne     @frame
 @nowait:
 .endif
+        pla
+        tay
+        pla
+        tax
         rts
 .endif
 .endif ; ONLINE
