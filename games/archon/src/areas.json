@@ -1,0 +1,5 @@
+[
+  {"start": "C000", "end": "C3FF", "what": "copy of $0000-$03FF of the snapshot ($C000-$CFFF: never touched by the game, VICE watchpoints)"},
+  {"start": "C400", "end": "C4FF", "what": "entry: restores low memory and the I/O set-up"},
+  {"start": "C500", "end": "CFFF", "what": "never touched by the game: unused here (the framework's network code)", "segments": ["NET"]}
+]

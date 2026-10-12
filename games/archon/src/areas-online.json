@@ -1,0 +1,180 @@
+[
+ {
+  "start": "C000",
+  "end": "C3FF",
+  "what": "copy of $0000-$03FF of the snapshot ($C000-$CFFF: never touched by the game, VICE watchpoints)"
+ },
+ {
+  "start": "C400",
+  "end": "C4FF",
+  "what": "entry: restores low memory and the I/O set-up"
+ },
+ {
+  "start": "C500",
+  "end": "CFFF",
+  "what": "never touched by the game: the wait loop stubs (first: the same addresses in every build), our code, the network code",
+  "segments": [
+   "WAITS",
+   "ARCH",
+   "NET"
+  ]
+ },
+ {
+  "start": "65EA",
+  "end": "65EC",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "65F9",
+  "end": "65FB",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "6B4C",
+  "end": "6B4E",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "6F5F",
+  "end": "6F61",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "70D7",
+  "end": "70D9",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "763F",
+  "end": "7641",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "7667",
+  "end": "7669",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "77FA",
+  "end": "77FC",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "7801",
+  "end": "7803",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "7893",
+  "end": "7895",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9C4E",
+  "end": "9C50",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9C7C",
+  "end": "9C7E",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9F66",
+  "end": "9F68",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9FAE",
+  "end": "9FB0",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9FBC",
+  "end": "9FBE",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "9FEF",
+  "end": "9FF1",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "A000",
+  "end": "A002",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "A036",
+  "end": "A038",
+  "what": "random: our generator, not the SID's noise"
+ },
+ {
+  "start": "6BE5",
+  "end": "6BE7",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "6BF2",
+  "end": "6BF4",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "6C00",
+  "end": "6C02",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "83F6",
+  "end": "83F8",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "846C",
+  "end": "846E",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "9502",
+  "end": "9504",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "9558",
+  "end": "955A",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "95FC",
+  "end": "95FE",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "964B",
+  "end": "964D",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "96A5",
+  "end": "96A7",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "96F8",
+  "end": "96FA",
+  "what": "joystick: this tick's input (0: port 2, 1: port 1)"
+ },
+ {
+  "start": "6388",
+  "end": "638A",
+  "what": "raster IRQ: count the frame; the frame logic ($BCCC) runs in ticks"
+ },
+ {
+  "start": "638B",
+  "end": "638D",
+  "what": "CIA timer IRQ: only acknowledged; the jiffy clock runs in ticks"
+ },
+ {
+  "include": "areas-waits.json"
+ }
+]

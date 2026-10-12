@@ -1,0 +1,14 @@
+{
+ "entry": 24832,
+ "registers": {
+  "pc": 24832,
+  "a": 55,
+  "x": 0,
+  "y": 0,
+  "sp": 246,
+  "00": 47,
+  "01": 55
+ },
+ "sha256": "38e0af1ab4defc6a552cc3294141bc6ceb1e34ac288bf4ba59c03960c0fb7b0c",
+ "orig_prg_sha256": "e9f11bb6f023ba5c4dc875dd3b757b17a780ed1018aec68737300e0296506267"
+}
