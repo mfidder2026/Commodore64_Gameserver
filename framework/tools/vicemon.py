@@ -84,7 +84,8 @@ def registers(port: int) -> dict[str, int]:
     raise RuntimeError("cannot read the registers")
 
 
-def stop_at(port: int, pc: int, ram_path: str, timeout: float = 120) -> tuple[dict[str, int], bytes]:
+def stop_at(port: int, pc: int, ram_path: str, timeout: float = 120,
+            then: list[str] | None = None) -> tuple[dict[str, int], bytes]:
     """Sets an execution breakpoint at pc, waits until the CPU stops there and saves all 64 KB of RAM
     (bank ram: also under the ROMs and I/O) into ram_path. Returns the registers and the RAM.
     The connection stays open while waiting: VICE only reports a breakpoint to a connected client
@@ -96,6 +97,9 @@ def stop_at(port: int, pc: int, ram_path: str, timeout: float = 120) -> tuple[di
         recv_all(s, 0.3)
         s.sendall(f"break {pc:04x}\n".encode())
         recv_all(s, 0.5)
+        for cmd in then or []:  # e.g. the key press that leads there
+            s.sendall((cmd + "\n").encode())
+            recv_all(s, 0.5)
         s.sendall(b"x\n")
         t0 = time.time()
         seen = ""

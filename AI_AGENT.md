@@ -18,6 +18,7 @@ comments, docs and commit messages.
 | `framework/c64/packer/` | LZ packer + self-extracting loader | games that need it |
 | `framework/tools/c64env.py` | Finds VICE and cc65 | every build/test script |
 | `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
+| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source, and the determinism test (several VICEs, RAM compared) | Exploding Fist, Pitstop II |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
@@ -121,6 +122,14 @@ Wor) and the game still meets the standard above.
   170 bytes are left there. The drivers are `uci.asm`, `net_rrnet.asm` (ip65, UDP) and `wic64.asm`
   (TCP). A WiC64 sends every 4th tick and the server gives WiC64 sessions an input delay of 8.
 - `python tools/servertest.py 90 [--bot]`: the server plus two VICEs with the WiC64 (or one against a bot).
+
+### Pitstop II (`games/pitstop2`, work in progress)
+
+- Same "snapshot + patches" build as Exploding Fist (`orig/pitstop2-9403.bin`, from the tape version with
+  the trainer question answered N). `python tools/build.py` is the clean original game as one PRG.
+- Not online yet: the race logic (raster IRQ) and the main loop interleave depending on timing, so
+  `tools/dettest.py` fails. See its README before trying lockstep. No `game.json` yet, so it is not in
+  `build.py` or `RELEASE/`.
 
 ## Open framework work
 
