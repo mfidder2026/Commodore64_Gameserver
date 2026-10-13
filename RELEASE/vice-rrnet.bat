@@ -3,5 +3,5 @@
 :: Bubble Bobble finds a server on the same network by itself (raw Ethernet, also on this PC).
 :: Wizard of Wor uses UDP: the server must run on another PC (see README.md).
 ::   vice-rrnet.bat                 asks which game
-::   vice-rrnet.bat bubblebobble    or wizardofwor, explodingfist, pitstop2, mule
+::   vice-rrnet.bat bubblebobble    or wizardofwor, explodingfist, pitstop2, mule, archon
 call "%~dp0_vice.cmd" rrnet %1

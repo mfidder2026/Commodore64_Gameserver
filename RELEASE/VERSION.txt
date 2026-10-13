@@ -1,4 +1,5 @@
-C64 Game Server release, 2026-10-12 (based on commit 2f6ce90)
+C64 Game Server release, 2026-10-13 (based on commit 6a4e17a)
+  games/archon.d64  Archon OME (game id 7)
   games/bubblebobble.d64  Bubble Bobble OME (game id 3)
   games/explodingfist.d64  Exploding Fist OME (game id 4)
   games/mule.d64  M.U.L.E. OME (game id 6)

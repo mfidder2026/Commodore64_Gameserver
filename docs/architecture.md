@@ -87,16 +87,16 @@ screenshots.
 Each game folder is self-contained (source, tools, docs, release) and
 described by its `game.json`. The root `build.py` reads these files.
 
-| | Wizard of Wor OME | Bubble Bobble OME | Exploding Fist OME | Pitstop II OME | M.U.L.E. OME |
-|---|---|---|---|---|---|
-| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 | none: the RAM image at the game's entry + ca65 patches | the same (from the tape version) | the same (the game's second file) |
-| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` | framework lobby with tables |
-| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) | the same, from `framework/c64/net` | the same | the same, 4 players, split in segments |
-| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time | one pass of the bout loop (about 46/s) | one drawing pass; the logic runs in fixed slots of the main loop instead of the raster IRQ | one virtual frame: the IRQ's frame logic runs where the main program waits |
-| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs (type `$80+slot` when relayed) |
-| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) | the original game (one or two players) | the original game (a separate file, `LOCAL_GAME_FILE`) | the original game on its own disk |
-| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB | the invisible floor rows of the bitmap (2.5 KB) | the menu and name entry code (never run online) | gaps: never-used RAM and code that is dead online |
-| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) | patches only in the areas of `src/areas.json` | the same (`src/areas-online.json`) | the same |
+| | Wizard of Wor OME | Bubble Bobble OME | Exploding Fist OME | Pitstop II OME | M.U.L.E. OME | Archon OME |
+|---|---|---|---|---|---|---|
+| Source | dabadab's disassembly, 64tass | rebb64 reconstruction, ca65 | none: the RAM image at the game's entry + ca65 patches | the same (from the tape version) | the same (the game's second file) | the same (the tape's file) |
+| Lobby | inside the game (`netgame.asm`) | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` | framework lobby + `lobby/game.h` | framework lobby with tables | framework lobby + `lobby/game.h` |
+| C64 network | Ultimate (UCI), WiC64 (TCP), RR-Net with ip65 (UDP) | Ultimate (UCI), WiC64 (TCP), RR-Net (raw Ethernet) | the same, from `framework/c64/net` | the same | the same, 4 players, split in segments | the same |
+| Ticks | 60/s, cost model for the original pace | 25/s (one odd logical frame), virtual game time | one pass of the bout loop (about 46/s) | one drawing pass; the logic runs in fixed slots of the main loop instead of the raster IRQ | one virtual frame: the IRQ's frame logic runs where the main program waits | one virtual frame, as M.U.L.E.; the KERNAL's jiffy clock is virtual too |
+| INPUT | 24 bytes, 16 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs | 16 bytes, 8 inputs (type `$80+slot` when relayed) | 16 bytes, 8 inputs |
+| Other modes | local, direct VICE ↔ C64 without a server | local (two joysticks) | the original game (one or two players) | the original game (a separate file, `LOCAL_GAME_FILE`) | the original game on its own disk | the original game (`LOCAL_GAME_FILE`) |
+| Memory trick | code at `$5D00` and `$C000` | compressed level bitmaps free about 1.3 KB | the invisible floor rows of the bitmap (2.5 KB) | the menu and name entry code (never run online) | gaps: never-used RAM and code that is dead online | `$C000-$CFFF`, never touched by the game |
+| Layout rule | same-size patches; the cartridge build must keep its MD5 | no byte of the original moves (`original-layout.json`) | patches only in the areas of `src/areas.json` | the same (`src/areas-online.json`) | the same | the same |
 
 Both games keep the original game logic and add the same three things:
 

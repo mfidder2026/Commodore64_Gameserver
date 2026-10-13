@@ -57,6 +57,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 | ![](games/explodingfist/docs/images/lobby-players.png) | **The Way of the Exploding Fist OME**<br>White against red, four bouts. The standard lobby and the framework's network code. | 4 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/explodingfist](games/explodingfist/README.md) |
 | ![](games/pitstop2/docs/images/race-driver1.png) | **Pitstop II OME**<br>Split-screen Formula 1, one driver per C64, three laps. The standard lobby and the framework's network code. | 5 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/pitstop2](games/pitstop2/README.md) |
 | ![](games/mule/docs/images/tables.png) | **M.U.L.E. OME**<br>Up to four colonists on planet Irata; the computer plays the empty seats. The lobby has tables. | 6 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/mule](games/mule/README.md) |
+| ![](games/archon/docs/images/board.png) | **Archon OME**<br>The light side against the dark side: a chess-like board, every capture a real-time battle. The standard lobby. | 7 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/archon](games/archon/README.md) |
 
 All games run on the same networks. In VICE the WiC64 emulation is the
 simplest: `RELEASE/vice-wic64.bat` sets it up.
@@ -143,6 +144,22 @@ game's frame logic ran in the raster IRQ; the online version runs it in "virtual
 where the main program waits, so it is deterministic on PAL, NTSC and with network
 delays. The cracker's texts on the disk are removed; the original game is on its own disk.
 → [M.U.L.E. OME README](games/mule/README.md)
+
+### Archon OME
+
+<p align="center">
+  <img src="games/archon/docs/images/board.png" width="32%" alt="The board">
+  <img src="games/archon/docs/images/battle.png" width="32%" alt="A battle in the arena">
+  <img src="games/archon/docs/images/game-over.png" width="32%" alt="The light side wins">
+</p>
+
+The strategy and action classic by Free Fall Associates (Electronic Arts, 1983): the light
+side against the dark side on a chess-like board, where every capture is a real-time battle
+in the arena. One side per C64. Built like M.U.L.E., from the RAM image at the game's start
+plus checked patches: the frame logic of the raster IRQ and the KERNAL's jiffy clock became
+virtual, so it is deterministic on PAL, NTSC and with network delays. The cracker's line on
+the title is removed; key `L` in the lobby loads the original game.
+→ [Archon OME README](games/archon/README.md)
 
 ## How it works
 
@@ -340,6 +357,7 @@ games/
   explodingfist/            Exploding Fist OME  (game.json, README.md, orig, src, lobby/game.h, tools, docs)
   pitstop2/                 Pitstop II OME      (game.json, README.md, orig, src, lobby/game.h, tools, docs)
   mule/                     M.U.L.E. OME        (game.json, README.md, orig, src, lobby/game.h, tools, docs)
+  archon/                   Archon OME          (game.json, README.md, orig, src, lobby/game.h, tools, docs)
 ```
 
 Each game folder is self-contained and has a `game.json` (id, module, build
@@ -423,12 +441,13 @@ Some older design notes inside the game folders are in Dutch.
 
 | Part | State |
 |---|---|
-| Server, lobby, sessions, bots, dashboard | 46 unit tests; bot ↔ bot and C64 ↔ bot sessions run without errors |
+| Server, lobby, sessions, bots, dashboard | 50 unit tests; bot ↔ bot and C64 ↔ bot sessions run without errors |
 | Wizard of Wor OME | VICE ↔ VICE verified (direct over RR-Net, and via the server with the WiC64 emulation, matching checksums); PAL ↔ NTSC deterministic. With the WiC64 in VICE the game runs at about 35 instead of 60 ticks per second |
 | Bubble Bobble OME | VICE ↔ VICE over RR-Net and WiC64 verified, with matching checksums; C64 ↔ bot |
 | The Way of the Exploding Fist OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums, back to the lobby after the match; deterministic over a whole match (PAL, NTSC, delays). In VICE about 32 (RR-Net) / 18 (WiC64) instead of 46 ticks per second |
 | Pitstop II OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums over whole races, back to the lobby after the finish; deterministic over 6000 ticks (PAL, NTSC, delays). In VICE about 38 (RR-Net) / 23 (WiC64) ticks per second |
 | M.U.L.E. OME | 2, 3 and 4 VICEs over RR-Net and WiC64 at a table, matching checksums (four players: 660 compared in 4 minutes); deterministic with 0-4 human players (PAL, NTSC, delays), up to 50,000 ticks. In VICE about 37 ticks per second (50 on a real C64) |
+| Archon OME | VICE ↔ VICE over RR-Net (10 minutes, 334 checksums compared) and WiC64 and C64 ↔ bot verified, back to the lobby after the game; deterministic over a whole game with 0-2 human players (PAL, NTSC, delays). In VICE about 36 (RR-Net) / 33 (WiC64) ticks per second |
 | Real C64 Ultimate / WiC64 hardware | built, **not yet tested on real hardware** |
 
 ## Credits and legal
@@ -442,6 +461,8 @@ Some older design notes inside the game folders are in Dutch.
 - **Pitstop II** © 1984 Epyx, by Stephen H. Landrum with Dennis Caswell.
 - **M.U.L.E.** © 1983 Ozark Softscape (Dan Bunten, Bill Bunten, Jim Rushing, Alan Watson; music by
   Roy Glover), published by Electronic Arts.
+- **Archon** © 1983 Free Fall Associates (Anne Westfall, Jon Freeman, Paul Reiche III), published by
+  Electronic Arts.
 - [ip65](https://github.com/cc65/ip65) is used under the Mozilla Public License 1.1.
 - The WiC64 protocol follows the [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The Ultimate Command Interface follows [Gideon Zweijtzer's firmware](https://github.com/GideonZ/1541ultimate)

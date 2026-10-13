@@ -14,11 +14,11 @@ comments, docs and commit messages.
 |---|---|---|
 | `server/` | The game server (C#/.NET 8): core, transports, game modules, bots, dashboard, tests | all games |
 | `framework/c64/lobby/` | The standard C64 lobby (cc65) with Ultimate/WiC64/RR-Net drivers; `tables.c` for games with tables (`GAME_TABLES`) | every game with `"lobby": "framework"` |
-| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby. `NET_PLAYERS = 4` for up to four players, `NET_SPLIT = 1` for four segments (cramped games) | Exploding Fist, Pitstop II, M.U.L.E. (Bubble Bobble still has its own copy, `src/bbnet.s`) |
+| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby. `NET_PLAYERS = 4` for up to four players, `NET_SPLIT = 1` for four segments (cramped games), `NET_BOT_PERSON = 1` for a test bot that moves like a person | Exploding Fist, Pitstop II, M.U.L.E., Archon (Bubble Bobble still has its own copy, `src/bbnet.s`) |
 | `framework/c64/packer/` | LZ packer + self-extracting loader | games that need it |
 | `framework/tools/c64env.py` | Finds VICE and cc65 | every build/test script |
 | `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
-| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared) | Exploding Fist, Pitstop II, M.U.L.E. |
+| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared); `waitpatch.py` generates wait loop patches for games with virtual frames | Exploding Fist, Pitstop II, M.U.L.E., Archon |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
@@ -147,6 +147,17 @@ Wor) and the game still meets the standard above.
   VICE's memmap misses code above `$A000` and never sees VIC fetches below `$4000`.
 - Session: slots = seats; the table's option is the level (`$E504`); `$972B` (the game's restart) ends it.
 - `python tools/dettest.py <ticks> humans=N`; `python ../../framework/tools/nettest.py . 240 --players 4`.
+
+### Archon (`games/archon`)
+
+- One file on the tape (`$0801-$A9FF`, a block move, then `$6100`). The snapshot is taken at `$6100` from the
+  file without the cracker's line (`tools/crackfix.py`); that clean file is also the lobby's key L (`archl`).
+- Virtual frames as in M.U.L.E.: the raster IRQ's frame logic (through `$BCCC`) runs as `arch_tick` where the
+  main program waits (`tools/waits.py`). The KERNAL's jiffy clock (`$A0-$A2`) is virtual too: 6 jiffies per
+  5 ticks, the CIA timer IRQ only acknowledged. Wait stubs come first in `$C500` (same addresses in every build).
+- All our code lies in `$C000-$CFFF`, which the game never touches. Slot 0 = light (port 1), slot 1 = dark.
+- `python tools/dettest.py 10000 humans=1` (also `humans=2`, and no `humans=`: the demo);
+  `python ../../framework/tools/nettest.py . 300 [--wic64|--bot]`. Two test bots rarely finish a game.
 
 ## Open framework work
 

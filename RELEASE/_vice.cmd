@@ -37,13 +37,15 @@ if not defined GAME (
   echo   3  The Way of the Exploding Fist OME
   echo   4  Pitstop II OME
   echo   5  M.U.L.E. OME
+  echo   6  Archon OME
   echo.
-  choice /c 12345 /n /m "Which game? "
+  choice /c 123456 /n /m "Which game? "
   set "GAME=wizardofwor"
   if errorlevel 2 set "GAME=bubblebobble"
   if errorlevel 3 set "GAME=explodingfist"
   if errorlevel 4 set "GAME=pitstop2"
   if errorlevel 5 set "GAME=mule"
+  if errorlevel 6 set "GAME=archon"
 )
 if not exist "%HERE%games\%GAME%.d64" (
   echo Unknown game "%GAME%": there is no games\%GAME%.d64

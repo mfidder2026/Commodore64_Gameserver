@@ -423,6 +423,23 @@ per tick. Slot 0 (the inviter) is driver 1 (the top half of the screen), slot 1 
 seed picks the track (seed mod 7). Input byte bit 6 (Q) ends the race for both. The default
 input delay is 3; a WiC64 sends every other tick, with an input delay of 4.
 
+## Game: M.U.L.E. (id `$06`, version `$01`, module `lockstep`, tables)
+
+The framework's network code for up to four players (`NET_PLAYERS = 4`): a table instead of an
+invitation (see the tables above). The slots are the seats; the table's option is the level.
+Seats without a player are played by M.U.L.E.'s own computer players. The server relays INPUT
+with type `$80 + slot`. One tick is one virtual frame. Input byte bit 6 (Q, any player) ends
+the session for all. The default input delay is 3; a WiC64 sends every other tick, with an
+input delay of 4.
+
+## Game: Archon (id `$07`, version `$01`, module `lockstep`)
+
+The same messages and start parameters as Exploding Fist (the framework's network code). One
+tick is one virtual frame (the raster IRQ's frame logic, run where the main program waits).
+Slot 0 (the inviter) plays the light side, slot 1 the dark side. The seed picks who moves
+first. Input byte bit 6 (Q) ends the game for both. The default input delay is 3; a WiC64
+sends every other tick, with an input delay of 4.
+
 ## Game: Relay demo (id `$02`, module `relay`)
 
 No start parameters. The server forwards every game message unchanged to the

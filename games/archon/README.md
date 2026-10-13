@@ -6,6 +6,12 @@
 capture is a real-time battle in the arena, and two spell casters, the Wizard and the
 Sorceress.
 
+<p align="center">
+  <img src="docs/images/board.png" width="32%" alt="The board">
+  <img src="docs/images/battle.png" width="32%" alt="A battle in the arena">
+  <img src="docs/images/game-over.png" width="32%" alt="The light side wins">
+</p>
+
 ## Playing
 
 Load the disk's first file (`LOAD"*",8,1` / `RUN`): the framework's standard lobby
@@ -24,7 +30,7 @@ Load the disk's first file (`LOAD"*",8,1` / `RUN`): the framework's standard lob
 |---|---|
 | 1. Deterministic demo (computer against computer) | **done**: `python tools/dettest.py 5000` |
 | 2. Deterministic with human inputs | **done**: `python tools/dettest.py 10000 humans=1` (a bot against the computer: a whole game, battles, spells) and `humans=2` (two bots) |
-| 3. Online | **done**: VICE ↔ VICE over RR-Net (see the top-level README's status table) |
+| 3. Online | **done**: VICE ↔ VICE over RR-Net (21,000 ticks, all checksums equal) and WiC64, against the server's bot, the game's end back to the lobby |
 
 ## The tape
 
@@ -64,7 +70,7 @@ python tools/crackfix.py      # build/clean/archon.prg: the tape's file without 
 python tools/snapshot.py      # orig/archon-6100.bin (+ -io.bin) from that file
 python tools/build.py disk    # build/archon.d64: lobby, the original (archl), archu / archw / archr
 python tools/dettest.py 10000 humans=1   # determinism test (no humans=: the demo; humans=2)
-python ../../framework/tools/nettest.py . 480   # server + two VICEs over RR-Net (--wic64, --bot)
+python ../../framework/tools/nettest.py . 300   # server + two VICEs over RR-Net (--wic64, --bot)
 ```
 
 ## Credits
