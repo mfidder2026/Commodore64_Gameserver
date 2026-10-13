@@ -1,0 +1,5 @@
+[
+  {"start": "18E9", "end": "18F6", "what": "the options screen's help text: the cracker's line \"1701 CRACKWARE\" (blanked)"},
+  {"start": "C984", "end": "CB83", "what": "copy of $0200-$03FF of the snapshot: the unused end of the demo's inputs (black's values; the demo reads up to $C983)"},
+  {"start": "CD84", "end": "CFF4", "what": "copy of $0000-$01FF of the snapshot and the entry: the unused end of the demo's inputs (black's counts, up to $CD83); $CFF5-$CFFF are the game's"}
+]

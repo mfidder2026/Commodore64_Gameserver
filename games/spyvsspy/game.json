@@ -1,0 +1,12 @@
+{
+  "id": 8,
+  "name": "Spy vs Spy",
+  "title": "Spy vs Spy",
+  "short": "Spy vs Spy",
+  "module": "lockstep",
+  "lobby": "framework",
+  "build": ["python", "tools/build.py", "disk"],
+  "disk": "build/spyvsspy.d64",
+  "tests": [["python", "tools/dettest.py", "10000", "humans=1"]],
+  "readme": "README.md"
+}

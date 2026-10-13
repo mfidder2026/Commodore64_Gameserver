@@ -44,7 +44,7 @@ IMAGE_START, IMAGE_END = 0x0400, 0xFFFB  # what the framework packer takes ($040
 class ImageGame:
     def __init__(self, root: str, snapshot: str, lobby_file: str, files: dict[str, str], disk_title: str,
                  entry_label: str = "game_entry", local_file: str | None = None,
-                 extra_files=None):
+                 extra_files=None, local_net: bool = True):
         self.root = root
         self.build_dir = os.path.join(root, "build")
         self.src = os.path.join(root, "src")
@@ -55,6 +55,7 @@ class ImageGame:
         self.entry_label = entry_label
         self.local_file = local_file  # a build without defines on the disk too (lobby key L, LOCAL_GAME_FILE)
         self.extra_files = extra_files  # callable -> [(path, name on the disk)]: more files for the disk
+        self.local_net = local_net      # False: a build without defines has no network code (net.s)
         self.areas_file = "areas.json"
         self.variants: dict[str, str] = {}  # define -> areas file (e.g. {"ONLINE": "areas-online.json"})
 
@@ -93,9 +94,9 @@ class ImageGame:
         return labels
 
     # --- the patches ---------------------------------------------------------------
-    def assemble(self, defines: list[str]) -> dict[int, int]:
-        """Assembles src/main.s and net.s, links them twice (fill $00 and $FF): the bytes that
-        agree are the patch bytes. Returns {address: byte}."""
+    def assemble(self, defines: list[str], net: bool = True) -> dict[int, int]:
+        """Assembles src/main.s and net.s (net=False: main.s only), links them twice (fill $00
+        and $FF): the bytes that agree are the patch bytes. Returns {address: byte}."""
         placed = []
         for name in os.listdir(self.src):
             if name.endswith((".s", ".inc")):
@@ -112,7 +113,10 @@ class ImageGame:
         common = [c64env.cc65("ca65"), "--cpu", "6502", "-g", "-I", self.src,
                   "--bin-include-dir", self.build_dir, *dargs]
         self.run([*common, "-o", "main.o", "-l", "main.lst", os.path.join(self.src, "main.s")])
-        self.run([*common, "-o", "net.o", "-l", "net.lst", NET_SRC])
+        objs = ["main.o"]
+        if net:
+            self.run([*common, "-o", "net.o", "-l", "net.lst", NET_SRC])
+            objs.append("net.o")
         images = []
         for fill in (0x00, 0xFF):
             cfg = os.path.join(self.build_dir, f"patch{fill:02x}.cfg")
@@ -126,7 +130,7 @@ class ImageGame:
                 f.write("}\n")
             out = os.path.join(self.build_dir, f"patch{fill:02x}.bin")
             self.run([c64env.cc65("ld65"), "-C", cfg, "-o", out, "-m", "main.map", "-Ln", "main.lbl",
-                      "main.o", "net.o"])
+                      *objs])
             with open(out, "rb") as f:
                 images.append(f.read())
         a, b = images
@@ -147,7 +151,7 @@ class ImageGame:
         ram = self.snapshot()
         with open(os.path.join(self.build_dir, "low.bin"), "wb") as f:
             f.write(ram[0:0x400])
-        patch = self.assemble(defines)
+        patch = self.assemble(defines, net=self.local_net or bool(defines))
         self.check_areas(patch)
         for a, v in patch.items():
             ram[a] = v
@@ -158,7 +162,7 @@ class ImageGame:
         sys.path.insert(0, os.path.join(FRAMEWORK, "c64", "packer"))
         import pack  # noqa: E402
         out = os.path.join(self.build_dir, f"{name}.prg")
-        pack.pack(raw, out, labels[self.entry_label], labels["net_hb"])
+        pack.pack(raw, out, labels[self.entry_label], labels.get("net_hb", 0))
         report = []
         for area in self.areas():
             if area.get("segments"):
