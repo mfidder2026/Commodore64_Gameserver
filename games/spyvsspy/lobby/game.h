@@ -31,8 +31,16 @@
 #define LOCAL_GAME_TEXT "original game, 1-2 players"
 #define LOCAL_GAME_FILE "spyl"
 
-/* what the players are called in the game: slot 0 invited, slot 1 accepted */
+/* what the players are called in the game: slot 0 the host, slot 1 the guest */
 #define SLOT0_NAME    "the white spy"
 #define SLOT1_NAME    "the black spy"
+
+/* tables instead of invitations: the host picks the level; alone at the table
+   the host plays white against the computer's black spy */
+#define GAME_TABLES
+#define TABLE_SEATS       2
+#define TABLE_OPTION_NAME "Level"
+#define TABLE_OPTIONS     "1", "2", "3", "4", "5", "6", "7", "8"
+#define SEAT_NAME         "spy"
 
 #endif

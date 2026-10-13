@@ -20,18 +20,33 @@
 ; virtual frames per tick, about the original pace), the inputs come from the
 ; tick; the IRQ keeps drawing, the sound and the music (their memory is left
 ; out of the comparisons: nothing in the game logic reads it).
-; DETTEST: HALT_AT=n stops before tick n (tools/dettest.py); JITTER waits 0-3
-; frames more per tick. Without HUMANS the game plays its demo.
+; A session (a table in the lobby): the table's option is the level (0-7:
+; level 1-8); one player at the table plays white against the computer, two
+; play white (slot 0, the host) and black (slot 1). Q (either player) ends
+; the session; after a game (both spies done, $6745) the result stays three
+; seconds, then back to the lobby.
+; DETTEST: HUMANS=1 (a bot as white against the computer) or 2 (two bots,
+; the default), LEVEL=1-8 (default 1); HALT_AT=n stops before tick n
+; (tools/dettest.py); JITTER waits 0-3 frames more per tick. (No demo: its
+; recorded inputs, $C000-$CFFF, hold our code in these builds.)
 ; =============================================================================
 
         .import net_hb, net_start, net_step, net_idle, net_end, net_in0, net_in1, net_keys
-        .importzp HB_SEED, END_GAMEOVER, END_QUIT
+        .importzp HB_SEED, HB_PLAYERS, END_GAMEOVER, END_QUIT
         .export game_entry
 
 GAME_START = $660F      ; the game's own start
 
 .if .defined(DETTEST) .or .defined(NET_UCI) .or .defined(NET_WIC) .or .defined(NET_RR)
 ONLINE = 1
+.endif
+.ifdef DETTEST
+.ifndef HUMANS
+HUMANS = 2
+.endif
+.ifndef LEVEL
+LEVEL = 1
+.endif
 .endif
 
 SPY_VF_NUM = 7          ; virtual frames per tick: 7 per 5 (a pass of the main
@@ -130,6 +145,10 @@ game_entry:
         .segment "P_66E6"
         jmp     $6718                   ; was LDA $CFF7 / BNE $6718: the idle check
 
+; --- the end of a game (both spies done): online back to the lobby ----------------------
+        .segment "P_6745"
+        jmp     spy_over                ; was LDA #$FF / STA $7B (then a new game)
+
 ; =============================================================================
 ; Our code
 ; =============================================================================
@@ -142,14 +161,49 @@ spy_x:          .byte   0
 spy_y:          .byte   0
 spy_in:         .byte   $FF, $FF        ; this tick's joysticks: white, black ($DC00 bits)
 spy_seed:       .byte   $5A             ; the random seed of a game
+spy_session:    .byte   0               ; 1: a session
+spy_players:    .byte   2               ; human players: 1 (white) or 2
+spy_level:      .byte   1               ; the level, 1-8
+spy_wait:       .word   0
 
-; --- the start (from game_entry) -------------------------------------------------------
+; --- the start (from game_entry): the session's settings -------------------------------
 spy_start:
         lda     #0
         sta     spy_due
         sta     spy_ticks
         sta     spy_ticks+1
         sta     spy_vf
+        sta     spy_session
+.ifdef DETTEST
+        lda     #HUMANS
+        sta     spy_players
+        lda     #LEVEL
+        sta     spy_level
+.else
+        jsr     net_start               ; C=1: no handoff (not from the lobby)
+        bcs     @done
+        inc     spy_session
+        lda     net_hb+HB_SEED          ; the session's random seed
+        bne     :+
+        lda     #$5A
+:       sta     spy_seed
+        lda     net_hb+HB_PLAYERS       ; the table's option: the level (0-7)
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        and     #7
+        clc
+        adc     #1
+        sta     spy_level
+        lda     net_hb+HB_PLAYERS       ; the players at the table (0: an old
+        and     #15                     ; lobby, two)
+        cmp     #1
+        beq     :+
+        lda     #2
+:       sta     spy_players
+@done:
+.endif
         rts
 
 ; --- the IRQ, once per screen half: count the frames (both halves: 2 per frame) -------
@@ -157,26 +211,50 @@ spy_frame:
         inc     spy_due
         rts
 
-; --- the options: the test's ----------------------------------------------------------
+; --- the options of a game (instead of the options screen) -----------------------------
 spy_options:
-.ifdef DETTEST
-.ifdef HUMANS
-        lda     #HUMANS                 ; 1: white against the computer, 2: two
+        lda     spy_players             ; 1: white against the computer, 2: two
         sta     $022F                   ; players
-        lda     #1                      ; level 1 (6 rooms, 12 traps)
+        lda     spy_level               ; level 1-8
         sta     $022D
-        lda     #3                      ; the computer's IQ
+        lda     #3                      ; the computer's IQ (of 5)
         sta     $0231
-        lda     #1                      ; the airport hidden till the end
+        lda     #1                      ; the airport hidden till the end (Y)
         sta     $0233
         lda     #0                      ; not the demo
         sta     $CFF7
-.else
-        lda     #$FF                    ; the demo (as the options screen does
-        sta     $CFF7                   ; when nobody touches anything)
-.endif
-.endif
         jmp     $A123                   ; the game's options -> its variables
+
+; --- the end of a game: the result for 3 s, then back to the lobby ----------------------
+spy_over:
+.ifndef DETTEST
+        lda     spy_session
+        beq     @again
+        lda     #<300                   ; 3 s (two IRQs per frame; PAL)
+        sta     spy_wait
+        lda     #>300
+        sta     spy_wait+1
+        lda     #0
+        sta     spy_due
+@wait:  jsr     net_idle
+        lda     spy_due
+        beq     @wait
+        dec     spy_due
+        lda     spy_wait
+        bne     :+
+        dec     spy_wait+1
+:       dec     spy_wait
+        lda     spy_wait
+        ora     spy_wait+1
+        bne     @wait
+        lda     #<END_GAMEOVER
+        jmp     net_end
+@again:
+.endif
+        lda     #$FF                    ; as the original: a new game
+        sta     $7B
+        sta     $7C
+        jmp     $6627
 
 ; --- one tick: a pass of the main loop for one spy ($41 changes after this) ------------
 spy_tick:
@@ -184,6 +262,22 @@ spy_tick:
         sty     spy_y
 .ifdef DETTEST
         jsr     dt_step
+.else
+        lda     spy_session             ; a session: this tick's inputs
+        beq     @inputs
+        jsr     net_step                ; slot 0 plays white, slot 1 black
+        lda     net_keys
+        and     #$40                    ; Q (either player): the session ends
+        beq     :+
+        lda     #<END_QUIT
+        jmp     net_end
+:       lda     net_in0                 ; bits 0-4 as $DC00
+        ora     #$E0
+        sta     spy_in
+        lda     net_in1
+        ora     #$E0
+        sta     spy_in+1
+@inputs:
 .endif
         lda     #0                      ; no keys (F5: restart, RUN/STOP: pause;
         sta     $0282                   ; bit 7 also ends the demo)
@@ -234,7 +328,6 @@ spy_halt:
         jmp     spy_halt                ; tools/dettest.py saves the RAM here
 :
 .endif
-.ifdef HUMANS
         lda     spy_ticks+1             ; the bot, as a person (per spy: a tick
         lsr     a                       ; is one spy's pass): a direction for 12
         lda     spy_ticks               ; passes, nothing, then 6 passes the
@@ -272,7 +365,6 @@ spy_halt:
 @set:   stx     spy_in
         stx     spy_in+1
 @keep:
-.endif
 .ifdef JITTER                           ; wait 0-3 whole frames more, as a
         lda     $D012                   ; network would
         eor     spy_ticks

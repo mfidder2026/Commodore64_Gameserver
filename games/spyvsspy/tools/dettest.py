@@ -2,11 +2,11 @@
 """
 Determinism test for Spy vs Spy OME (framework/tools/determinism.py does the work).
 
-    python tools/dettest.py [ticks] [humans=1|2]
+    python tools/dettest.py [ticks] [humans=1|2] [level=1-8]
 
 The test build (DETTEST) runs the game with ticks (src/main.s): one pass of the
-main loop per tick, the clocks in ticks. Without players the game plays its
-demo (recorded inputs, a fixed random seed). The runs differ in timing: PAL,
+main loop per tick, the clocks in ticks. humans=1: a bot as white against
+the computer; humans=2 (the default): two bots. The runs differ in timing: PAL,
 PAL with 0-3 whole frames of waiting per tick (as the network will), and NTSC.
 """
 from __future__ import annotations
@@ -35,6 +35,7 @@ RUNS = [("pal", [], ["-pal"]), ("pal_jitter", ["JITTER"], ["-pal"]), ("ntsc", []
 if __name__ == "__main__":
     ticks = int(next((a for a in sys.argv[1:] if a.isdigit()), 5000))
     humans = next((a.split("=")[1] for a in sys.argv[1:] if a.startswith("humans=")), None)
-    defines = ["DETTEST"] + ([f"HUMANS={humans}"] if humans else [])
+    level = next((a.split("=")[1] for a in sys.argv[1:] if a.startswith("level=")), None)
+    defines = ["DETTEST"] + ([f"HUMANS={humans}"] if humans else []) + ([f"LEVEL={level}"] if level else [])
     ok = determinism.main(build.GAME, ticks, "spy_halt", defines, RUNS, IGNORE)
     sys.exit(0 if ok else 1)
