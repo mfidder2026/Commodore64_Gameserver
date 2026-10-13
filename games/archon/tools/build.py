@@ -9,6 +9,10 @@ src/areas*.json list where they may go.
 
     python tools/build.py              build/archon-raw.prg and build/archon.prg (packed)
     python tools/build.py run          build and start it in VICE
+    python tools/build.py disk         build/archon.d64: the standard lobby, the online game files
+                                       (archu / archw / archr) and the original game ("archl", the
+                                       lobby's key L; without the cracker's line)
+    python tools/build.py testdisk     build/archon-test.d64: the same with a test bot
 """
 from __future__ import annotations
 
@@ -21,13 +25,15 @@ sys.path.insert(0, os.path.join(ROOT, "..", "..", "framework", "tools"))
 import imagebuild  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import crackfix  # noqa: E402
 import waits  # noqa: E402
 
 waits.generate()                        # src/waits.inc, src/areas-waits.json
 
 GAME = imagebuild.ImageGame(ROOT, snapshot="orig/archon-6100.bin", lobby_file="archon",
                             files={"NET_UCI": "archu", "NET_WIC": "archw", "NET_RR": "archr"},
-                            disk_title="archon ome,ar")
+                            disk_title="archon ome,ar",
+                            extra_files=lambda: [(crackfix.clean(), "archl")])   # the original (key L)
 GAME.variants = {d: "areas-online.json" for d in ("ONLINE", "DETTEST", "NET_UCI", "NET_WIC", "NET_RR")}
 build = GAME.build
 read_labels = GAME.read_labels

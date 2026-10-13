@@ -65,6 +65,9 @@ public sealed class ServerConfig
             Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
         new GameConfig { Id = 6, Name = "M.U.L.E.", Module = "lockstep", Version = 1, MinPlayers = 1, MaxPlayers = 4, Tables = true,
             Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
+        new GameConfig { Id = 7, Name = "Archon", Module = "lockstep", Version = 1,
+            Bots = ["WIZARD", "SORCERER"],
+            Settings = new() { ["inputDelay"] = 3, ["inputDelayWiC64"] = 4, ["inputTimeoutSeconds"] = 20, ["loadTimeoutSeconds"] = 150 } },
         new GameConfig { Id = 2, Name = "Relay demo", Module = "relay", Version = 1, MinPlayers = 2, MaxPlayers = 4 },
     ];
 

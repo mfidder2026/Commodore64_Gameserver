@@ -1,0 +1,21 @@
+{
+  "id": 7,
+  "name": "Archon",
+  "title": "Archon",
+  "short": "Archon",
+  "module": "lockstep",
+  "lobby": "framework",
+  "build": ["python", "tools/build.py", "disk"],
+  "disk": "build/archon.d64",
+  "tests": [["python", "tools/dettest.py", "10000", "humans=1"]],
+  "readme": "README.md",
+  "nettest": {
+    "testdisk": ["python", "tools/build.py", "testdisk"],
+    "disk": "build/archon-test.d64",
+    "cfg": "archon.cfg",
+    "server": {"id": 7, "name": "Archon", "module": "lockstep", "version": 1,
+               "settings": {"inputDelay": 3, "inputDelayWiC64": 4, "inputTimeoutSeconds": 20,
+                            "loadTimeoutSeconds": 150}},
+    "bot": "WIZARD"
+  }
+}

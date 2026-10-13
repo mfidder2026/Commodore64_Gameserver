@@ -32,6 +32,7 @@ HEADS: dict = {}
 CALLS: dict = {}
 JUMPS = {
     0x81EF: "the options screen: a key, or the clock $A1 counts down to the demo",
+    0x6779: "after a game: a key, or the clock $A1 counts down to the demo",
 }
 
 

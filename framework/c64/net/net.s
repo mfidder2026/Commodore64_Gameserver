@@ -35,6 +35,8 @@
 ;                                    server relays a player's INPUT with the
 ;                                    type $80+slot (games with more than two
 ;                                    seats), so the receiver knows the sender
+;   NET_BOT_PERSON = 1               optional: the test bot (NETBOT) moves like a
+;                                    person: a direction, a pause, the button
 ;   NET_SPLIT = 1                    optional: four segments instead of one
 ;                                    NET, for games without 1.3 KB in one
 ;                                    piece: NET (the lockstep, net_hb),
@@ -447,6 +449,40 @@ read_local:
 .ifdef NETBOT
 ; test bot: a walk that differs per slot, fire every 4th tick
 netbot:
+.ifdef NET_BOT_PERSON
+        lda     net_tick                ; like a person: a direction for 6 ticks,
+        and     #31                     ; nothing, the button for 4 ticks (24-27)
+        cmp     #24
+        bcs     @button
+        cmp     #6
+        bcs     @none
+        lda     net_tick                ; the direction of this period:
+        lsr     a                       ; (period + 3 * tick high + slot) & 7
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        pha
+        lda     net_tick+1
+        asl     a
+        adc     net_tick+1
+        adc     net_hb+HB_SLOT
+        tsx
+        adc     $0101,x
+        and     #7
+        tax
+        pla
+        lda     nb_pdirs,x
+        rts
+@button:
+        cmp     #28
+        bcs     @none
+        lda     #$0F                    ; the button, no direction
+        rts
+@none:  lda     #$1F
+        rts
+nb_pdirs:       .byte   $1E, $1D, $1B, $17, $1A, $16, $19, $15 ; all eight
+.else
         lda     net_tick
         lsr     a
         lsr     a
@@ -463,6 +499,7 @@ netbot:
         rts
 :       lda     nb_dirs,x
         rts
+.endif
 nb_dirs:        .byte   $1F, $1B, $17, $1E, $1A, $16, $1B, $17
 .endif
 

@@ -26,6 +26,7 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
         3 => BubbleBobble,
         4 => ExplodingFist,
         5 => PitstopII,
+        7 => Archon,
         _ => WizardOfWor,
     };
 
@@ -59,6 +60,17 @@ public sealed record BotProfile(int InputLength, int Window, int TickRate, byte 
     /// 16-byte INPUT. A new joystick position (any of the 32) every 8 ticks.</summary>
     public static readonly BotProfile PitstopII = new(16, 8, 38, 0x1F, 150, (tick, slot, seed) =>
         (byte)(Hash(tick >> 3, slot, seed) & 0x1F));
+
+    /// <summary>Archon OME: one tick per frame (virtual frames, about 50/s on PAL), the framework's
+    /// 16-byte INPUT. A direction for a while, then the button, like a person moving an icon.</summary>
+    public static readonly BotProfile Archon = new(16, 8, 50, 0x1F, 150, (tick, slot, seed) =>
+    {
+        int phase = tick & 31;
+        if (phase >= 24) return (byte)(phase < 28 ? 0x0F : 0x1F);   // the button, then nothing
+        if (phase >= 6) return 0x1F;
+        byte[] dirs = [0x1F, 0x1E, 0x1D, 0x1B, 0x17, 0x1A, 0x16, 0x19];
+        return dirs[Hash(tick >> 5, slot, seed) & 7];
+    });
 
     private static uint Hash(int a, int slot, byte seed)
     {

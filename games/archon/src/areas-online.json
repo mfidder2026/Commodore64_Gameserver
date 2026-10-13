@@ -180,6 +180,11 @@
   "what": "the start: the options of the session (two players, who starts) after the IRQ set-up"
  },
  {
+  "start": "6746",
+  "end": "674A",
+  "what": "the end of a game: online back to the lobby (after 3 s of the result)"
+ },
+ {
   "include": "areas-waits.json"
  }
 ]

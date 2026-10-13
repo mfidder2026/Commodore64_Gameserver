@@ -18,6 +18,8 @@
 ; frames more per tick.
 ; =============================================================================
 
+        .import net_hb, net_start, net_step, net_idle, net_end, net_in0, net_in1, net_keys
+        .importzp HB_SEED, END_GAMEOVER, END_QUIT
         .export game_entry
 
 GAME_START = $6100      ; the game's own start
@@ -69,6 +71,22 @@ game_entry:
         sta     arch_ticks
         sta     arch_ticks+1
         sta     arch_fifth
+        sta     arch_session
+.ifndef DETTEST
+        jsr     net_start               ; C=1: no handoff: the demo
+        bcs     @nosession
+        inc     arch_session
+        lda     net_hb+HB_SEED          ; the session's random numbers (an LFSR
+        sta     arch_rng                ; state of 0 would stay 0)
+        lda     net_hb+HB_SEED+1
+        ora     #1
+        sta     arch_rng+1
+        and     #2                      ; who moves first
+        beq     @nosession
+        lda     #$AA
+        sta     arch_first
+@nosession:
+.endif
 .endif
 .ifdef ONLINE
         lda     #$40                    ; no key (the KERNAL no longer scans the
@@ -105,10 +123,14 @@ low:    .incbin "low.bin"               ; $0000-$03FF of the snapshot
         jmp     arch_timer              ; was JMP ($BCCE): the KERNAL's IRQ
 
 ; --- the start of a game: the options as F3/F5/F7 set them (no title, no demo) ---------
-.if .defined(DETTEST) .and .defined(HUMANS)
         .segment "P_6129"
         jsr     arch_options            ; was JSR $632D (the IRQ set-up)
-.endif
+
+; --- the end of a game: online back to the lobby --------------------------------------
+        .segment "P_6746"
+        jmp     arch_over               ; was LDA $A1 / STA $BD27: the wait
+        nop                             ; for a key (or the demo) after the result
+        nop
 
 ; --- the SID's noise: our random numbers ---------------------------------------------
         .segment "P_65EA"
@@ -184,16 +206,19 @@ arch_rng:       .byte   $5A, $C3        ; random generator (16 bit LFSR)
 arch_in:        .byte   $FF, $FF        ; this tick's joysticks: port 2, port 1
 arch_a:         .byte   0
 arch_fifth:     .byte   0               ; jiffies: 6 per 5 ticks (60 Hz on PAL)
+arch_session:   .byte   0               ; 1: a session (two players over the network)
+arch_first:     .byte   $55             ; who moves first: $55 light, $AA dark
+arch_wait:      .byte   0
 
 ; --- the raster IRQ: a frame (then the KERNAL's IRQ exit, $638E) ---------------------
 arch_irq:
         inc     arch_due
         jmp     $638E
 
-; --- the options of a game: two players, light first ---------------------------------
-.if .defined(DETTEST) .and .defined(HUMANS)
+; --- the options of a game: two players (the session's), or the test's ---------------
 arch_options:
         jsr     $632D                   ; the IRQ set-up (what $6129 called)
+.if .defined(DETTEST) .and .defined(HUMANS)
 .if HUMANS = 1
         lda     #$55                    ; the computer plays light (F3 once)
         sta     $BCC0
@@ -213,7 +238,41 @@ arch_options:
         lda     #$55
         sta     $BCC2                   ; light first (F5)
         rts
+.else
+        lda     arch_session            ; no session: the demo, as the original
+        beq     @done
+        lda     #0
+        sta     $BCC0                   ; the computer plays no side (F3: two players)
+        sta     $BCC1
+        sta     $BCC5
+        sta     $BCC3                   ; not the options screen (F7)
+        sta     $BCCB
+        sta     $BCD1                   ; not the demo (any F key)
+        lda     arch_first
+        sta     $BCC2                   ; who moves first (F5): the session's
+@done:  rts
 .endif
+
+; --- the game is over: the result for 3 s, then back to the lobby ----------------------
+arch_over:
+.ifndef DETTEST
+        lda     arch_session
+        beq     @orig
+        lda     #150                    ; 3 s (PAL; NTSC 2.5 s)
+        sta     arch_wait
+:       jsr     net_idle
+        lda     arch_due
+        beq     :-
+        lda     #0
+        sta     arch_due
+        dec     arch_wait
+        bne     :-
+        lda     #<END_GAMEOVER
+        jmp     net_end
+.endif
+@orig:  lda     $A1                     ; no session: as the original
+        sta     $BD27
+        jmp     $674B
 
 ; --- a joystick read in a wait loop: a tick first ------------------------------------
 arch_joytick:
@@ -252,6 +311,31 @@ arch_tick:
         beq     :-
         lda     #0
         sta     arch_due
+.ifndef DETTEST
+        lda     arch_session            ; a session: this tick's inputs
+        beq     @inputs
+        txa
+        pha
+        tya
+        pha
+        jsr     net_step                ; slot 0 plays light, slot 1 dark
+        lda     net_keys
+        and     #$40                    ; Q (either player): the session ends
+        beq     :+
+        lda     #<END_QUIT
+        jmp     net_end
+:       lda     net_in0                ; light reads port 1 (index 1), dark
+        ora     #$E0                    ; port 2 (index 0); bits 0-4 as $DC00
+        sta     arch_in+1
+        lda     net_in1
+        ora     #$E0
+        sta     arch_in
+        pla
+        tay
+        pla
+        tax
+@inputs:
+.endif
         jsr     arch_jiffy              ; the KERNAL's clock: one jiffy, and
         dec     arch_fifth              ; one more every fifth tick
         bpl     :+
