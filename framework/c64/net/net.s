@@ -204,16 +204,20 @@ net_start:
         bcc     :+
         ldx     #NET_PLAYERS
 :       stx     ls_np
-        lda     net_hb+HB_DELAY         ; ticks 1..delay are idle everywhere
-        ldx     #NET_PLAYERS-1
-:       sta     ls_rnlo,x
-        pha
+        lda     net_hb+HB_DELAY         ; ticks 0..delay-1 are idle everywhere:
+        sec                             ; tick delay-1 counts as received (the
+        sbc     #1                      ; first input, net_tick 0's, is for
+        sta     ls_lnew                 ; tick delay)
         lda     #0
+        sbc     #0
+        sta     ls_lnew+1
+        ldx     #NET_PLAYERS-1
+:       lda     ls_lnew
+        sta     ls_rnlo,x
+        lda     ls_lnew+1
         sta     ls_rnhi,x
-        pla
         dex
         bpl     :-
-        sta     ls_lnew
 .else
 :       ldx     #RING-1
         lda     #IDLE_INPUT
@@ -221,15 +225,25 @@ net_start:
         sta     ls_rin,x
         dex
         bpl     :-
-        lda     net_hb+HB_DELAY         ; ticks 1..delay are idle on both sides
-        sta     ls_lnew
+        lda     net_hb+HB_DELAY         ; ticks 0..delay-1 are idle on both sides:
+        sec                             ; tick delay-1 counts as received (the
+        sbc     #1                      ; first input, net_tick 0's, is for
+        sta     ls_lnew                 ; tick delay)
         sta     ls_rnew
+        lda     #0
+        sbc     #0
+        sta     ls_lnew+1
+        sta     ls_rnew+1
+        lda     net_hb+HB_PLAYERS       ; alone in the session (a table started
+        and     #15                     ; by its host alone): never wait for
+        cmp     #1                      ; the other slot, its input stays idle
+        bne     :+
+        lda     #$FF
+        sta     ls_rnew
+        sta     ls_rnew+1
+:
 .endif
         ldx     #0
-        stx     ls_lnew+1
-.if NET_PLAYERS <= 2
-        stx     ls_rnew+1
-.endif
         stx     ls_got
         stx     net_tick
         stx     net_tick+1

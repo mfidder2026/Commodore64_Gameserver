@@ -5,8 +5,44 @@
   "short": "Spy vs Spy",
   "module": "lockstep",
   "lobby": "framework",
-  "build": ["python", "tools/build.py", "disk"],
+  "build": [
+    "python",
+    "tools/build.py",
+    "disk"
+  ],
   "disk": "build/spyvsspy.d64",
-  "tests": [["python", "tools/dettest.py", "10000", "humans=1"]],
-  "readme": "README.md"
+  "tests": [
+    [
+      "python",
+      "tools/dettest.py",
+      "10000",
+      "humans=1"
+    ]
+  ],
+  "readme": "README.md",
+  "nettest": {
+    "testdisk": [
+      "python",
+      "tools/build.py",
+      "testdisk"
+    ],
+    "disk": "build/spyvsspy-test.d64",
+    "cfg": "spyvsspy.cfg",
+    "server": {
+      "id": 8,
+      "name": "Spy vs Spy",
+      "module": "lockstep",
+      "version": 1,
+      "minPlayers": 1,
+      "maxPlayers": 2,
+      "tables": true,
+      "settings": {
+        "inputDelay": 3,
+        "inputDelayWiC64": 4,
+        "inputTimeoutSeconds": 20,
+        "loadTimeoutSeconds": 150
+      }
+    },
+    "bot": "BORIS"
+  }
 }

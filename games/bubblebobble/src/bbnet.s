@@ -101,9 +101,10 @@ bb_net_start:
         sta     ls_rin,x
         dex
         bpl     :-
-        lda     bb_hb+HB_DELAY          ; ticks 1..delay are idle on both sides
-        sta     ls_lnew
-        sta     ls_rnew
+        ldx     bb_hb+HB_DELAY          ; ticks 0..delay-1 are idle on both sides:
+        dex                             ; tick delay-1 counts as received (the
+        stx     ls_lnew                 ; first input, bb_tick 0's, is for tick
+        stx     ls_rnew                 ; delay; the delay is 1-4)
         ldx     #0
         stx     ls_lnew+1
         stx     ls_rnew+1

@@ -20,7 +20,8 @@
 ; virtual frames per tick, about the original pace), the inputs come from the
 ; tick; the IRQ keeps drawing, the sound and the music (their memory is left
 ; out of the comparisons: nothing in the game logic reads it).
-; A session (a table in the lobby): the table's option is the level (0-7:
+; A session (a table in the lobby): one network step (net_step) per round,
+; white's pass and black's. The table's option is the level (0-7:
 ; level 1-8); one player at the table plays white against the computer, two
 ; play white (slot 0, the host) and black (slot 1). Q (either player) ends
 ; the session; after a game (both spies done, $6745) the result stays three
@@ -140,6 +141,11 @@ game_entry:
         .segment "P_8DDE"
         lda     spy_seed                ; was LDA $D012 / LDX #$FD / CLC / ADC $02,X /
         jmp     $8DE9                   ; DEX / BNE (the demo: a fixed seed)
+
+; --- the VIC bank set-up: CIA 2's PA2 stays an output (the WiC64's handshake line;
+; the game made all but PA0/PA1 inputs) ----------------------------------------------
+        .segment "P_8549"
+        .byte   $07                     ; was LDA #$03 / STA $DD02
 
 ; --- no restart after a while without input (that starts the demo) -------------------
         .segment "P_66E6"
@@ -263,9 +269,12 @@ spy_tick:
 .ifdef DETTEST
         jsr     dt_step
 .else
-        lda     spy_session             ; a session: this tick's inputs
-        beq     @inputs
-        jsr     net_step                ; slot 0 plays white, slot 1 black
+        lda     spy_session             ; a session: the inputs of a round (a
+        beq     @inputs                 ; spy uses its input in its own pass
+        lda     $41                     ; only): one network step per pair of
+        beq     @inputs                 ; passes, before white's ($41 = 1: the
+        jsr     net_step                ; pass after this is white's); slot 0
+                                        ; plays white, slot 1 black
         lda     net_keys
         and     #$40                    ; Q (either player): the session ends
         beq     :+
@@ -337,7 +346,7 @@ spy_halt:
         bcs     @fire
         cmp     #12
         beq     @still
-        cmp     #0
+        cmp     #3
         bne     @keep
         lda     spy_ticks
         lsr     a

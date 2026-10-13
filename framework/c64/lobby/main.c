@@ -345,7 +345,7 @@ static void start_session(void)
     memcpy(HB + HB_MYMAC, mymac, 6);
     cfg_save();
     title();
-#ifdef GAME_TABLES
+#if defined(GAME_TABLES) && !defined(SLOT0_NAME)   /* seats without names of their own */
     cprintf("You are %s %u.\r\n\r\nLoading the game...", SEAT_NAME, slot + 1);
 #else
     cprintf("You play %s.\r\n\r\nLoading the game...", slot ? SLOT1_NAME : SLOT0_NAME);
