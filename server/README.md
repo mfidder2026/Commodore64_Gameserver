@@ -103,6 +103,10 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
       "bots": ["WIZARD", "SORCERER"],
       "settings": { "inputDelay": 3, "inputDelayWiC64": 4,
                     "inputTimeoutSeconds": 20, "loadTimeoutSeconds": 150 } },
+    { "id": 8, "name": "Spy vs Spy", "module": "lockstep", "version": 1,
+      "minPlayers": 1, "maxPlayers": 2, "tables": true,
+      "settings": { "inputDelay": 3, "inputDelayWiC64": 4,
+                    "inputTimeoutSeconds": 20, "loadTimeoutSeconds": 150 } },
     { "id": 2, "name": "Relay demo", "module": "relay", "version": 1 }
   ]
 }
@@ -114,10 +118,10 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
 | `pcapInterface`, `pcapMac` | Raw Ethernet: the adapter, and the server's MAC (a locally administered address; keep the default) |
 | `logFile` | Event log on disk |
 | `games[].id`, `version` | Must match the HELLO of the game's C64 program |
-| `games[].module` | `wizardofwor`, `lockstep` (games on the framework's network code: Bubble Bobble, Exploding Fist, Pitstop II, M.U.L.E., Archon; `bubblebobble` is the same), or `relay` (any other game: forwards unchanged, no code needed) |
+| `games[].module` | `wizardofwor`, `lockstep` (games on the framework's network code: Bubble Bobble, Exploding Fist, Pitstop II, M.U.L.E., Archon, Spy vs Spy; `bubblebobble` is the same), or `relay` (any other game: forwards unchanged, no code needed) |
 | `games[].bots` | Built-in bots for this game: A-Z/0-9, at most 8 characters. They are in the lobby and accept every challenge |
 | `games[].minPlayers`, `maxPlayers` | Players per session (default 2) |
-| `games[].tables` | Tables instead of invitations (games with more than two seats, M.U.L.E.): a host opens a table, up to `maxPlayers` sit down, the host starts |
+| `games[].tables` | Tables instead of invitations (M.U.L.E., Spy vs Spy): a host opens a table, up to `maxPlayers` sit down, the host starts |
 | `games[].settings` | Settings of the module, see below |
 | `bots`, `botGame` | Older form: bots for one game. Prefer `games[].bots` |
 
@@ -127,7 +131,7 @@ Other settings, such as `idleTimeoutSeconds`, `challengeTimeoutSeconds`,
 
 ### Module settings
 
-**Bubble Bobble**, **Exploding Fist**, **Pitstop II**, **M.U.L.E.** and **Archon** (`lockstep`):
+**Bubble Bobble**, **Exploding Fist**, **Pitstop II**, **M.U.L.E.**, **Archon** and **Spy vs Spy** (`lockstep`):
 
 | Setting | Default | Meaning |
 |---|---|---|

@@ -14,11 +14,11 @@ comments, docs and commit messages.
 |---|---|---|
 | `server/` | The game server (C#/.NET 8): core, transports, game modules, bots, dashboard, tests | all games |
 | `framework/c64/lobby/` | The standard C64 lobby (cc65) with Ultimate/WiC64/RR-Net drivers; `tables.c` for games with tables (`GAME_TABLES`) | every game with `"lobby": "framework"` |
-| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby. `NET_PLAYERS = 4` for up to four players, `NET_SPLIT = 1` for four segments (cramped games), `NET_BOT_PERSON = 1` for a test bot that moves like a person | Exploding Fist, Pitstop II, M.U.L.E., Archon (Bubble Bobble still has its own copy, `src/bbnet.s`) |
+| `framework/c64/net/` | In-game network code for lockstep games: handoff, lockstep, checksums, drivers, back to the lobby. `NET_PLAYERS = 4` for up to four players, `NET_SPLIT = 1` for four segments (cramped games), `NET_BOT_PERSON = 1` for a test bot that moves like a person | Exploding Fist, Pitstop II, M.U.L.E., Archon, Spy vs Spy (Bubble Bobble still has its own copy, `src/bbnet.s`) |
 | `framework/c64/packer/` | LZ packer + self-extracting loader | games that need it |
 | `framework/tools/c64env.py` | Finds VICE and cc65 | every build/test script |
 | `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
-| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared); `waitpatch.py` generates wait loop patches for games with virtual frames | Exploding Fist, Pitstop II, M.U.L.E., Archon |
+| `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared); `waitpatch.py` generates wait loop patches for games with virtual frames; `ImageGame(local_net=False)` builds the local game without `net.s` | Exploding Fist, Pitstop II, M.U.L.E., Archon, Spy vs Spy |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
@@ -158,6 +158,21 @@ Wor) and the game still meets the standard above.
 - All our code lies in `$C000-$CFFF`, which the game never touches. Slot 0 = light (port 1), slot 1 = dark.
 - `python tools/dettest.py 10000 humans=1` (also `humans=2`, and no `humans=`: the demo);
   `python ../../framework/tools/nettest.py . 300 [--wic64|--bot]`. Two test bots rarely finish a game.
+
+### Spy vs Spy (`games/spyvsspy`)
+
+- One file on the disk; two unpackers and the cracker's mover end at `$660F`, where the snapshot is taken.
+  The cracker's line on the options screen is blanked by a patch (`P_18E9`).
+- A tick is one pass of the main loop (`$674E`, one spy per pass); `net_step` once per round. The clocks
+  (`$9362`) run in the tick (7 virtual frames per 5 passes); the IRQ keeps drawing, sound and music, whose
+  bytes the checksum and `tools/dettest.py` leave out. Anything new the IRQ writes that the game logic
+  reads breaks lockstep. A desync that dettest does not show: halt both C64s of a nettest at the
+  same tick (a temporary loop in `spy_tick`), save both RAMs with the monitor and compare them.
+- `$C000-$CFFF` holds the demo's recorded inputs: online builds use `$C000-$C983` for our code (no demo
+  there); the original game (`spyl`, `local_net=False`) keeps its demo, its entry lies in the table's
+  unused ends.
+- `python tools/dettest.py 10000 humans=1` (also `humans=2`, `level=1-8`);
+  `python ../../framework/tools/nettest.py . 300 --players 2` (`--players 1`: alone against the computer).
 
 ## Open framework work
 

@@ -79,5 +79,6 @@ The lobby shows everyone online for the game, people and bots.
 | Pitstop II OME | yes | yes | yes |
 | M.U.L.E. OME (2-4 players, tables) | yes | yes | yes |
 | Archon OME | yes | yes | yes |
+| Spy vs Spy OME (1-2 players, tables) | yes | yes | yes |
 
 > The server is for your own network (LAN). It has no encryption or passwords: do not open its ports to the internet.

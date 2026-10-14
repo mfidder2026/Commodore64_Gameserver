@@ -58,6 +58,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 | ![](games/pitstop2/docs/images/race-driver1.png) | **Pitstop II OME**<br>Split-screen Formula 1, one driver per C64, three laps. The standard lobby and the framework's network code. | 5 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/pitstop2](games/pitstop2/README.md) |
 | ![](games/mule/docs/images/tables.png) | **M.U.L.E. OME**<br>Up to four colonists on planet Irata; the computer plays the empty seats. The lobby has tables. | 6 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/mule](games/mule/README.md) |
 | ![](games/archon/docs/images/board.png) | **Archon OME**<br>The light side against the dark side: a chess-like board, every capture a real-time battle. The standard lobby. | 7 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/archon](games/archon/README.md) |
+| ![](games/spyvsspy/docs/images/split-screen.png) | **Spy vs Spy OME**<br>White against black in the embassy: traps, fights, the airport. The lobby has tables; alone, you play against the computer's spy. | 8 | Ultimate, WiC64, VICE (WiC64 or RR-Net) | [games/spyvsspy](games/spyvsspy/README.md) |
 
 All games run on the same networks. In VICE the WiC64 emulation is the
 simplest: `RELEASE/vice-wic64.bat` sets it up.
@@ -160,6 +161,23 @@ plus checked patches: the frame logic of the raster IRQ and the KERNAL's jiffy c
 virtual, so it is deterministic on PAL, NTSC and with network delays. The cracker's line on
 the title is removed; key `L` in the lobby loads the original game.
 → [Archon OME README](games/archon/README.md)
+
+### Spy vs Spy OME
+
+<p align="center">
+  <img src="games/spyvsspy/docs/images/lobby-table.png" width="32%" alt="A table in the lobby">
+  <img src="games/spyvsspy/docs/images/split-screen.png" width="32%" alt="The split screen">
+  <img src="games/spyvsspy/docs/images/same-room.png" width="32%" alt="Both spies in one room">
+</p>
+
+The classic by First Star Software (1984), after the MAD Magazine cartoon: two spies search
+an embassy for the briefcase and the secrets, set traps for each other and fight when they
+meet, on a split screen. In the lobby a host opens a table with the level (1-8); alone at
+the table the host plays against the computer's spy. The game's main loop moves one spy per
+pass and its demo recorder replays games pass by pass, so a pass became the tick; the clocks,
+which the raster IRQ counted, now run in ticks. The cracker's line is removed; key `L` in the
+lobby loads the original game.
+→ [Spy vs Spy OME README](games/spyvsspy/README.md)
 
 ## How it works
 
@@ -358,6 +376,7 @@ games/
   pitstop2/                 Pitstop II OME      (game.json, README.md, orig, src, lobby/game.h, tools, docs)
   mule/                     M.U.L.E. OME        (game.json, README.md, orig, src, lobby/game.h, tools, docs)
   archon/                   Archon OME          (game.json, README.md, orig, src, lobby/game.h, tools, docs)
+  spyvsspy/                 Spy vs Spy OME      (game.json, README.md, orig, src, lobby/game.h, tools, docs)
 ```
 
 Each game folder is self-contained and has a `game.json` (id, module, build
@@ -448,6 +467,7 @@ Some older design notes inside the game folders are in Dutch.
 | Pitstop II OME | VICE ↔ VICE over RR-Net and WiC64 and C64 ↔ bot verified, matching checksums over whole races, back to the lobby after the finish; deterministic over 6000 ticks (PAL, NTSC, delays). In VICE about 38 (RR-Net) / 23 (WiC64) ticks per second |
 | M.U.L.E. OME | 2, 3 and 4 VICEs over RR-Net and WiC64 at a table, matching checksums (four players: 660 compared in 4 minutes); deterministic with 0-4 human players (PAL, NTSC, delays), up to 50,000 ticks. In VICE about 37 ticks per second (50 on a real C64) |
 | Archon OME | VICE ↔ VICE over RR-Net (10 minutes, 334 checksums compared) and WiC64 and C64 ↔ bot verified, back to the lobby after the game; deterministic over a whole game with 0-2 human players (PAL, NTSC, delays). In VICE about 36 (RR-Net) / 33 (WiC64) ticks per second |
+| Spy vs Spy OME | VICE ↔ VICE at a table over RR-Net and WiC64 (matching checksums), alone against the computer, back to the lobby after the game; deterministic with a bot against the computer and with two bots, levels 1-8 (PAL, NTSC, delays). In VICE about 25 passes per second online (34 locally) |
 | Real C64 Ultimate / WiC64 hardware | built, **not yet tested on real hardware** |
 
 ## Credits and legal
@@ -463,6 +483,8 @@ Some older design notes inside the game folders are in Dutch.
   Roy Glover), published by Electronic Arts.
 - **Archon** © 1983 Free Fall Associates (Anne Westfall, Jon Freeman, Paul Reiche III), published by
   Electronic Arts.
+- **Spy vs Spy** © 1984 First Star Software, designed by Michael Riedel, after the cartoon by Antonio
+  Prohías (MAD Magazine).
 - [ip65](https://github.com/cc65/ip65) is used under the Mozilla Public License 1.1.
 - The WiC64 protocol follows the [wic64-library](https://github.com/WiC64-Team/wic64-library).
 - The Ultimate Command Interface follows [Gideon Zweijtzer's firmware](https://github.com/GideonZ/1541ultimate)

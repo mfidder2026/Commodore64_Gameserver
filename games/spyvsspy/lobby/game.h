@@ -39,8 +39,8 @@
    the host plays white against the computer's black spy */
 #define GAME_TABLES
 #define TABLE_SEATS       2
-#define TABLE_OPTION_NAME "Level"
-#define TABLE_OPTIONS     "1", "2", "3", "4", "5", "6", "7", "8"
+#define TABLE_OPTION_NAME "Choose"
+#define TABLE_OPTIONS     "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8"
 #define SEAT_NAME         "spy"
 
 #endif
