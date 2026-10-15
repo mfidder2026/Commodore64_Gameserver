@@ -1,0 +1,35 @@
+# The C64 Game Server in your own Docker. Run in this folder:
+#
+#   docker compose up -d --build     build the image from this folder (Dockerfile) and start it
+#   docker compose logs -f           the server's console
+#   docker compose down              stop it
+#
+# After an update of this folder: docker compose up -d --build again. The dashboard is at
+# http://<this computer>:8080/. server.json and server.log are in the volume "c64gs"
+# (docker compose exec c64gameserver cat /data/server.json).
+#
+# LAN only, no encryption: never forward these ports to the internet.
+services:
+  c64gameserver:
+    build: .
+    image: c64gameserver
+    container_name: c64gameserver
+    restart: unless-stopped
+    # Linux (a Raspberry Pi, a NAS, a PC): the host's network. The dashboard shows the right
+    # address, and VICE's RR-Net (raw Ethernet, server.json "pcapInterface") works.
+    network_mode: host
+    cap_add: [NET_RAW, NET_ADMIN]   # raw Ethernet (RR-Net) only
+    volumes:
+      - c64gs:/data
+    # Docker Desktop (Windows, macOS) has no host network on the LAN: remove "network_mode"
+    # and "cap_add" above, use these ports instead, and put the computer's LAN address
+    # below (what the dashboard shows the C64s). RR-Net (raw Ethernet) does not work there.
+    # ports:
+    #   - "6465:6465/udp"   # C64 Ultimate (UDP)
+    #   - "6466:6466/tcp"   # WiC64 (TCP)
+    #   - "8080:8080/tcp"   # dashboard
+    # environment:
+    #   - C64GS_ADDRESSES=192.168.1.10
+
+volumes:
+  c64gs:

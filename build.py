@@ -28,7 +28,7 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(REPO, "server")
 RELEASE = os.path.join(REPO, "RELEASE")
 RELEASE_FILES = os.path.join(REPO, "framework", "release")  # start scripts and README for RELEASE/
-RELEASE_RIDS = ["win-x64", "linux-arm64"]  # Windows, Raspberry Pi (64-bit OS)
+RELEASE_RIDS = ["win-x64", "linux-x64", "linux-arm64"]  # Windows, Linux PC / NAS / Docker, Raspberry Pi (64-bit OS)
 
 
 def games() -> dict[str, dict]:

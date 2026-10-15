@@ -112,7 +112,7 @@ internal sealed class Dashboard(ServerHost host, int port)
             var core = host.Core;
             var status = new
             {
-                addresses = Program.LocalAddresses().Select(a => a.ToString()).ToList(),
+                addresses = Program.Addresses().ToList(),
                 port = _gamePort,
                 uptime = (now - core.StartedAt).ToString(@"d\.hh\:mm\:ss"),
                 games = core.Games.All.Select(g => new { id = g.GameId, name = g.Name }).ToList(),

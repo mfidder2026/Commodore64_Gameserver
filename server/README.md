@@ -33,6 +33,10 @@ the IP addresses the C64s can use and the bots it started.
 - `C64GameServer other.json` uses another configuration file.
 - `C64GameServer --list-interfaces` lists the network adapters for raw Ethernet.
 
+**Docker**: `RELEASE/Dockerfile` and `RELEASE/docker-compose.yml` (from `framework/release`) build
+an image from the ready-made Linux servers in RELEASE (amd64, arm64) and run it in your own Docker:
+[docs/docker.md](../docs/docker.md).
+
 ## Transports
 
 | C64 | Transport | Setting |
@@ -116,6 +120,7 @@ netsh advfirewall firewall add rule name="C64 Game Server (TCP)" dir=in action=a
 |---|---|
 | `gamePort`, `tcpPort`, `dashboardPort` | Ports: UDP, TCP (WiC64), web dashboard |
 | `pcapInterface`, `pcapMac` | Raw Ethernet: the adapter, and the server's MAC (a locally administered address; keep the default) |
+| `addresses` | What the banner and the dashboard show as "C64s connect to" (default `[]`: the machine's own addresses). For Docker with a bridge network: the host's LAN address. The environment variable `C64GS_ADDRESSES` (comma separated) overrides it |
 | `logFile` | Event log on disk |
 | `games[].id`, `version` | Must match the HELLO of the game's C64 program |
 | `games[].module` | `wizardofwor`, `lockstep` (games on the framework's network code: Bubble Bobble, Exploding Fist, Pitstop II, M.U.L.E., Archon, Spy vs Spy; `bubblebobble` is the same), or `relay` (any other game: forwards unchanged, no code needed) |

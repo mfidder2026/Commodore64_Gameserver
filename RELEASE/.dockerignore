@@ -1,0 +1,4 @@
+# Only the Linux servers go into the image.
+*
+!server/linux-x64/C64GameServer
+!server/linux-arm64/C64GameServer

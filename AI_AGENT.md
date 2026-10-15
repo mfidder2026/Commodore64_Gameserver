@@ -20,6 +20,7 @@ comments, docs and commit messages.
 | `framework/tools/vicemon.py`, `dis6502.py`, `nettest.py` | VICE monitor helper, a 6502 disassembler, the generic end-to-end test (reads `game.json` "nettest") | game tools |
 | `framework/tools/imagebuild.py`, `determinism.py` | The "snapshot + patches" build for games without source (areas files may include others), and the determinism test (several VICEs, RAM compared); `waitpatch.py` generates wait loop patches for games with virtual frames; `ImageGame(local_net=False)` builds the local game without `net.s` | Exploding Fist, Pitstop II, M.U.L.E., Archon, Spy vs Spy |
 | `framework/release/` | Start scripts (server, VICE) and the README for `RELEASE/` | the release |
+| `framework/release/Dockerfile`, `docker-compose.yml` | The server in the user's own Docker: an image built from RELEASE's `server/linux-x64` / `linux-arm64` (no registry; [docs/docker.md](docs/docker.md)) | the release |
 | `games/<name>/` | One game: `game.json`, `README.md`, source, tools, docs | that game only |
 | `docs/` | Architecture, protocol, adding-a-game, central images | everyone |
 | `build.py` | Builds/tests the server and all games via `games/*/game.json`; `release` fills `RELEASE/` | everyone |

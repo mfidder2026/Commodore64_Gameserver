@@ -27,10 +27,11 @@ the repository (*Code → Download ZIP*) and open that folder:
 
 | | |
 |---|---|
-| `start-server.bat` / `start-server.sh` | The game server for Windows / a Raspberry Pi (no .NET installation needed) |
+| `start-server.bat` / `start-server.sh` | The game server for Windows / Linux and a Raspberry Pi (no .NET installation needed) |
 | `vice-wic64.bat` | Starts VICE with the WiC64 emulation and the game of your choice: the easiest way to play |
 | `vice-rrnet.bat` | Starts VICE with an RR-Net cartridge |
 | `games/*.d64` | The games, for VICE, a C64 Ultimate or a real disk drive |
+| `Dockerfile`, `docker-compose.yml` | The game server in your own Docker (a PC, a NAS, a Raspberry Pi): `docker compose up -d --build` in this folder, see [docs/docker.md](docs/docker.md) |
 
 ## Contents
 
@@ -224,7 +225,9 @@ Pi. The release builds need no .NET installation; from source you need the .NET 
 ## Quick start
 
 1. **Start the server**: `RELEASE/start-server.bat` (Windows) or `RELEASE/start-server.sh`
-   (Raspberry Pi). From source: `cd server` and `dotnet run --project src/C64GameServer -c Release`.
+   (Linux, Raspberry Pi), or in your own Docker: `docker compose up -d --build` in `RELEASE`
+   ([docs/docker.md](docs/docker.md)). From source: `cd server` and
+   `dotnet run --project src/C64GameServer -c Release`.
 
    It prints the IP addresses the C64s can use and writes `server.json` with
    the defaults: all games, with bots for each. The dashboard is at
@@ -290,8 +293,9 @@ loads the game once a session starts. Bubble Bobble uses it.
 
 ## The game server
 
-The server (C#, .NET 8) runs on Windows, Linux and a Raspberry Pi. One server
-hosts all games at the same time; every player is in the lobby of their own game.
+The server (C#, .NET 8) runs on Windows, Linux and a Raspberry Pi, and as a Docker
+container ([docs/docker.md](docs/docker.md)). One server hosts all games at the same time;
+every player is in the lobby of their own game.
 
 | C64 | Transport | Port |
 |---|---|---|
@@ -450,6 +454,7 @@ Read [docs/adding-a-game.md](docs/adding-a-game.md). In short:
 | [AI_AGENT.md](AI_AGENT.md) | Rules for AI agents (and humans): where things live and what applies to all games |
 | [docs/architecture.md](docs/architecture.md) | Server, framework and games: how they fit together |
 | [docs/protocol.md](docs/protocol.md) | The network protocol, platform messages and each game's messages |
+| [docs/docker.md](docs/docker.md) | The game server in your own Docker: start, settings, update |
 | [docs/adding-a-game.md](docs/adding-a-game.md) | Step by step: a new OME game |
 | [server/README.md](server/README.md) | Running and configuring the server |
 | [framework/c64/lobby/README.md](framework/c64/lobby/README.md) | The standard lobby |

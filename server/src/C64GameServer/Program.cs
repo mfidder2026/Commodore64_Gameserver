@@ -77,6 +77,10 @@ internal static class Program
         }
         string configPath = args.Length > 0 ? args[0] : "server.json";
         var config = ServerConfig.Load(configPath);
+        var env = Environment.GetEnvironmentVariable("C64GS_ADDRESSES");
+        _announced = !string.IsNullOrWhiteSpace(env)
+            ? env.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+            : config.Addresses;
         var log = new EventLog(config.LogFile, console: true);
         GameRegistry games;
         try { games = GameRegistry.FromConfig(config); }
@@ -170,7 +174,7 @@ internal static class Program
         Console.WriteLine(" C64 Game Server - LAN only, no encryption: do NOT expose it to the internet");
         Console.WriteLine("==============================================================");
         Console.WriteLine($" C64s connect to UDP port {config.GamePort} on:");
-        foreach (var ip in LocalAddresses())
+        foreach (var ip in Addresses())
             Console.WriteLine($"     {ip}");
         if (config.TcpPort > 0)
             Console.WriteLine($" WiC64 (TCP) on port {config.TcpPort}");
@@ -183,6 +187,12 @@ internal static class Program
         Console.WriteLine(" Ctrl+C stops the server.");
         Console.WriteLine();
     }
+
+    private static List<string> _announced = [];
+
+    /// <summary>"C64s connect to": server.json "addresses" (or C64GS_ADDRESSES), else the machine's own.</summary>
+    public static IEnumerable<string> Addresses() =>
+        _announced.Count > 0 ? _announced : LocalAddresses().Select(a => a.ToString());
 
     public static IEnumerable<IPAddress> LocalAddresses() =>
         NetworkInterface.GetAllNetworkInterfaces()

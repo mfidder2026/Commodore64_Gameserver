@@ -4,3 +4,7 @@
 *.sh  text eol=lf
 *.d64 binary
 *.prg binary
+# Files for Linux and Docker keep LF line endings, also in a Windows checkout
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+.dockerignore text eol=lf

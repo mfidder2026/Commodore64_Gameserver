@@ -7,20 +7,24 @@ information is in the [main README](../README.md).
 | File | What |
 |---|---|
 | `start-server.bat` | Starts the game server (Windows) |
-| `start-server.sh` | Starts the game server (Raspberry Pi, 64-bit OS) |
+| `start-server.sh` | Starts the game server (Linux or a Raspberry Pi, 64-bit OS) |
+| `Dockerfile`, `docker-compose.yml` | The game server in your own Docker: `docker compose up -d --build` |
 | `vice-wic64.bat` | Starts VICE with the **WiC64** emulation and a game |
 | `vice-rrnet.bat` | Starts VICE with an **RR-Net** cartridge and a game |
 | `games/wizardofwor.d64` | Wizard of Wor OME |
 | `games/bubblebobble.d64` | Bubble Bobble OME |
 | `games/explodingfist.d64` | The Way of the Exploding Fist OME |
 | `server/win-x64/` | The server for Windows (no .NET installation needed) |
-| `server/linux-arm64/` | The server for a Raspberry Pi with a 64-bit OS |
+| `server/linux-x64/` | The server for Linux on a PC (also used by the Dockerfile) |
+| `server/linux-arm64/` | The server for a Raspberry Pi with a 64-bit OS (also used by the Dockerfile) |
 | `VERSION.txt` | When and from which commit this folder was made |
 
 ## 1. Start the server
 
 On one computer in your network, run `start-server.bat` (Windows) or
-`./start-server.sh` (Raspberry Pi).
+`./start-server.sh` (Linux, Raspberry Pi). In your own Docker (a PC, a NAS, a Raspberry Pi):
+`docker compose up -d --build` in this folder (`Dockerfile`, `docker-compose.yml`; the
+repository's docs/docker.md tells more).
 
 - The server shows the IP addresses the C64s can use, for example `192.168.1.10`.
 - The dashboard is at http://localhost:8080/. It has a tab for every game.

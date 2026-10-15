@@ -50,6 +50,13 @@ public sealed class ServerConfig
     /// <summary>The server's own MAC address on the raw Ethernet side (locally administered).</summary>
     public string PcapMac { get; set; } = "02:BB:4C:41:4E:01";
 
+    /// <summary>
+    /// The addresses the banner and the dashboard show as "C64s connect to"; empty = the machine's own.
+    /// Set it when the server cannot see the address the C64s use, e.g. in Docker with a bridge
+    /// network (the environment variable C64GS_ADDRESSES, comma separated, overrides it).
+    /// </summary>
+    public List<string> Addresses { get; set; } = [];
+
     public List<GameConfig> Games { get; set; } =
     [
         new GameConfig { Id = 1, Name = "Wizard of Wor", Module = "wizardofwor", Version = 1,
