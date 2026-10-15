@@ -5,8 +5,8 @@
 .define NET_LOBBY "SPYVSSPY"            ; the lobby's file name on the disk
 NET_WIC_SEND_EVERY = 2
 NET_BOT_PERSON = 1                      ; the test bot moves like a person
-NET_TAIL = $C400                        ; net_end's last part: the copy of low
-                                        ; memory, not needed after the start
+NET_TAIL = $C984                        ; net_end's last part: the copy of
+                                        ; $0200-$03FF, not needed after the start
 
 ; The state checksum (every 64 ticks): the game's variables in the zero page
 ; and at $0200-$02FF, and the rooms' objects ($EA00), without what the IRQ

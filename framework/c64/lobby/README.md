@@ -133,6 +133,9 @@ name=ALICE
 server=192.168.1.10
 mac=021111111101
 auto=i       tests: i = invite the first free person, b = invite the first free bot, a = accept
+             (games with tables: i opens a table, a sits down)
+seats=n      tests, games with tables: auto=i starts its table when n players sit there
+option=n     tests, games with tables: auto=i opens its table with option n
 bot=1        tests: the game's test bot plays instead of the joystick
 ```
 

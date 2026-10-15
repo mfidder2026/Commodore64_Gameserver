@@ -131,7 +131,7 @@ static void table_lobby(void)
 {
     enum { CONNECTING, LOBBY, CHOOSING, OPENING, JOINING, AT_TABLE, LEAVING, STARTING } st = CONNECTING;
     clock_t last_send = 0, last_heard = now();
-    unsigned char redraw = 1, key, joy, lastjoy = 0, option = 0, target = 0;
+    unsigned char redraw = 1, key, joy, lastjoy = 0, option = auto_option < NOPTIONS ? auto_option : 0, target = 0;
 
     title();
     if (last_reason) {

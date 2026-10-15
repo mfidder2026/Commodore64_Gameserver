@@ -2,7 +2,7 @@
 """
 Determinism test for Spy vs Spy OME (framework/tools/determinism.py does the work).
 
-    python tools/dettest.py [ticks] [humans=1|2] [level=1-8]
+    python tools/dettest.py [ticks] [humans=1|2] [level=1-8] [private=0|1]
 
 The test build (DETTEST) runs the game with ticks (src/main.s): one pass of the
 main loop per tick, the clocks in ticks. humans=1: a bot as white against
@@ -36,6 +36,7 @@ if __name__ == "__main__":
     ticks = int(next((a for a in sys.argv[1:] if a.isdigit()), 5000))
     humans = next((a.split("=")[1] for a in sys.argv[1:] if a.startswith("humans=")), None)
     level = next((a.split("=")[1] for a in sys.argv[1:] if a.startswith("level=")), None)
-    defines = ["DETTEST"] + ([f"HUMANS={humans}"] if humans else []) + ([f"LEVEL={level}"] if level else [])
+    defines = ["DETTEST"] + ([f"HUMANS={humans}"] if humans else []) + ([f"LEVEL={level}"] if level else []) \
+        + [f"PRIVATE={a.split('=')[1]}" for a in sys.argv[1:] if a.startswith("private=")]
     ok = determinism.main(build.GAME, ticks, "spy_halt", defines, RUNS, IGNORE)
     sys.exit(0 if ok else 1)

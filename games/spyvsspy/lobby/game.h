@@ -40,7 +40,11 @@
 #define GAME_TABLES
 #define TABLE_SEATS       2
 #define TABLE_OPTION_NAME "Choose"
-#define TABLE_OPTIONS     "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8"
+#define TABLE_OPTIONS     "Level 1", "Level 2", "Level 3", "Level 4", \
+                          "Level 5", "Level 6", "Level 7", "Level 8", \
+                          "Level 1, private", "Level 2, private", "Level 3, private", \
+                          "Level 4, private", "Level 5, private", "Level 6, private", \
+                          "Level 7, private", "Level 8, private"
 #define SEAT_NAME         "spy"
 
 #endif

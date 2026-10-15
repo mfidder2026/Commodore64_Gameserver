@@ -21,19 +21,24 @@
 ; tick; the IRQ keeps drawing, the sound and the music (their memory is left
 ; out of the comparisons: nothing in the game logic reads it).
 ; A session (a table in the lobby): one network step (net_step) per round,
-; white's pass and black's. The table's option is the level (0-7:
-; level 1-8); one player at the table plays white against the computer, two
+; white's pass and black's. The table's option: bits 0-2 the level (0-7:
+; level 1-8), bit 3 "own screen" (the other spy's half is black while the
+; spies are in different rooms: you do not see where the other one goes or
+; what traps it sets; in one room both see it). One player at the table
+; plays white against the computer, two
 ; play white (slot 0, the host) and black (slot 1). Q (either player) ends
 ; the session; after a game (both spies done, $6745) the result stays three
 ; seconds, then back to the lobby.
 ; DETTEST: HUMANS=1 (a bot as white against the computer) or 2 (two bots,
-; the default), LEVEL=1-8 (default 1); HALT_AT=n stops before tick n
+; the default), LEVEL=1-8 (default 1), PRIVATE=0/1 (own screen: white's,
+; black's);
+; HALT_AT=n stops before tick n
 ; (tools/dettest.py); JITTER waits 0-3 frames more per tick. (No demo: its
 ; recorded inputs, $C000-$CFFF, hold our code in these builds.)
 ; =============================================================================
 
         .import net_hb, net_start, net_step, net_idle, net_end, net_in0, net_in1, net_keys
-        .importzp HB_SEED, HB_PLAYERS, END_GAMEOVER, END_QUIT
+        .importzp HB_SEED, HB_PLAYERS, HB_SLOT, END_GAMEOVER, END_QUIT
         .export game_entry
 
 GAME_START = $660F      ; the game's own start
@@ -142,6 +147,15 @@ game_entry:
         lda     spy_seed                ; was LDA $D012 / LDX #$FD / CLC / ADC $02,X /
         jmp     $8DE9                   ; DEX / BNE (the demo: a fixed seed)
 
+; --- own screen (the other half black): the IRQ's start of a half, and its end ----------
+        .segment "P_8FC7"
+        jsr     spy_irqhalf             ; was LDA $0255,X / STA $D021: the half's
+        nop                             ; background colour
+        nop
+        nop
+        .segment "P_91B6"
+        jmp     spy_irqend              ; was PLA / TAY / PLA / TAX / PLA / RTI
+
 ; --- the VIC bank set-up: CIA 2's PA2 stays an output (the WiC64's handshake line;
 ; the game made all but PA0/PA1 inputs) ----------------------------------------------
         .segment "P_8549"
@@ -171,6 +185,8 @@ spy_session:    .byte   0               ; 1: a session
 spy_players:    .byte   2               ; human players: 1 (white) or 2
 spy_level:      .byte   1               ; the level, 1-8
 spy_wait:       .word   0
+spy_hide:       .byte   $FF             ; own screen: our half (0 white, 1 black);
+                                        ; $FF: the split screen as the original
 
 ; --- the start (from game_entry): the session's settings -------------------------------
 spy_start:
@@ -180,11 +196,17 @@ spy_start:
         sta     spy_ticks+1
         sta     spy_vf
         sta     spy_session
+        lda     #$FF                    ; the split screen
+        sta     spy_hide
 .ifdef DETTEST
         lda     #HUMANS
         sta     spy_players
         lda     #LEVEL
         sta     spy_level
+.ifdef PRIVATE
+        lda     #PRIVATE                ; own screen: 0 white's, 1 black's
+        sta     spy_hide
+.endif
 .else
         jsr     net_start               ; C=1: no handoff (not from the lobby)
         bcs     @done
@@ -193,15 +215,22 @@ spy_start:
         bne     :+
         lda     #$5A
 :       sta     spy_seed
-        lda     net_hb+HB_PLAYERS       ; the table's option: the level (0-7)
+        lda     net_hb+HB_PLAYERS       ; the table's option: bits 0-2 the
+        lsr     a                       ; level (0-7), bit 3 own screen
         lsr     a
         lsr     a
         lsr     a
-        lsr     a
+        pha
         and     #7
         clc
         adc     #1
         sta     spy_level
+        pla
+        and     #8
+        beq     :+
+        lda     net_hb+HB_SLOT          ; own screen: our half is our slot's
+        sta     spy_hide
+:
         lda     net_hb+HB_PLAYERS       ; the players at the table (0: an old
         and     #15                     ; lobby, two)
         cmp     #1
@@ -215,6 +244,56 @@ spy_start:
 ; --- the IRQ, once per screen half: count the frames (both halves: 2 per frame) -------
 spy_frame:
         inc     spy_due
+        rts
+
+; --- own screen: the IRQ starts the half X ($35) ----------------------------------------
+; The other spy's half is shown in an invalid mode (ECM + bitmap: black) and
+; without sprites while the spies are in different rooms ($F8 negative) and
+; both still play (both clocks run: $025D/$025E); in one room ($F8: the half that shows
+; it) nothing is hidden. Only the display
+; changes. spy_irqhalf runs right at the split (the mode), spy_irqend after
+; the IRQ's sprite work (the sprites).
+spy_irqhalf:
+        lda     $0255,x                 ; what the patch replaced: the colour
+        sta     $D021
+        jsr     spy_hidden
+        lda     $D011
+        bcc     :+
+        ora     #$40                    ; the other spy's half: black
+        and     #$7F
+        sta     $D011
+        rts
+:       and     #$3F                    ; as the game set it (bitmap mode)
+        sta     $D011
+        rts
+
+spy_irqend:
+        jsr     spy_hidden
+        bcc     :+
+        lda     #0                      ; the other spy's half: no sprites
+        sta     $D015
+:       pla
+        tay
+        pla
+        tax
+        pla
+        rti
+
+spy_hidden:                             ; C=1: the half $35 is hidden
+        lda     spy_hide
+        bmi     @no
+        lda     $025D                   ; a spy's clock stopped (it escaped,
+        beq     @no                     ; or its time is up: its result shows):
+        lda     $025E                   ; nothing is hidden any more
+        beq     @no
+        lda     $F8
+        bpl     @no
+        lda     $35
+        cmp     spy_hide
+        beq     @no
+        sec
+        rts
+@no:    clc
         rts
 
 ; --- the options of a game (instead of the options screen) -----------------------------

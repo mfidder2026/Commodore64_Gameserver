@@ -8,5 +8,7 @@
  {"start": "674E", "end": "6751", "what": "LDA $41 / STA $42 (a pass of the main loop) -> JSR spy_tick"},
  {"start": "8DDE", "end": "8DE8", "what": "the random seed: LDA $D012 plus the sum of $03-$FF -> spy_seed"},
  {"start": "8FD6", "end": "8FD8", "what": "the IRQ before a game: JSR $94A1 (joysticks, keys) -> spy_frame"},
- {"start": "91A2", "end": "91A7", "what": "the IRQ: JSR $9362 (the clocks) and JSR $94A1 (joysticks, keys) -> the tick's"}
+ {"start": "91A2", "end": "91A7", "what": "the IRQ: JSR $9362 (the clocks) and JSR $94A1 (joysticks, keys) -> the tick's"},
+ {"start": "91B6", "end": "91B8", "what": "the IRQ's exit (PLA / TAY / PLA / TAX / PLA / RTI) -> JMP spy_irqend (own screen)"},
+ {"start": "8FC7", "end": "8FCC", "what": "the IRQ: LDA $0255,X / STA $D021 (a half's colour) -> JSR spy_irqhalf (own screen)"}
 ]

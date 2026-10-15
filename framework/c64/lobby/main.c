@@ -22,6 +22,7 @@
  *   auto=...   tests: "invite" (a person), "bot" (invite a bot) or "accept"
  *              (games with tables: "invite" opens a table, "accept" sits down)
  *   seats=n    tests, games with tables: "invite" starts with n players
+ *   option=n   tests, games with tables: "invite" opens its table with option n
  *   bot=1      tests: a bot plays instead of the joystick (test game files)
  */
 #include <stdio.h>
@@ -85,6 +86,7 @@ static unsigned char auto_mode;          /* 0, 'i'nvite, 'a'ccept */
 static unsigned char bot;
 #ifdef GAME_TABLES
 static unsigned char auto_seats = 2;     /* config "seats": auto=i starts its table with this many */
+static unsigned char auto_option;        /* config "option": the option of that table */
 #endif
 static unsigned char cfg_dirty;
 
@@ -206,6 +208,7 @@ static void cfg_load(void)
         else if (!strcmp(line, "bot")) bot = v[0] == '1';
 #ifdef GAME_TABLES
         else if (!strcmp(line, "seats")) auto_seats = v[0] - '0';
+        else if (!strcmp(line, "option")) auto_option = (unsigned char)atoi(v);
 #endif
     }
     fclose(f);

@@ -5,7 +5,7 @@ server plus two VICEs (or one against a server bot), each with its own copy of
 the game's test disk.
 
     python framework/tools/nettest.py <game folder> [seconds] [--no-build] [--wic64] [--bot]
-        [--players N] [--iface NAME]
+        [--players N] [--option N] [--iface NAME]
 
 The game's game.json has a "nettest" section:
     "nettest": {"testdisk": [build command], "disk": "build/x-test.d64", "cfg": "x.cfg",
@@ -14,7 +14,8 @@ The game's game.json has a "nettest" section:
 Player A ("ALICE") invites, player B ("BOB") accepts; the test disk's bot plays
 on both C64s (cfg bot=1). --bot: only ALICE, who invites the server's bot.
 --players N (2-4, games with tables): ALICE opens a table, BOB, CARL and DORA
-sit down, and ALICE starts it when N players sit there (cfg seats=N).
+sit down, and ALICE starts it when N players sit there (cfg seats=N); --option N:
+the table's option (cfg option=N, e.g. the level).
 --wic64: VICE's WiC64 emulation (TCP to 127.0.0.1:6466) instead of RR-Net
 (raw Ethernet through the server's pcap interface: $NPCAP_IF or --iface).
 Progress comes from the server's dashboard API; screenshots go to
@@ -89,7 +90,7 @@ def main() -> None:
             shutil.copy(os.path.join(game_dir, nt["disk"]), disk)
             cfg = os.path.join(build_dir, f"net_{tag}.cfg")
             with open(cfg, "wb") as f:  # PETSCII upper case = ASCII upper case
-                f.write(f"NAME={nick}\rMAC={mac}\rAUTO={'B' if vs_bot else auto}\rBOT=1\rSEATS={count}\r".encode()
+                f.write(f"NAME={nick}\rMAC={mac}\rAUTO={'B' if vs_bot else auto}\rBOT=1\rSEATS={count}\rOPTION={arg('--option', '0')}\r".encode()
                         + (b"SERVER=127.0.0.1\r" if wic else b""))
             subprocess.run([c1541, "-attach", disk, "-write", cfg, nt["cfg"] + ",s"], check=True,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

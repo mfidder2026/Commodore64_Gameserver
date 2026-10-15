@@ -442,8 +442,9 @@ sends every other tick, with an input delay of 4.
 
 ## Game: Spy vs Spy (id `$08`, version `$01`, module `lockstep`, tables)
 
-The framework's network code with tables of two seats: the table's option is the level
-(0-7: level 1-8). Slot 0 (the host) plays the white spy, slot 1 the black spy; a host
+The framework's network code with tables of two seats: the table's option (0-15) is the
+level in bits 0-2 (0-7: level 1-8) and the private screen in bit 3 (each C64 shows only its
+own spy while the spies are in different rooms; only the picture changes). Slot 0 (the host) plays the white spy, slot 1 the black spy; a host
 alone at the table plays white against the computer's spy (a session of one player).
 One tick is one round of the game's main loop (white's pass and black's). Input byte bit 6
 (Q) ends the game for both. The default input delay is 3; a WiC64 sends every other tick,
