@@ -305,11 +305,11 @@ A live web page on port 8080. Each game has **its own tab** with its players, se
 challenges and events. A new game in `server.json` gets a new tab by itself.
 The **All games** tab shows everything. You can kick players and end sessions.
 
-![Dashboard, Bubble Bobble tab](docs/images/dashboard-bb.png)
+![Dashboard, all games](docs/images/dashboard-all.png)
 
-| All games | Wizard of Wor tab |
+| Spy vs Spy tab (a table, private) | Bubble Bobble tab |
 |---|---|
-| ![](docs/images/dashboard-all.png) | ![](docs/images/dashboard-wow.png) |
+| ![](docs/images/dashboard-spyvsspy.png) | ![](docs/images/dashboard-bb.png) |
 
 ### server.json
 

@@ -158,7 +158,7 @@ Other settings, such as `idleTimeoutSeconds`, `challengeTimeoutSeconds`,
 - **kick** a player, **end** a session;
 - `/api/status` gives the same as JSON. `/?static` shows one snapshot without live updates, for screenshots.
 
-![Dashboard](../docs/images/dashboard-bb.png)
+![Dashboard](../docs/images/dashboard-all.png)
 
 ## The test bot
 
