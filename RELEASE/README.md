@@ -14,6 +14,10 @@ information is in the [main README](../README.md).
 | `games/wizardofwor.d64` | Wizard of Wor OME |
 | `games/bubblebobble.d64` | Bubble Bobble OME |
 | `games/explodingfist.d64` | The Way of the Exploding Fist OME |
+| `games/pitstop2.d64` | Pitstop II OME |
+| `games/mule.d64` | M.U.L.E. OME (2-4 players) |
+| `games/archon.d64` | Archon OME |
+| `games/spyvsspy.d64` | Spy vs Spy OME |
 | `server/win-x64/` | The server for Windows (no .NET installation needed) |
 | `server/linux-x64/` | The server for Linux on a PC (also used by the Dockerfile) |
 | `server/linux-arm64/` | The server for a Raspberry Pi with a 64-bit OS (also used by the Dockerfile) |
@@ -86,3 +90,11 @@ The lobby shows everyone online for the game, people and bots.
 | Spy vs Spy OME (1-2 players, tables) | yes | yes | yes |
 
 > The server is for your own network (LAN). It has no encryption or passwords: do not open its ports to the internet.
+
+## Free fan versions
+
+The games here are **free, non-commercial fan versions** of classic C64 games, made so that they can be
+played over the network. They are not affiliated with or endorsed by the makers or current rights holders
+of the original games; the original games, their names and their artwork belong to those rights holders.
+Nothing here may be sold. If you are a rights holder and want something taken offline, open an issue in
+the repository and it will be removed.
