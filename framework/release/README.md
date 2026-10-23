@@ -21,6 +21,7 @@ information is in the [main README](../README.md).
 | `server/win-x64/` | The server for Windows (no .NET installation needed) |
 | `server/linux-x64/` | The server for Linux on a PC (also used by the Dockerfile) |
 | `server/linux-arm64/` | The server for a Raspberry Pi with a 64-bit OS (also used by the Dockerfile) |
+| `tools/linktest.d64` | The C64 Ultimate link test: two C64s directly, without the server |
 | `VERSION.txt` | When and from which commit this folder was made |
 
 ## 1. Start the server

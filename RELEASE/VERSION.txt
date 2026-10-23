@@ -1,4 +1,4 @@
-C64 Game Server release, 2026-10-15 (based on commit 40d9445)
+C64 Game Server release, 2026-10-23 (based on commit 09d3548)
   games/archon.d64  Archon OME (game id 7)
   games/bubblebobble.d64  Bubble Bobble OME (game id 3)
   games/explodingfist.d64  Exploding Fist OME (game id 4)
@@ -7,4 +7,5 @@ C64 Game Server release, 2026-10-15 (based on commit 40d9445)
   games/pitstop2.d64  Pitstop II OME (game id 5)
   games/spyvsspy.d64  Spy vs Spy OME (game id 8)
   games/wizardofwor.d64  Wizard of Wor OME (game id 1)
+  tools/linktest.d64  C64 Ultimate link test: two C64s, directly
   server/: win-x64, linux-x64, linux-arm64

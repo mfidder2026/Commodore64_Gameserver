@@ -28,6 +28,7 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(REPO, "server")
 RELEASE = os.path.join(REPO, "RELEASE")
 RELEASE_FILES = os.path.join(REPO, "framework", "release")  # start scripts and README for RELEASE/
+LINKTEST = os.path.join(REPO, "framework", "c64", "linktest")  # RELEASE/tools/linktest.d64
 RELEASE_RIDS = ["win-x64", "linux-x64", "linux-arm64"]  # Windows, Linux PC / NAS / Docker, Raspberry Pi (64-bit OS)
 
 
@@ -69,9 +70,12 @@ def release(all_games: dict[str, dict]) -> None:
     server()
     for name, g in all_games.items():
         build(g)
-    for sub in ("games", "server"):
+    run(["python", "build.py"], LINKTEST)  # the C64 Ultimate link test
+    for sub in ("games", "server", "tools"):
         shutil.rmtree(os.path.join(RELEASE, sub), ignore_errors=True)
     os.makedirs(os.path.join(RELEASE, "games"), exist_ok=True)  # (OneDrive may keep the folder a moment)
+    os.makedirs(os.path.join(RELEASE, "tools"), exist_ok=True)
+    shutil.copy(os.path.join(LINKTEST, "build", "linktest.d64"), os.path.join(RELEASE, "tools", "linktest.d64"))
     for name, g in all_games.items():
         shutil.copy(os.path.join(g["folder"], g["disk"]), os.path.join(RELEASE, "games", name + ".d64"))
         for target, source in g.get("extra_disks", {}).items():  # e.g. the original game on its own disk
@@ -98,6 +102,7 @@ def release(all_games: dict[str, dict]) -> None:
             f.write(f"  games/{name}.d64  {g['name']} OME (game id {g['id']})\n")
             for target in g.get("extra_disks", {}):
                 f.write(f"  games/{target}  {g['name']}: the original game\n")
+        f.write("  tools/linktest.d64  C64 Ultimate link test: two C64s, directly\n")
         f.write("  server/: " + ", ".join(RELEASE_RIDS) + "\n")
     print(f"\nRELEASE/ is ready ({os.path.relpath(RELEASE, REPO)})")
 

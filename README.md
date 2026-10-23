@@ -31,6 +31,7 @@ the repository (*Code → Download ZIP*) and open that folder:
 | `vice-wic64.bat` | Starts VICE with the WiC64 emulation and the game of your choice: the easiest way to play |
 | `vice-rrnet.bat` | Starts VICE with an RR-Net cartridge |
 | `games/*.d64` | The games, for VICE, a C64 Ultimate or a real disk drive |
+| `tools/linktest.d64` | The C64 Ultimate link test: two Ultimates (or two VICEs) find each other and measure their direct link ([framework/c64/linktest](framework/c64/linktest/README.md)) |
 | `Dockerfile`, `docker-compose.yml` | The game server in your own Docker (a PC, a NAS, a Raspberry Pi): `docker compose up -d --build` in this folder, see [docs/docker.md](docs/docker.md) |
 
 ## Contents
@@ -373,6 +374,7 @@ framework/                shared by all games
   c64/lobby/                the standard lobby (cc65): Ultimate, WiC64, RR-Net drivers
   c64/net/                  in-game network code for lockstep games (Ultimate, WiC64, RR-Net)
   c64/packer/               LZ packer with a self-extracting loader
+  c64/linktest/             the C64 Ultimate link test: two C64s directly (RELEASE/tools/linktest.d64)
   tools/c64env.py           finds VICE and cc65 for every build and test script
   release/                  start scripts and README for RELEASE/
 games/
