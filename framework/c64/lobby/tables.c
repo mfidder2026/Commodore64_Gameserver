@@ -141,7 +141,7 @@ static void table_lobby(void)
         textcolor(COLOR_WHITE);
         last_reason = 0;
     }
-    status("Connecting to the server...   F1: setup");
+    status("Connecting to the server...   F1: menu");
     for (;;) {
         /* --- network */
         while (rx()) {
@@ -151,7 +151,7 @@ static void table_lobby(void)
                 myid = msg[2];
                 if (st == CONNECTING) {
                     st = LOBBY; redraw = 1; cfg_save();
-                    status("FIRE: sit down  N: new table  F1: setup");
+                    status("FIRE: sit down  N: new table  F1: menu");
                 }
                 break;
             case M_REJECT:
@@ -159,7 +159,7 @@ static void table_lobby(void)
                 sleep(3);
                 return;
             case M_PLAYERS:
-                if (st == CONNECTING) { st = LOBBY; status("FIRE: sit down  N: new table  F1: setup"); }
+                if (st == CONNECTING) { st = LOBBY; status("FIRE: sit down  N: new table  F1: menu"); }
                 total_players = msg[1];
                 if (st == LOBBY) redraw = 1;
                 break;
@@ -172,7 +172,7 @@ static void table_lobby(void)
                 if (my_seat == 0xFF) {                  /* at no table (left, closed, full) */
                     if (st == AT_TABLE || st == OPENING || st == JOINING || st == LEAVING) {
                         status(st == JOINING ? "That table is full or closed."
-                               : st == AT_TABLE ? "The host closed the table." : "FIRE: sit down  N: new table  F1: setup");
+                               : st == AT_TABLE ? "The host closed the table." : "FIRE: sit down  N: new table  F1: menu");
                         st = LOBBY; title(); redraw = 1;
                     }
                 } else if (st != STARTING) {
@@ -265,7 +265,7 @@ static void table_lobby(void)
             if (key == CH_CURS_LEFT || key == CH_CURS_UP) option = option ? option - 1 : NOPTIONS - 1;
             if (key == CH_CURS_RIGHT || key == CH_CURS_DOWN || key == CH_F3) option = (option + 1) % NOPTIONS;
             if (key == CH_ENTER || key == ' ') { st = OPENING; last_send = 0; status("Opening a table..."); continue; }
-            if (key == 'n' || key == CH_F1) { st = LOBBY; status("FIRE: sit down  N: new table  F1: setup"); continue; }
+            if (key == 'n' || key == CH_F1) { st = LOBBY; status("FIRE: sit down  N: new table  F1: menu"); continue; }
             gotoxy(0, 23);
             cclearxy(0, 23, 40);
             gotoxy(0, 23);

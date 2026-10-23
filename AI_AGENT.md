@@ -57,16 +57,17 @@ comments, docs and commit messages.
 
 Every OME game gives the player the same experience as Wizard of Wor:
 
-1. **Start**: the first start asks for the name and, for the Ultimate and the WiC64,
-   the server's IP. These are saved on the disk; later starts go straight to the lobby.
-   The player can enter any server's IP, so they can also play on someone else's server.
+1. **Start**: a menu (standard lobby): local game, head-to-head, online via a game server,
+   change name, change server. The name and (Ultimate, WiC64) the server's IP are asked when
+   first needed and saved on the disk; once a server is set, later starts go straight to the
+   lobby. The player can enter any server's IP, so they can also play on someone else's server.
 2. **Lobby**: a list of everyone online *for this game*, with **PERSON**/**BOT** and
    **FREE**/**BUSY**/**PLAYING** (from the PLAYERS message).
 3. **Choose**: joystick/cursor up-down selects, **FIRE**/RETURN invites. The player can
    choose a person or a bot.
 4. **Invited**: the bottom line shows the inviter; **FIRE** (or Y) plays, **N** declines.
 5. **After a game**, or when the opponent disappears: back to the lobby.
-6. **F1** in the lobby opens the setup (name, server); from there the player connects again.
+6. **F1** in the lobby goes back to the start menu; from there the player connects again.
 
 New games use `framework/c64/lobby` with a `games/<name>/lobby/game.h`. They do not
 get their own lobby unless the lobby has to live inside the game (as in Wizard of

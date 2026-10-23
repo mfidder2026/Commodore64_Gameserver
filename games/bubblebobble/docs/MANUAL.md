@@ -152,7 +152,8 @@ The C64s find the server by a broadcast; no IP addresses are involved.
    - Save the settings, so they are kept after a restart.
 2. Connect the Ultimate to the network (LAN or Wi-Fi) and check that it has an IP address (*Network settings*).
 3. Copy `bblan.d64` to the USB stick or SD card. Mount it on drive A (8) and run `BBLAN` (`LOAD"BBLAN",8` + `RUN`).
-4. The first start asks for your name and the server's IP address.
+4. Choose `RETURN` (online) in the menu; it asks for your name and the server's IP address.
+   Two Ultimates whose firmware has `$0A` can also play head-to-head without a server: `H` (see the README).
 
 The menu then shows `Network: Ultimate, IP ...`.
 
@@ -163,7 +164,7 @@ The Ultimate's emulated 1541 loads the 46 KB game at normal 1541 speed (about a 
 1. The WiC64 needs **firmware 2.0 or newer**. Update via the WiC64 portal if needed.
 2. Connect it to your Wi-Fi with the WiC64's own setup program.
 3. Load `BBLAN` from a disk drive, SD2IEC or similar.
-4. The first start asks for your name and the server's IP address. The WiC64 connects to the server's TCP port (6466).
+4. Choose `RETURN` (online) in the menu; it asks for your name and the server's IP address. The WiC64 connects to the server's TCP port (6466).
 
 The menu shows `Network: WiC64, IP ...`.
 
@@ -202,23 +203,25 @@ Two VICEs and the server on one PC work fine this way. Each VICE needs its own c
 
 ## 6. The lobby
 
-The first time, the lobby asks for your name and (Ultimate, WiC64) the server's address:
+![The menu](images/lobby-menu.png)
+
+The lobby starts with a menu. It shows the network hardware that was found and your name:
+
+- `L` starts a local game for two players on one C64 (two joysticks), as in the original.
+- `H` plays head-to-head with a second C64 on the same network, without a server (C64 Ultimate
+  with `$0A` firmware, VICE with RR-Net): one hosts, the other searches.
+- `RETURN` plays online, via a game server: the lobby below.
+- `N` changes your name, `S` the game server (Ultimate, WiC64).
+
+The name and the server's address are asked the first time they are needed:
 
 - Names are 1-8 characters: letters and digits.
 - The server can be any game server you can reach, also someone else's.
 - `RETURN` on an empty line keeps the old value.
 
-They are saved in `BBLAN.CFG`. From then on the lobby connects to the server by
-itself when it starts, and after every game.
-
-![The setup screen](images/lobby-menu.png)
-
-`F1` in the lobby (or while connecting) opens the **setup** screen. It shows the
-network hardware that was found, your name and the server:
-
-- `RETURN` connects to the server ("play online").
-- `L` starts a local game for two players on one C64 (two joysticks), as in the original.
-- `S` changes the name and the server.
+They are saved in `BBLAN.CFG`. Once a server is set, the lobby connects to it by
+itself when it starts, and after every game. `F1` in the lobby (or while
+connecting) goes back to the menu.
 
 ![The players on the server](images/lobby-players.png)
 

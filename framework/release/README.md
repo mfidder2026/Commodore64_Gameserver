@@ -46,8 +46,9 @@ To play on someone else's server, skip this step and use their IP address.
 2. Double-click **`vice-wic64.bat`** and choose a game.
    - The first time it asks where `x64sc.exe` is, if it cannot find it. The answer goes into `vice-path.txt`.
    - It plays from your own copy of the disk in `my-disks\`, which keeps your name and the server address.
-3. The game asks for your name and the server's IP address. On the PC that runs the server, use `127.0.0.1`.
-   In Wizard of Wor, first choose **4 PLAY VIA A GAME SERVER** in its menu.
+3. Choose **RETURN** (online, via a game server) in the game's menu; it asks for your name and the
+   server's IP address. On the PC that runs the server, use `127.0.0.1`.
+   In Wizard of Wor, choose **4 PLAY VIA A GAME SERVER** in its menu.
 
 `vice-rrnet.bat` uses an emulated RR-Net cartridge instead. It needs [Npcap](https://npcap.com/).
 
@@ -64,12 +65,14 @@ A new version of a game? Delete its copy in `my-disks\`. You then enter your nam
    games find no network ("NO NETWORK HARDWARE FOUND" / "Network: none found").
 2. Connect the Ultimate to your network and check that it has an IP address.
 3. Copy the `.d64` files to a USB stick.
-4. Start the disk from the Ultimate menu. Enter your name and the server's IP address.
+4. Start the disk from the Ultimate menu and choose **RETURN** (online); enter your name and the
+   server's IP address. Two Ultimates whose firmware has `$0A` can also play **head-to-head**
+   without a server (key **H**, Bubble Bobble).
 
 ### C64 with a WiC64
 
 Put the `.d64` on your drive (or SD2IEC), connect the WiC64 to your Wi-Fi, and
-`LOAD"*",8,1`. Enter your name and the server's IP address.
+`LOAD"*",8,1`. Choose **RETURN** (online) and enter your name and the server's IP address.
 
 ## 3. Play
 
@@ -78,7 +81,7 @@ The lobby shows everyone online for the game, people and bots.
 1. Choose an opponent with the joystick (port 2) or the cursor keys.
 2. Invite them with FIRE.
 3. When someone invites you, FIRE accepts and N declines.
-4. F1 opens the setup: name, server.
+4. F1 goes back to the game's start menu (name, server, local game).
 
 | | Ultimate | WiC64 (real or VICE) | VICE RR-Net |
 |---|---|---|---|

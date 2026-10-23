@@ -36,16 +36,22 @@ wait:           .res    2
         .code
 
 ; unsigned char uci_detect(void): 1 = interface present
-_uci_detect:
-        lda     UCI_CMD
+_uci_detect:                            ; the id 16 times, one raster line apart:
+        ldy     #16                     ; an open bus (no interface; VICE) can
+@id:    lda     UCI_CMD                 ; read $C9 by chance, not 16 times
+        and     #$7F                    ; ($49: the same, with an IRQ pending)
+        cmp     #$49
+        bne     @no
+        lda     $D012
+:       cmp     $D012
+        beq     :-
+        dey
+        bne     @id
+        lda     #1
         ldx     #0
-        cmp     #$C9
-        beq     :+
-        cmp     #$49                    ; same, with an IRQ pending
-        beq     :+
-        txa
         rts
-:       lda     #1
+@no:    lda     #0
+        tax
         rts
 
 ; unsigned char uci_exec(void): send _uci_cmd, wait, collect the answer.

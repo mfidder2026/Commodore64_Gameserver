@@ -236,22 +236,31 @@ static void cfg_save(void)
     cfg_dirty = 0;
 }
 
-static void settings(unsigned char ask_server)
+/* the name: RETURN keeps the old one, left arrow cancels when there is one */
+static void ask_name(void)
 {
     title();
     cputs("Your name (A-Z, 0-9, max. 8)\r\n");
     if (*nick) { cputs("["); put_nick(nick, 0); cputs("] "); }
     do {
-        input(nick, NICK_MAX, 0);
+        if (!input(nick, NICK_MAX, 0) && *nick) break;
         cputs("\r\n");
     } while (!valid_nick(nick));
-    if (ask_server) {
-        cputs("\r\nIP address of the game server\r\n");
-        if (*server) cprintf("[%s] ", server);
-        input(server, 31, 1);
-        cputs("\r\n");
-    }
     cfg_dirty = 1;
+    cfg_save();
+}
+
+/* the game server's IP address (Ultimate, WiC64): RETURN keeps the old one */
+static void ask_server(void)
+{
+    title();
+    cputs("IP address of the game server\r\n"
+          "(the PC or Raspberry Pi that runs it;\r\n"
+          "it shows its address when it starts)\r\n\r\n");
+    if (*server) cprintf("[%s] ", server);
+    input(server, 31, 1);
+    cfg_dirty = 1;
+    cfg_save();
 }
 
 /* ----------------------------------------------------------- messages */
@@ -376,7 +385,7 @@ static void lobby(void)
         textcolor(COLOR_WHITE);
         last_reason = 0;
     }
-    status("Connecting to the server...   F1: setup");
+    status("Connecting to the server...   F1: menu");
     for (;;) {
         /* --- network */
         while (rx()) {
@@ -384,14 +393,14 @@ static void lobby(void)
             switch (msg[0]) {
             case M_WELCOME:
                 myid = msg[2];
-                if (st == CONNECTING) { st = LOBBY; redraw = 1; cfg_save(); status("FIRE/RETURN: invite   F1: setup"); }
+                if (st == CONNECTING) { st = LOBBY; redraw = 1; cfg_save(); status("FIRE/RETURN: invite   F1: menu"); }
                 break;
             case M_REJECT:
                 status(msg[1] == 1 ? "That name is already in use." : msg[1] == 2 ? "Wrong version." : "Rejected by the server.");
                 sleep(3);
                 return;
             case M_PLAYERS:
-                if (st == CONNECTING) { st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
+                if (st == CONNECTING) { st = LOBBY; status("FIRE/RETURN: invite   F1: menu"); }
                 take_players();
                 redraw = 1;
                 break;
@@ -490,11 +499,11 @@ static void lobby(void)
             }
             break;
         case INVITING:
-            if (key == 'n') { send2(M_DECLINE, 0); st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
+            if (key == 'n') { send2(M_DECLINE, 0); st = LOBBY; status("FIRE/RETURN: invite   F1: menu"); }
             break;
         case CHALLENGED:
             if (key == CH_ENTER || key == 'y' || key == ' ') { send2(M_ACCEPT, challenge); status("Accepted, starting..."); }
-            if (key == 'n') { send2(M_DECLINE, challenge); st = LOBBY; status("FIRE/RETURN: invite   F1: setup"); }
+            if (key == 'n') { send2(M_DECLINE, challenge); st = LOBBY; status("FIRE/RETURN: invite   F1: menu"); }
             break;
         }
     }
@@ -573,34 +582,37 @@ int main(void)
         default:      cputs("Network: none found\r\n"
                               "(Ultimate: enable the Command Interface)\r\n"); break;
         }
-        cputs("Name:    "); put_nick(*nick ? nick : "-", 0); cputs("\r\n");
-        if (NEEDS_SERVER) cprintf("Server:  %s\r\n", *server ? server : "-");
-        else if (drv == DRV_RR) cputs("Server:  found by itself on the LAN\r\n");
+        cputs("Your name: "); put_nick(*nick ? nick : "-", 0); cputs("\r\n");
         textcolor(COLOR_YELLOW);
-        cputs("\r\nSetup\r\n\r\n");
+        cputs("\r\nChoose\r\n\r\n");
         textcolor(COLOR_WHITE);
-        cputs("  RETURN     play online\r\n"
 #ifdef LOCAL_GAME_TEXT
-              "  L          " LOCAL_GAME_TEXT "\r\n"
+        cputs("  L       " LOCAL_GAME_TEXT "\r\n");
 #endif
-              "  S          name and server\r\n");
-        if (DIRECT_OK) cputs("  H          head-to-head (no server)\r\n");
+        if (DIRECT_OK) cputs("  H       head-to-head: two C64s on\r\n"
+                             "          this network, no server\r\n");
+        if (drv != DRV_NONE) {
+            cputs("  RETURN  online, via a game server\r\n");
+            if (NEEDS_SERVER) cprintf("          (server: %s)\r\n", *server ? server : "not set yet");
+            else cputs("          (found by itself on the LAN)\r\n");
+        }
+        cputs("\r\n  N       change your name\r\n");
+        if (NEEDS_SERVER) cputs("  S       change the game server\r\n");
 
-        /* at the start (and back from a game) straight into the lobby; the first time ask the settings */
+        /* back from a game, or a server was set before: straight on; else the menu */
         key = 0;
         if ((autostart || auto_mode) && drv != DRV_NONE && PAL_OK) {
             if (DIRECT_OK && (auto_mode ? auto_mode == 'h' || auto_mode == 'j' : direct_role != 0))
                 key = 'h';                          /* back to head-to-head */
-            else {
-                if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
-                key = CH_ENTER;
-            }
+            else if (auto_mode || (*nick && (came_back || (NEEDS_SERVER ? *server : drv == DRV_RR))))
+                key = CH_ENTER;                     /* the online lobby */
         }
         if (came_back && reason < 7) last_reason = reason;
         autostart = came_back = 0;
         if (!key) key = cgetc();
 
-        if (key == 's') { settings(NEEDS_SERVER); cfg_save(); continue; }
+        if (key == 'n') { ask_name(); continue; }
+        if (key == 's' && NEEDS_SERVER) { ask_server(); continue; }
 #if GAME_PAL_ONLY
         if (!PAL_OK && (key == CH_ENTER || key == CH_F1 || key == 'h')) {
             status(drv == DRV_UCI ? "Set the Ultimate to PAL (F2 menu)." : "Online play needs a PAL C64.");
@@ -610,7 +622,7 @@ int main(void)
 #endif
 #ifdef DIRECT_DELAY
         if (key == 'h' && DIRECT_OK && PAL_OK) {
-            if (!*nick) { settings(0); cfg_save(); }
+            if (!*nick) ask_name();
             direct_menu();
             if (direct_role) { direct_role = 0; cfg_dirty = 1; cfg_save(); }   /* back to the setup: online next time */
             auto_mode = 0;
@@ -626,7 +638,11 @@ int main(void)
 #endif
         if (key != CH_ENTER && key != CH_F1) continue;
         if (drv == DRV_NONE || !PAL_OK) continue;
-        if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
+        if (!*nick) ask_name();
+        if (NEEDS_SERVER && !*server) {
+            ask_server();
+            if (!*server) continue;
+        }
         if (net_connect(server, SERVER_PORT)) {
             status("Cannot open a connection to the server.");
             sleep(3);

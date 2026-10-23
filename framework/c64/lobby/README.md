@@ -6,11 +6,13 @@ the same lobby (see the lobby standard in [AI_AGENT.md](../../../AI_AGENT.md)):
 
 1. It finds the network hardware: **C64 Ultimate** (Command Interface, UDP),
    **WiC64** (TCP) or **RR-Net** (raw Ethernet, VICE).
-2. The first time it asks for the name and, for the Ultimate and the WiC64, the server's IP (any server), and
-   saves them on the disk. Later starts connect to the lobby at once.
+2. It shows a menu: **L** local game (`LOCAL_GAME_TEXT`), **H** head-to-head (games with `DIRECT_DELAY`),
+   **RETURN** online via a game server, **N** change the name, **S** change the server (Ultimate, WiC64).
+   The name and the server's IP (any server) are asked when first needed and saved on the disk.
+   Once a server is set (RR-Net: once there is a name), later starts connect to the lobby at once.
 3. It connects and shows **everyone online for this game**: PERSON or BOT, and FREE, BUSY or PLAYING.
 4. The player invites someone (FIRE/RETURN) or accepts an invitation (FIRE/Y; N declines).
-   F1 opens the setup screen: name and server, a local game (`LOCAL_GAME_TEXT`), play online.
+   F1 goes back to the menu.
 5. When the server starts the session, the lobby writes a **handoff block** and **loads the game file**. The game takes over the network connection.
 6. After the game, the game loads the lobby again. The lobby shows how the game ended and reconnects.
 7. **Head-to-head** (key **H** in the setup, games with `DIRECT_DELAY`): two C64s on the same LAN
@@ -130,7 +132,7 @@ For Bubble Bobble that is `loadTimeoutSeconds`, through `IGameModule.IdleTimeout
 
 ## Head-to-head (`direct.c`)
 
-With `DIRECT_DELAY` in `game.h` the setup screen offers **H: head-to-head (no server)** on a
+With `DIRECT_DELAY` in `game.h` the menu offers **H: head-to-head** (no server) on a
 C64 Ultimate whose firmware has `OPEN_UDP_LOCAL` (`$0A`, GideonZ/1541ultimate#962, pull
 request #1016) and on VICE with RR-Net. Its menu:
 
@@ -146,7 +148,7 @@ or its MAC as the server MAC (RR-Net). The game needs no change. Messages and po
 
 The configuration file remembers `direct=h` / `direct=j`, so after a head-to-head
 game the lobby comes back to the head-to-head menu; left arrow there goes back to
-the setup (and online play next time).
+the start menu.
 
 ## Configuration file
 

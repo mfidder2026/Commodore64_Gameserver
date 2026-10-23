@@ -184,7 +184,10 @@ net_tick:
         bne     :+
 .endif
         jsr     send_input              ; resend every real frame (see above)
-:       inc     ls_wait
+.ifdef NET_UCI
+:
+.endif
+        inc     ls_wait
         bne     :+
         inc     ls_wait+1
 :

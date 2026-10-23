@@ -57,20 +57,20 @@ Two C64s on the same LAN can play without the server:
 
 | | |
 |---|---|
-| ![Setup with head-to-head](docs/images/lobby-setup-h2h.png) | ![Head-to-head menu](docs/images/lobby-h2h.png) |
+| ![The menu](docs/images/lobby-setup-h2h.png) | ![Head-to-head menu](docs/images/lobby-h2h.png) |
 
-1. On both C64s: `LOAD "BBLAN",8` and `RUN`. In the setup screen press **H** (`F1` in the lobby first
+1. On both C64s: `LOAD "BBLAN",8` and `RUN`. In the menu press **H** (`F1` in the lobby first
    when it is connecting to a server).
 2. One C64 presses **1** (host): it announces itself on the LAN and waits.
 3. The other presses **2**: it searches the LAN, finds the host and both load the game.
    On a C64 Ultimate **3** lets you type the host's IP instead.
 
 The host plays Bub (green), the joiner Bob (blue). After the game both come back to
-the head-to-head menu; the left arrow goes back to the setup.
+the head-to-head menu; the left arrow goes back to the menu.
 
 - **C64 Ultimate:** needs firmware with the Command Interface command `OPEN_UDP_LOCAL` (`$0A`,
   [GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962), pull request #1016;
-  a test build is linked in the issue). With older firmware the setup shows no **H**.
+  a test build is linked in the issue). With older firmware the menu shows no **H**.
   The [link test](../../framework/c64/linktest/README.md) (`RELEASE/tools/linktest.d64`) checks your network.
 - **VICE with RR-Net:** works between two VICEs (two PCs, or two VICEs on one PC).
 - **WiC64:** only via the server (it talks TCP to a server).
@@ -83,14 +83,15 @@ the head-to-head menu; the left arrow goes back to the setup.
 
 2. **On each C64:** `LOAD "BBLAN",8` and `RUN`. In VICE: double-click `RELEASE/vice-wic64.bat` and choose Bubble Bobble.
 
-3. **The first start asks for your name** and, for the Ultimate and the WiC64, **the server's IP address**.
-   Any server works, also someone else's. VICE with RR-Net needs no address: it finds the server by itself.
-   Later starts go straight to the lobby.
+3. **The menu:** `L` local game, `H` head-to-head (no server), `RETURN` online via a game server.
+   Online asks for your name and, for the Ultimate and the WiC64, **the server's IP address** (any server,
+   also someone else's). VICE with RR-Net needs no address: it finds the server by itself.
+   Once a server is set, later starts go straight to the lobby.
 
 4. **Play.** You see the other players, people and bots. Pick one with the joystick or the cursor keys and press `FIRE`/`RETURN` to invite them.
    - The other player accepts with `FIRE` or `Y`.
    - Both C64s then load the game. Bub (green) is the player who invited, Bob (blue) the one who accepted.
-   - `F1` in the lobby opens the setup: change your name or the server.
+   - `F1` in the lobby goes back to the menu.
 
 The complete manual, including VICE setup, Ultimate settings, the server
 configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
@@ -99,16 +100,16 @@ configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
 
 | Where | Key / joystick | Action |
 |---|---|---|
-| Setup | `RETURN` | Play online (connect to the lobby) |
-| Setup | `L` | Local game, two joysticks, as the original |
-| Setup | `S` | Name and server |
-| Setup | `H` | Head-to-head, without a server (Ultimate with `$0A`, RR-Net) |
+| Menu | `L` | Local game, two joysticks, as the original |
+| Menu | `H` | Head-to-head, without a server (Ultimate with `$0A`, RR-Net) |
+| Menu | `RETURN` | Online, via a game server (the lobby) |
+| Menu | `N` / `S` | Change your name / the game server |
 | Head-to-head | `1` / `2` / `3` | Host / search and join / join by IP (Ultimate) |
 | Head-to-head | `←` | Back to the setup |
 | Lobby | joystick up/down or cursor keys | Choose a player |
 | Lobby | `FIRE` / `RETURN` | Invite |
 | Lobby | `N` | Withdraw or decline an invitation |
-| Lobby | `F1` | Setup (name, server) |
+| Lobby | `F1` | Back to the menu |
 | Game | joystick in **port 2** | Move, jump, blow bubbles |
 | Game | `C=` | Pause (both machines) |
 | Game | `Q` | Quit the game (both machines) |
