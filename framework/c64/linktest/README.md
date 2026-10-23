@@ -24,7 +24,7 @@ send raw Ethernet frames (EtherType `$88B5`) to each other's MAC address.
 ## Use
 
 1. Start the program on both C64s.
-2. On one press **S** (SLAVE: wait to be found), on the other **M** (MASTER: search).
+2. On one press **C** (CLIENT: wait to be found), on the other **H** (HOST: search).
    Or press **I** on both and type the other C64's IP address.
 3. The link screen updates four times a second. Keys: `+`/`-` the ping rate, `T` sends 100
    messages of 200 bytes as fast as possible (the other C64 shows what arrived and the speed),
@@ -37,11 +37,13 @@ rules out a normal LAN scan. The search therefore tries two things that the firm
 stack (lwIP) may allow; the screen shows each step with the firmware's status, so the test also
 tells which of them works:
 
-- the SLAVE opens `$0A` to **0.0.0.0**, remote port 6465, local port 6464 (lwIP matches a connected
+- the CLIENT opens `$0A` to **0.0.0.0**, remote port 6465, local port 6464 (lwIP matches a connected
   socket whose remote address is "any" against every sender);
-- the MASTER sends HELLO (with its own IP) from port 6465 to the subnet's **broadcast address**,
+- the HOST sends HELLO (with its own IP) from port 6465 to the subnet's **broadcast address**,
   port 6464, and listens itself on 0.0.0.0:6464;
-- the SLAVE answers with ACK (its IP); then both open `$0A` to each other, 6464 to 6464.
+- the CLIENT answers with ACK (its IP); then both open `$0A` to each other, 6464 to 6464, and the
+  HOST starts pinging. Without pings within 3 seconds the HELLO was an old one and the CLIENT waits
+  again.
 
 When a step fails, use **I** (the IP address by hand) on both C64s: that needs nothing but `$0A`.
 
@@ -58,6 +60,6 @@ python build.py          # build/linktest.prg and build/linktest.d64 (cc65)
 python build.py run      # and start it in VICE with an RR-Net cartridge ($NPCAP_IF)
 ```
 
-It uses the standard lobby's drivers (`../lobby/uci.s`, `../lobby/rrnet.s`). Tested in VICE (two
-RR-Net instances); the Ultimate side follows the firmware's documentation and still needs a test on
-two real Ultimates.
+It uses the standard lobby's drivers (`../lobby/uci.s`, `../lobby/rrnet.s`). Tested on two real
+C64 Ultimates with the `$0A` test firmware and in VICE (two RR-Net instances). Also published on its
+own: [mfidder2026/C64U-H2H](https://github.com/mfidder2026/C64U-H2H).

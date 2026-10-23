@@ -9,11 +9,11 @@
  * Finding the other C64 ("scan"): a $0A socket is connected, it only receives
  * from the address it was opened to. Two tries that the firmware may or may not
  * allow (the screen shows each step's status):
- *   SLAVE  opens $0A to 0.0.0.0, remote 6465, local 6464: "any address" (lwIP
+ *   CLIENT opens $0A to 0.0.0.0, remote 6465, local 6464: "any address" (lwIP
  *          matches a connected socket with an "any" remote against every sender)
- *   MASTER sends HELLO (with its IP) from local port 6465 to the subnet's
+ *   HOST   sends HELLO (with its IP) from local port 6465 to the subnet's
  *          broadcast address, port 6464, and listens on 0.0.0.0:6464
- * The SLAVE answers with ACK (its IP); then both open $0A to each other,
+ * The CLIENT answers with ACK (its IP); then both open $0A to each other,
  * 6464 <-> 6464. Manual: enter the other C64's IP address on both (key I).
  *
  * Messages (UDP payload or the RR-Net frame's message):
@@ -68,7 +68,7 @@ unsigned long timer_now(void);
 #define T_DATA  6
 #define HDR     21              /* bytes before the data */
 
-#define R_FAIL  0               /* master(), slave(), manual() */
+#define R_FAIL  0               /* host(), client(), manual() */
 #define R_OK    1
 #define R_BACK  2
 
@@ -101,7 +101,7 @@ static void header(const char *title)
     revers(1);
     cputs(" C64 ULTIMATE  * LINK TEST *  ");
     textcolor(COLOR_LIGHTRED);
-    cputs("V1.0     ");
+    cputs("V1.1     ");
     revers(0);
     gotoxy(0, 1);
     textcolor(COLOR_CYAN);
@@ -224,13 +224,17 @@ static void sock_send(unsigned char s, unsigned char len)
     t_write = timer_now() - t;
 }
 
-/* a message into rx/rxlen: 1 = yes */
+/* a message into rx/rxlen: 1 = yes; rx_any: a datagram came at all (also one
+   that does not count), so more may be waiting */
+static unsigned char rx_any;
 static unsigned char sock_recv(unsigned char s)
 {
     unsigned int n;
     unsigned long t = timer_now();
+    rx_any = 0;
     if (drv == DRV_RR) {
         if (!rr_poll()) return 0;
+        rx_any = 1;
         t_read = timer_now() - t;
         memcpy(rx, rr_rxbuf, rr_rxlen);
         rxlen = rr_rxlen;
@@ -247,6 +251,7 @@ static unsigned char sock_recv(unsigned char s)
         if (uci_resplen < 3) return 0;
         n = uci_resp[0] | (uci_resp[1] << 8);
         if (n == 0 || n > 255 || n + 2 > uci_resplen) return 0;
+        rx_any = 1;
         memcpy(rx, uci_resp + 2, n);
         rxlen = (unsigned char)n;
     }
@@ -259,10 +264,11 @@ static unsigned char sock_recv(unsigned char s)
    chip's buffer; an Ultimate socket was just opened, it has nothing old) */
 static void flush(unsigned char s)
 {
-    unsigned char n = 0;
+    unsigned long t = timer_now();
     (void)s;
-    if (drv == DRV_RR)
-        while (rr_poll() && ++n < 200) ;
+    if (drv == DRV_RR)                          /* 0.1 s: rr_poll() also answers 0 for */
+        while (timer_now() - t < cps / 10)      /* other frames on the network (ARP ...) */
+            rr_poll();
 }
 
 /* RR-Net: a MAC address of our own, made when a key starts the search (two
@@ -450,12 +456,12 @@ static unsigned char connect_peer(void)
     return step(tmp, sock != 0xFF);
 }
 
-static unsigned char master(void)
+static unsigned char host(void)
 {
     char host[16];
     unsigned long last = 0;
     unsigned int n = 0;
-    header("MASTER: SEARCHING THE OTHER C64");
+    header("HOST: SEARCHING THE OTHER C64");
     footer("Q: BACK");
     logy = 4;
     if (drv == DRV_UCI) {
@@ -502,14 +508,23 @@ static unsigned char master(void)
     return R_BACK;
 }
 
-static unsigned char slave(void)
+/* the CLIENT's socket that hears HELLOs from any HOST (Ultimate: $0A to 0.0.0.0) */
+static unsigned char client_listen(void)
 {
-    header("SLAVE: WAITING TO BE FOUND");
+    if (drv != DRV_UCI) return 1;
+    sock = open_local("0.0.0.0", PORT_HELLO, PORT_LINK);
+    return sock != 0xFF;
+}
+
+static unsigned char client(void)
+{
+    unsigned long t;
+    unsigned char k;
+    header("CLIENT: WAITING TO BE FOUND");
     footer("Q: BACK");
     logy = 4;
     if (drv == DRV_UCI) {
-        if (!step("LISTEN ON 0.0.0.0:6464", (sock = open_local("0.0.0.0", PORT_HELLO, PORT_LINK)) != 0xFF))
-            return R_FAIL;
+        if (!step("LISTEN ON 0.0.0.0:6464", client_listen())) return R_FAIL;
         sprintf(tmp, "THIS C64: %s", ipstr(myip));
         logline(COLOR_YELLOW, tmp);
     } else {
@@ -519,28 +534,37 @@ static unsigned char slave(void)
     logline(COLOR_YELLOW, "WAITING FOR A HELLO...");
     for (;;) {
         if (key_q()) break;
-        if (sock_recv(sock) && rx[2] == T_HELLO) {
-            peer_from_rx();
-            sprintf(tmp, "HELLO FROM %s", peername);
-            logline(COLOR_LIGHTGREEN, tmp);
-            if (drv == DRV_UCI) {
-                logline(COLOR_LIGHTGREEN, ipstr(peerip));
-                close_socket(&sock);
-                if (!connect_peer()) return R_FAIL;
-            }
-            {                                   /* the ACK three times: */
-                unsigned char k;                /* the MASTER needs one */
-                unsigned long t;
-                for (k = 0; k < 3; ++k) {
-                    make(T_ACK, k, timer_now());
-                    sock_send(sock, HDR);
-                    t = timer_now();
-                    while (timer_now() - t < cps / 10) ;
-                }
-            }
-            return R_OK;
+        if (!sock_recv(sock) || rx[2] != T_HELLO) continue;
+        peer_from_rx();
+        sprintf(tmp, "HELLO FROM %s", peername);
+        logline(COLOR_LIGHTGREEN, tmp);
+        if (drv == DRV_UCI) {
+            logline(COLOR_LIGHTGREEN, ipstr(peerip));
+            close_socket(&sock);
+            if (!connect_peer()) return R_FAIL;
+        }
+        for (k = 0; k < 3; ++k) {               /* the ACK three times: the HOST needs one */
+            make(T_ACK, k, timer_now());
+            sock_send(sock, HDR);
+            t = timer_now();
+            while (timer_now() - t < cps / 10) ;
+        }
+        /* the HOST answers with its PINGs. A HELLO can be old (a HOST that stopped
+           searching; VICE delivers frames late): then nothing comes back */
+        t = timer_now();
+        while (timer_now() - t < 3 * cps) {
+            if (key_q()) goto back;
+            if (sock_recv(sock) && (rx[2] == T_PING || rx[2] == T_PONG)
+                && (drv != DRV_RR || !memcmp(rr_from, rr_dst, 6)))
+                return R_OK;
+        }
+        logline(COLOR_ORANGE, "NO ANSWER: WAITING AGAIN");
+        if (drv == DRV_UCI) {
+            close_socket(&sock);
+            if (!step("LISTEN ON 0.0.0.0:6464", client_listen())) return R_FAIL;
         }
     }
+back:
     close_socket(&sock);
     return R_BACK;
 }
@@ -609,10 +633,10 @@ static void link(void)
     unsigned int seq = 0, rx_ping = 0, last_seq = 0xFFFF, gaps = 0;
     unsigned int sent = 0, pongs = 0, data_rx = 0;
     unsigned long rtt, rtt_min = 0xFFFFFFFF, rtt_max = 0, rtt_sum = 0, rtt_last = 0;
-    unsigned long last_ping = 0, last_heard = 0, last_draw = 0, now, data_t0 = 0, data_t1 = 0;
+    unsigned long last_ping = 0, last_heard = 0, now, data_t0 = 0, data_t1 = 0;
     unsigned long w_max = 0, r_max = 0;
     unsigned int interval = 10;                 /* PINGs per second */
-    unsigned char burst = 0, c;
+    unsigned char burst = 0, c, n, line = 0, named = peername[0] != '?';
 
     header("LINK TEST");
     gotoxy(0, 1);
@@ -620,6 +644,7 @@ static void link(void)
     cprintf("LINK WITH %s", peername);
     if (drv == DRV_UCI) cprintf(" %s", ipstr(peerip));
     footer("+/-: RATE  T: 100 X 200 B  R: RESET  Q");
+    stat(22, "DEVICE", COLOR_GRAY2, drv == DRV_UCI ? "ULTIMATE $0A 6464<>6464" : "RR-NET, RAW ETHERNET");
     last_heard = timer_now();
     for (;;) {
         now = timer_now();
@@ -633,6 +658,8 @@ static void link(void)
                 last_seq = 0xFFFF;
                 rtt_min = 0xFFFFFFFF;
                 rtt_max = rtt_sum = rtt_last = w_max = r_max = 0;
+                cclearxy(0, 19, 40);
+                cclearxy(0, 20, 40);
             }
             if (c == 't') burst = 100;
         }
@@ -648,10 +675,25 @@ static void link(void)
             ++sent;
             if (t_write > w_max) w_max = t_write;
         }
-        while (sock_recv(sock)) {
+        /* everything that is waiting (up to 8): reading less than arrives makes a
+           queue, and the round trip grows with it. An empty UCI read waits 40 ms. */
+        for (n = 0; n < 8; ++n) {
+            if (!sock_recv(sock)) {
+                if (rx_any) continue;           /* one that does not count: more may wait */
+                break;
+            }
             now = timer_now();
             last_heard = now;
             if (t_read > r_max) r_max = t_read;
+            if (!named) {                       /* found by its IP: its name comes along */
+                memcpy(peername, rx + 13, 8);
+                peername[8] = 0;
+                gotoxy(10, 1);
+                textcolor(COLOR_CYAN);
+                cputs(peername);
+                if (drv == DRV_UCI) cprintf(" %s", ipstr(peerip));
+                named = 1;
+            }
             switch (rx[2]) {
             case T_PING:
                 ++rx_ping;
@@ -664,6 +706,7 @@ static void link(void)
                 memcpy(pkt + 2, rx + 2, HDR - 2);
                 pkt[2] = T_PONG;
                 memcpy(pkt + 9, myip, 4);
+                memcpy(pkt + 13, myname, 8);
                 sock_send(sock, HDR);
                 break;
             case T_PONG:
@@ -683,33 +726,56 @@ static void link(void)
             case T_BYE:
                 goto bye;
             }
-            if (drv == DRV_UCI) break;          /* a UCI read may wait 40 ms: once per pass */
         }
-        if (now - last_draw > cps / 4) {        /* the screen 4 times a second */
-            last_draw = now;
+        /* the screen: one line per pass (sprintf with longs is slow on a 6502;
+           drawing everything at once kept the loop from reading) */
+        switch (line) {
+        case 0:
             stat(4, "STATE", now - last_heard < 2 * cps ? COLOR_LIGHTGREEN : COLOR_LIGHTRED,
                  now - last_heard < 2 * cps ? "CONNECTED" : "NO ANSWER");
+            break;
+        case 1:
             sprintf(tmp, "%u / S", interval);
             stat(6, "PING RATE", COLOR_WHITE, tmp);
+            break;
+        case 2:
             sprintf(tmp, "%u", sent);
             stat(7, "PINGS SENT", COLOR_WHITE, tmp);
+            break;
+        case 3:
             sprintf(tmp, "%u", pongs);
             stat(8, "PONGS BACK", COLOR_WHITE, tmp);
+            break;
+        case 4:
             sprintf(tmp, "%u.%u %%", sent ? (unsigned)((sent - pongs) * 100UL / sent) : 0,
                     sent ? (unsigned)((sent - pongs) * 1000UL / sent % 10) : 0);
             stat(9, "LOST (+ ON WAY)", sent - pongs > 2 ? COLOR_ORANGE : COLOR_LIGHTGREEN, tmp);
+            break;
+        case 5:
             if (pongs) {
                 sprintf(tmp, "%lu MS", ms(rtt_last));
                 stat(11, "ROUND TRIP NOW", COLOR_YELLOW, tmp);
+            }
+            break;
+        case 6:
+            if (pongs) {
                 sprintf(tmp, "%lu / %lu / %lu MS", ms(rtt_min), ms(rtt_sum / pongs), ms(rtt_max));
                 stat(12, "MIN / AVG / MAX", COLOR_YELLOW, tmp);
             }
+            break;
+        case 7:
             sprintf(tmp, "%u  (GAPS %u)", rx_ping, gaps);
             stat(14, "PINGS RECEIVED", COLOR_LIGHTBLUE, tmp);
+            break;
+        case 8:
             sprintf(tmp, "%lu.%lu / %lu.%lu MS", ms(t_write), ms(t_write * 10) % 10, ms(w_max), ms(w_max * 10) % 10);
             stat(16, "WRITE NOW / MAX", COLOR_PURPLE, tmp);
+            break;
+        case 9:
             sprintf(tmp, "%lu.%lu / %lu.%lu MS", ms(t_read), ms(t_read * 10) % 10, ms(r_max), ms(r_max * 10) % 10);
             stat(17, "READ NOW / MAX", COLOR_PURPLE, tmp);
+            break;
+        case 10:
             if (data_rx) {
                 unsigned long t = ms(data_t1 - data_t0);
                 sprintf(tmp, "%u X 200 B", data_rx);
@@ -720,8 +786,9 @@ static void link(void)
                     strcpy(tmp, "-");
                 stat(20, "SPEED", COLOR_LIGHTGREEN, tmp);
             }
-            stat(22, "DEVICE", COLOR_GRAY2, drv == DRV_UCI ? "ULTIMATE, $0A 6464<->6464" : "RR-NET, RAW ETHERNET");
+            break;
         }
+        if (++line > 10) line = 0;
     }
     make(T_BYE, 0, 0);
     sock_send(sock, HDR);
@@ -746,12 +813,12 @@ int main(void)
         }
         gotoxy(0, 20);
         textcolor(COLOR_YELLOW);
-        cputs(" M ");
-        value(COLOR_WHITE, "MASTER: SEARCH THE OTHER C64");
+        cputs(" H ");
+        value(COLOR_WHITE, "HOST: SEARCH THE OTHER C64");
         gotoxy(0, 21);
         textcolor(COLOR_YELLOW);
-        cputs(" S ");
-        value(COLOR_WHITE, "SLAVE: WAIT TO BE FOUND");
+        cputs(" C ");
+        value(COLOR_WHITE, "CLIENT: WAIT TO BE FOUND");
         if (drv == DRV_UCI) {
             gotoxy(0, 22);
             textcolor(COLOR_YELLOW);
@@ -765,14 +832,14 @@ int main(void)
         c = key();
         ok = 0;
         if (c == 'q') break;
-        if (!local_ok && (c == 'm' || c == 's' || c == 'i')) {
+        if (!local_ok && (c == 'h' || c == 'c' || c == 'i')) {
             footer("NEEDS FIRMWARE WITH $0A.  PRESS A KEY");
             cgetc();
             continue;
         }
-        if (c == 'm' || c == 's') rr_newmac();
-        if (c == 'm') ok = master();
-        else if (c == 's') ok = slave();
+        if (c == 'h' || c == 'c') rr_newmac();
+        if (c == 'h') ok = host();
+        else if (c == 'c') ok = client();
         else if (c == 'i' && drv == DRV_UCI) ok = manual();
         else continue;
         if (ok == R_OK) link();
