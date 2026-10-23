@@ -178,7 +178,7 @@ uci_poll .proc
 	RTS
 +
 	CMP #UCI_STATE_IDLE
-	BEQ _finished ; finished without a data phase
+	BEQ _resp_done ; no data phase: a status may still wait (an error answer, e.g. "82,...")
 
 	; a data block: read response and status (both bounded), then release it
 	; response bytes go to uci_resp + uci_resp_len
@@ -226,9 +226,10 @@ _stat
 _stat_done
 	STX uci_stat_len
 
-	; remember the state before releasing the block
+	; remember the state before releasing the block (idle: nothing to release)
 	LDA UCI_STATUS
 	AND #UCI_ST_STATE
+	BEQ _finished
 	PHA
 	LDA #UCI_DATA_ACC
 	STA UCI_CTRL
