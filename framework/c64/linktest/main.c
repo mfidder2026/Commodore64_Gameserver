@@ -101,7 +101,7 @@ static void header(const char *title)
     revers(1);
     cputs(" C64 ULTIMATE  * LINK TEST *  ");
     textcolor(COLOR_LIGHTRED);
-    cputs("V1.1     ");
+    cputs("V1.2     ");
     revers(0);
     gotoxy(0, 1);
     textcolor(COLOR_CYAN);
@@ -205,6 +205,11 @@ static void close_socket(unsigned char *s)
 
 /* time of the last UCI write and read, in cycles */
 static unsigned long t_write, t_read;
+/* the Ultimate's READ waits up to 40 ms when the socket is empty. Whether it returns
+   at once when a datagram arrives during that wait shows in the reads that brought
+   data: fast (< 10 ms) or slow */
+static unsigned long t_rdata, r_max;
+static unsigned int rd_fast, rd_slow, rd_empty;
 
 static void sock_send(unsigned char s, unsigned char len)
 {
@@ -235,7 +240,9 @@ static unsigned char sock_recv(unsigned char s)
     if (drv == DRV_RR) {
         if (!rr_poll()) return 0;
         rx_any = 1;
-        t_read = timer_now() - t;
+        t_read = t_rdata = timer_now() - t;
+        if (t_read > r_max) r_max = t_read;
+        ++rd_fast;
         memcpy(rx, rr_rxbuf, rr_rxlen);
         rxlen = rr_rxlen;
     } else {
@@ -248,9 +255,15 @@ static unsigned char sock_recv(unsigned char s)
         uci_cmdlen = 5;
         if (uci_exec()) return 0;
         t_read = timer_now() - t;
-        if (uci_resplen < 3) return 0;
-        n = uci_resp[0] | (uci_resp[1] << 8);
-        if (n == 0 || n > 255 || n + 2 > uci_resplen) return 0;
+        n = uci_resplen >= 3 ? uci_resp[0] | (uci_resp[1] << 8) : 0;
+        if (n == 0 || n > 255 || n + 2 > uci_resplen) {
+            ++rd_empty;
+            return 0;
+        }
+        t_rdata = t_read;
+        if (t_read > r_max) r_max = t_read;
+        if (t_read < cps / 100) ++rd_fast;
+        else ++rd_slow;
         rx_any = 1;
         memcpy(rx, uci_resp + 2, n);
         rxlen = (unsigned char)n;
@@ -634,9 +647,10 @@ static void link(void)
     unsigned int sent = 0, pongs = 0, data_rx = 0;
     unsigned long rtt, rtt_min = 0xFFFFFFFF, rtt_max = 0, rtt_sum = 0, rtt_last = 0;
     unsigned long last_ping = 0, last_heard = 0, now, data_t0 = 0, data_t1 = 0;
-    unsigned long w_max = 0, r_max = 0;
+    unsigned long w_max = 0, last_line = 0;
     unsigned int interval = 10;                 /* PINGs per second */
     unsigned char burst = 0, c, n, line = 0, named = peername[0] != '?';
+    r_max = rd_fast = rd_slow = rd_empty = 0;
 
     header("LINK TEST");
     gotoxy(0, 1);
@@ -658,8 +672,9 @@ static void link(void)
                 last_seq = 0xFFFF;
                 rtt_min = 0xFFFFFFFF;
                 rtt_max = rtt_sum = rtt_last = w_max = r_max = 0;
-                cclearxy(0, 19, 40);
+                rd_fast = rd_slow = rd_empty = 0;
                 cclearxy(0, 20, 40);
+                cclearxy(0, 21, 40);
             }
             if (c == 't') burst = 100;
         }
@@ -684,7 +699,6 @@ static void link(void)
             }
             now = timer_now();
             last_heard = now;
-            if (t_read > r_max) r_max = t_read;
             if (!named) {                       /* found by its IP: its name comes along */
                 memcpy(peername, rx + 13, 8);
                 peername[8] = 0;
@@ -727,8 +741,10 @@ static void link(void)
                 goto bye;
             }
         }
-        /* the screen: one line per pass (sprintf with longs is slow on a 6502;
-           drawing everything at once kept the loop from reading) */
+        /* the screen: one line at a time, at most 12 a second (sprintf with longs is
+           slow on a 6502; a message that arrives meanwhile waits) */
+        if (now - last_line < cps / 12) continue;
+        last_line = now;
         switch (line) {
         case 0:
             stat(4, "STATE", now - last_heard < 2 * cps ? COLOR_LIGHTGREEN : COLOR_LIGHTRED,
@@ -772,23 +788,31 @@ static void link(void)
             stat(16, "WRITE NOW / MAX", COLOR_PURPLE, tmp);
             break;
         case 9:
-            sprintf(tmp, "%lu.%lu / %lu.%lu MS", ms(t_read), ms(t_read * 10) % 10, ms(r_max), ms(r_max * 10) % 10);
-            stat(17, "READ NOW / MAX", COLOR_PURPLE, tmp);
+            sprintf(tmp, "%lu.%lu / %lu.%lu MS", ms(t_rdata), ms(t_rdata * 10) % 10, ms(r_max), ms(r_max * 10) % 10);
+            stat(17, "READ WITH DATA", COLOR_PURPLE, tmp);
             break;
         case 10:
+            sprintf(tmp, "%u FAST  %u SLOW", rd_fast, rd_slow);
+            stat(18, "READS <10 MS", COLOR_PURPLE, tmp);
+            break;
+        case 11:
+            sprintf(tmp, "%u", rd_empty);
+            stat(19, "EMPTY READS", COLOR_PURPLE, tmp);
+            break;
+        case 12:
             if (data_rx) {
                 unsigned long t = ms(data_t1 - data_t0);
                 sprintf(tmp, "%u X 200 B", data_rx);
-                stat(19, "DATA RECEIVED", COLOR_LIGHTGREEN, tmp);
+                stat(20, "DATA RECEIVED", COLOR_LIGHTGREEN, tmp);
                 if (t && data_rx > 1)
                     sprintf(tmp, "%lu BYTES/S", (unsigned long)(data_rx - 1) * 200000UL / t);
                 else
                     strcpy(tmp, "-");
-                stat(20, "SPEED", COLOR_LIGHTGREEN, tmp);
+                stat(21, "SPEED", COLOR_LIGHTGREEN, tmp);
             }
             break;
         }
-        if (++line > 10) line = 0;
+        if (++line > 12) line = 0;
     }
     make(T_BYE, 0, 0);
     sock_send(sock, HDR);
