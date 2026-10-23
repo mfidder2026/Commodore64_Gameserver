@@ -11,7 +11,7 @@ information is in the [main README](../README.md).
 | `Dockerfile`, `docker-compose.yml` | The game server in your own Docker: `docker compose up -d --build` |
 | `vice-wic64.bat` | Starts VICE with the **WiC64** emulation and a game |
 | `vice-rrnet.bat` | Starts VICE with an **RR-Net** cartridge and a game |
-| `games/wizardofwor.d64` | Wizard of Wor OME |
+| `games/wizardofwor.d64` | Wizard of Wor OME (also head-to-head between two C64 Ultimates, without the server) |
 | `games/bubblebobble.d64` | Bubble Bobble OME |
 | `games/explodingfist.d64` | The Way of the Exploding Fist OME |
 | `games/pitstop2.d64` | Pitstop II OME |

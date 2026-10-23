@@ -79,8 +79,9 @@ no server code (see [Adding a game](#adding-a-game)).
 The original 1983 Commodore game, rebuilt from a commented disassembly. Every change to the
 original is a same-size patch. The game was made deterministic and tick based: a PAL
 and an NTSC machine produce identical game states. Besides the online play through the server
-it can also play **locally** (two joysticks) and **directly** (VICE hosts, a second
-machine joins, no server). → [Wizard of Wor OME README](games/wizardofwor/README.md)
+it can also play **locally** (two joysticks) and **directly** (one machine hosts, a second
+machine joins, no server). Two C64 Ultimates with firmware that has the new command `$0A`
+play head-to-head this way, and the player finds the host on the LAN by itself. → [Wizard of Wor OME README](games/wizardofwor/README.md)
 
 ### Bubble Bobble OME
 

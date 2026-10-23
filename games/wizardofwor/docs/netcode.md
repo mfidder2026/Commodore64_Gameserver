@@ -88,6 +88,17 @@ Het spritedatablok dat `create_sprites` kopieert, bevat de code van `MV_init`. E
   - Ultimate ↔ Ultimate met een firmware-uitbreiding (UDP op een vaste lokale poort, of een TCP-listener);
   - Ultimate ↔ Ultimate via een derde machine.
 
+## Ultimate ↔ Ultimate direct (firmware met `$0A`, 2026-10-23)
+
+De firmware-uitbreiding uit GideonZ/1541ultimate#962 (pull request #1016) voegt `OPEN_UDP_LOCAL` (`$0A`) toe: `$03 $0A rport_lo rport_hi lport_lo lport_hi host [$00]`, antwoord: handle en de gebonden poort. Eerst getest met de link test (`framework/c64/linktest`), daarna in het spel ingebouwd (`src/net/direct.asm`, `direct_hi.asm`, `direct_scan.asm`).
+
+- **Detectie:** `$0A` met remote poort 0 en host `"0"`. Nieuwe firmware antwoordt status 82, oude 21 (onbekend commando). Alleen met 82 verschijnt HOST in het menu.
+- **Host:** `$0A` naar `0.0.0.0`, remote 6464, lokaal 6464. lwIP matcht een verbonden socket met remote "any" tegen elke afzender. Een READ vertelt niet wie iets stuurde, dus de HELLO bevat het IP van de speler (bytes 4-7). Daarna sluit de host die socket en opent `$0A` naar de speler, 6464 ↔ 6464.
+- **Speler:** `$0A` naar de host vanaf poort 6464 (de oude `OPEN_UDP` stuurt vanaf een willekeurige poort, die een Ultimate-host niet hoort).
+- **Zoeken op het LAN:** de host stuurt elke ~0,5 s `HERE` (type 6: versie, zijn IP) vanaf poort 6465 naar het broadcastadres van zijn subnet (ip | ~netmask), poort 6464. De speler drukt RETURN zonder IP en luistert met `$0A` naar `0.0.0.0`, remote 6465, lokaal 6464. Het eerste `HERE` geeft het IP van de host. Werkt op twee echte Ultimates.
+- **Interfaces:** op een C64 Ultimate is interface 0 LAN en 1 WiFi. `GET_IPADDR` van interface 0 geeft `0.0.0.0` als alleen WiFi verbonden is; het menu neemt de eerste interface met een adres. Met beide verbonden routeert lwIP zelf.
+- **Valkuil:** `uci_poll` moet de status ook lezen als een commando geen datafase heeft (fout 82 zonder data gaf anders `uci_code` $FF).
+
 ## Game server (Ultimate ↔ Ultimate)
 
 Twee Ultimates kunnen niet rechtstreeks verbinden (zie hierboven). Daarom is er een server in het LAN (`server/`, specificatie in `docs/PROMPT_C64_GameServer.md`, onderbouwing in `docs/gameserver_onderzoek.md`):

@@ -2,7 +2,7 @@
 
 > Part of the **[Commodore 64 Game Server](../../README.md)**: one server, a shared framework and several *Online Multiplayer Enabled* C64 games.
 
-An *Online Multiplayer Enabled* version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: two players play at the same time on **two separate C64s** connected over the LAN. It runs on the **Commodore 64 Ultimate** (network through its Command Interface), on a C64 with a **WiC64**, and in **VICE** (WiC64 emulation or RR-Net). It plays through the **[C64 Game Server](../../server/README.md)**, a small LAN server that lets C64s find each other and play – the only way two C64 Ultimates can play together.
+An *Online Multiplayer Enabled* version of **Wizard of Wor** (Commodore, 1983) for the Commodore 64: two players play at the same time on **two separate C64s** connected over the LAN. It runs on the **Commodore 64 Ultimate** (network through its Command Interface), on a C64 with a **WiC64**, and in **VICE** (WiC64 emulation or RR-Net). It plays through the **[C64 Game Server](../../server/README.md)**, a small LAN server that lets C64s find each other and play. Two C64 Ultimates whose firmware has the new command `$0A` also play **head-to-head**, directly over the LAN without the server: the player finds the host by itself.
 
 <p align="center">
   <img src="docs/images/game_a.png" width="49%" alt="Two players in the dungeon">
@@ -42,8 +42,8 @@ and `vice-wic64.bat`, which starts VICE with the right network set-up.
 - **Original pace.** The number of actor updates per tick follows a cost model measured on the original NTSC game, so the game keeps its speed – including monsters getting faster when only a few are left. 60 ticks per second on PAL and NTSC.
 - **Three ways to play**
   - **Local:** two joysticks, or one joystick plus the keyboard (W A S D + SPACE).
-  - **Direct:** VICE/RR-Net hosts, a C64 Ultimate (or another RR-Net) joins. No server needed.
-  - **Via the C64 Game Server:** nickname, a lobby screen with everyone online (people and bots), choose your opponent. Needed for C64 Ultimate ↔ C64 Ultimate, and the only way for a WiC64.
+  - **Direct (head-to-head):** one C64 hosts, the other joins, no server needed. A C64 Ultimate hosts when its firmware has `$0A` (see [Hardware](#hardware)); the player then just presses RETURN and the game searches the LAN for the host. VICE/RR-Net hosts and joins as well.
+  - **Via the C64 Game Server:** nickname, a lobby screen with everyone online (people and bots), choose your opponent. For C64 Ultimates with older firmware, and the only way for a WiC64.
 - **Robust networking** over UDP (Ultimate, RR-Net) or TCP (WiC64): every input packet repeats the last 16 inputs, packets are resent while waiting, state checksums detect a desync, and a lost opponent sends you back to the title screen.
 - **C64 Game Server** (.NET 8, Windows and Raspberry Pi): lobby, challenges, sessions, a relay with checksum checks, a live web dashboard, and a test bot that behaves like a C64.
 
@@ -55,6 +55,7 @@ and `vice-wic64.bat`, which starts VICE with the right network set-up.
 | Determinism (PAL vs NTSC) | verified in VICE |
 | Direct network play, VICE ↔ VICE | verified (lockstep, identical checksums) |
 | C64 Ultimate network driver | measured on real hardware (round trip from 8 ms) |
+| C64 Ultimate ↔ C64 Ultimate, direct (firmware with `$0A`) | verified on two real C64 Ultimates, including the LAN search |
 | C64 Ultimate ↔ VICE, game | built, **not yet tested on real hardware** |
 | C64 Game Server + bot | 46 automated tests, bot ↔ bot sessions without errors |
 | WiC64 (VICE emulation) ↔ server | verified: two VICEs, checksums identical; C64 ↔ bot. In VICE about 35 ticks/s instead of 60 (each WiC64 transfer costs time); real WiC64 not yet tested |
@@ -66,10 +67,17 @@ and `vice-wic64.bat`, which starts VICE with the right network set-up.
 |---|---|
 | C64 Ultimate ↔ VICE / RR-Net | direct (VICE hosts, the Ultimate joins) |
 | VICE ↔ VICE | direct |
-| C64 Ultimate ↔ C64 Ultimate | via the C64 Game Server |
+| C64 Ultimate ↔ C64 Ultimate | direct when the firmware has `$0A` (both machines); otherwise via the C64 Game Server |
 | WiC64 (real or VICE) ↔ anything | via the C64 Game Server (the WiC64 talks TCP; no direct games) |
 
-**Why the server?** The C64 Ultimate firmware cannot listen on a port and cannot open a socket on a fixed local port (checked in the [firmware source](https://github.com/GideonZ/1541ultimate)). Two Ultimates can never reach each other directly, but both can reach a server.
+**Head-to-head between two C64 Ultimates.** The released C64 Ultimate firmware cannot listen on a port and cannot open a socket on a fixed local port, so two Ultimates cannot reach each other; both can reach a server. The new Command Interface command `OPEN_UDP_LOCAL` (`$0A`, [GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962), pull request #1016; a test build is linked in the issue) opens a UDP socket from a fixed local port. With it:
+
+- The setup menu shows `DIRECT: HOST AND JOIN ($0A)`, and **2 HOST A NETWORK GAME** appears. Older firmware shows `DIRECT: JOIN ONLY (STATUS 21)`; then two Ultimates play via the server.
+- The host listens on UDP port 6464 for any sender and announces itself on the LAN about twice a second (UDP broadcast from port 6465).
+- The player chooses **3**, presses RETURN without an IP and the game searches the LAN: `HOST: 192.168.x.x`, then it connects. Typing the host's IP works too, for example when the two machines are on different subnets.
+- With both a cable and Wi-Fi the menu shows the address of the first connected interface (cable first); nothing to choose on one home network.
+
+The [C64 Ultimate link test](../../framework/c64/linktest/README.md) (`RELEASE/tools/linktest.d64`) checks whether two Ultimates can reach each other this way and measures the link.
 
 Network notes:
 - C64 Ultimate: enable **C64 and Cartridge Settings → Command Interface** in the Ultimate menu (F2) and save the settings. It is off by default; without it the setup menu says NO NETWORK HARDWARE FOUND.
@@ -114,8 +122,8 @@ server\publish.bat
 1. Start `wow` on each C64 (`LOAD"WOW",8,1` and `RUN`, or from the Ultimate menu, or VICE autostart).
 2. Choose in the setup menu:
    - **1 LOCAL GAME:** joystick in port 2 for player 2, joystick in port 1 or the keyboard for player 1.
-   - **2 HOST A NETWORK GAME** (RR-Net only): enter your IP (or RETURN for DHCP) and wait.
-   - **3 JOIN A NETWORK GAME:** enter the host's IP.
+   - **2 HOST A NETWORK GAME** (RR-Net, or a C64 Ultimate with `$0A`): RR-Net asks for your IP (or RETURN for DHCP); an Ultimate shows its IP. Then wait for the other player.
+   - **3 JOIN A NETWORK GAME:** enter the host's IP. On a C64 Ultimate with `$0A`, RETURN alone searches the LAN for a host.
    - **4 PLAY VIA A GAME SERVER:** enter a nickname and the server's IP (any server, also someone else's). They are saved as `WOW.CFG` on the disk, so the next start greets you ("Welcome Dungeon Master") and goes straight to the lobby. The lobby screen lists everyone online, person or bot, and whether they are free, busy or playing. Pick an opponent with the joystick (or W/S) and challenge them with FIRE; accept a challenge with FIRE, decline with N. **F1** opens the setup menu to change the name or server.
 3. In a network game each player uses joystick port 2 or W A S D + SPACE. The host (or the server) starts the game.
 
@@ -152,6 +160,7 @@ More in [`server/README.md`](../../server/README.md) and the protocol in [`docs/
 src/wizard_of_wor.asm    the game (disassembly + NET: patches)
 src/net/game_net.asm     ticks, cost model, determinism, hooks       ($C000)
 src/net/netgame.asm      setup menu, network I/O, lockstep, server   ($5D00)
+src/net/direct*.asm      head-to-head between two C64 Ultimates ($0A), the LAN search
 src/net/uci.asm          C64 Ultimate Command Interface driver
 src/net/wic64.asm        WiC64 driver (TCP to the game server)
 src/net/net_rrnet.asm    RR-Net driver on top of ip65 (UDP)
