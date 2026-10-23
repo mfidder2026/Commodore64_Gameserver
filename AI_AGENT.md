@@ -180,6 +180,8 @@ Wor) and the game still meets the standard above.
   the other spy's half black (ECM + bitmap, no sprites). It only writes VIC registers; keep it that way.
 - `NET_TAIL` must lie outside the SPY/NET segments (`$C984`, the copy of `$0200-$03FF`): net_end copies
   its last part there while it runs.
+- Head-to-head (lobby key H, `DIRECT_DELAY` in `lobby/game.h`) for every framework game:
+  `python ../../framework/tools/nettest.py . 60 --direct [--option N]` (two VICEs, no server).
 - `python tools/dettest.py 10000 humans=1` (also `humans=2`, `level=1-8`, `private=0|1`);
   `python ../../framework/tools/nettest.py . 300 --players 2` (`--players 1`: alone against the computer;
   `--option N`: the table's option, 8-15 private).

@@ -31,6 +31,8 @@ Load the disk's first file: the framework's standard lobby, with **tables**.
 - The players are colonists 1-4 in the order they sat down; each uses joystick port 2.
 - `Q` (any player) ends the game for all; after the last month everyone is back at the lobby.
 
+**Head-to-head, without a server:** two C64s on the same network can play without the game server. In the start menu one presses **H** and **1** (host), the other **H** and **2**: it finds the host on the LAN by itself. The host chooses the level first and is colonist 1, the other colonist 2; the computer plays colonists 3 and 4. Works on two C64 Ultimates whose firmware has the Command Interface command `$0A` ([GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962)) and between two VICEs with RR-Net; see the [standard lobby](../../framework/c64/lobby/README.md#head-to-head-directc). Test: `python ../../framework/tools/nettest.py . 60 --direct`.
+
 ## The disk
 
 The tape image's disk (cracked by "Jedi", 1984) has two files:

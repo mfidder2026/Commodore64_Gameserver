@@ -92,7 +92,7 @@ it needs. A game with room for all drivers can use the same name for all three.
 | 5-6 | start parameters 0 and 1 (Bubble Bobble: the seed) |
 | 7 | start parameter 2 (Bubble Bobble: the input delay) |
 | 8 | UCI socket (Ultimate) |
-| 9 | flags: bit 0 = test bot plays instead of the joystick |
+| 9 | flags: bit 0 = test bot plays instead of the joystick; bits 1-2 = head-to-head: our slot (`net.s` puts it in the INPUT type when a game has more than two seats; with a server they are 0) |
 | 10 | drive number (to load the lobby again) |
 | 11 | bits 0-3: players in the session (from START; games with more than two seats, `NET_PLAYERS` in `net.s`); bits 4-7: start parameter 3, a table's option (games with tables) |
 | 12-17 | RR-Net: the server's MAC |
@@ -140,7 +140,9 @@ request #1016) and on VICE with RR-Net. Its menu:
 - **2 join: search the host:** finds a host of the same game on the LAN and joins it.
 - **3 join: type the host's IP** (Ultimate): when the two are on different subnets.
 
-The host plays slot 0, the joiner slot 1. The lobbies agree on a session id, a seed
+The host plays slot 0, the joiner slot 1. In a game with tables (`GAME_TABLES`) the host first
+chooses the table's option; the other seats are the game's own (computer players).
+The lobbies agree on a session id, a seed
 and the input delay (`DIRECT_DELAY`, as the server's `inputDelay` for that game) and
 start the game through the normal handoff block: socket to the other C64 (Ultimate),
 or its MAC as the server MAC (RR-Net). The game needs no change. Messages and ports:

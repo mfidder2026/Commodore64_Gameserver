@@ -11,6 +11,12 @@ the lobby with everyone who is online, and choose an opponent, either a person o
 one of the server's bots. Games for more than two (M.U.L.E.) have tables: open one,
 let others sit down, start; the game's own computer players fill the empty seats.
 
+**Head-to-head, without a server:** two C64s on the same network can also play
+without the server (key **H** in every game's start menu): one hosts, the other finds it
+on the LAN by itself. This works on two **C64 Ultimates** whose firmware has the new
+Command Interface command `$0A` ([GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962))
+and between two VICEs with RR-Net.
+
 <p align="center">
   <img src="games/bubblebobble/docs/images/game-alice-2.png" width="32%" alt="Bubble Bobble OME">
   <img src="games/wizardofwor/docs/images/game_a.png" width="32%" alt="Wizard of Wor OME">

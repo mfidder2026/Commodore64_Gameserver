@@ -34,4 +34,8 @@
 #define SLOT0_NAME    "WHITE (left)"
 #define SLOT1_NAME    "RED (right)"
 
+/* head-to-head without the server (menu key H): the input delay in ticks, as the
+   server's inputDelay; leave undefined for a game without it */
+#define DIRECT_DELAY  3
+
 #endif

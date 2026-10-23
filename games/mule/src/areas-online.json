@@ -116,10 +116,11 @@
  {
   "start": "60F3",
   "end": "617C",
-  "what": "the attract mode (online never called: $5FDB): wait loop stubs; the test builds' bot",
+  "what": "the attract mode (online never called: $5FDB): wait loop stubs; the test builds' bots",
   "segments": [
    "WAITS3",
-   "MULEDT"
+   "MULEDT",
+   "NETBOT"
   ]
  },
  {

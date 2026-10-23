@@ -342,7 +342,7 @@ know the difference. There is no checksum compare in a head-to-head game.
 |---|---|---|---|
 | `$18` | HERE | `$18`, proto, game id, game version, IP (4), name length, name | host → broadcast, every 0.5 s |
 | `$01` | HELLO | as the server's HELLO, followed by the joiner's IP (4) | joiner → host, every 0.5 s |
-| `$08` | START | session id (random), slot 1, 2 players, 3, seed (2), `DIRECT_DELAY` | host → joiner, every 0.25 s |
+| `$08` | START | session id (random), slot 1, 2 players, n, seed (2), `DIRECT_DELAY`, [the table's option: n = 4] | host → joiner, every 0.25 s |
 | `$09` | START_ACK | session id | joiner → host, three times |
 
 - **C64 Ultimate host:** `$0A` from local port 6465 to the subnet's broadcast address
@@ -353,6 +353,9 @@ know the difference. There is no checksum compare in a head-to-head game.
 - **C64 Ultimate joiner:** `$0A` to `0.0.0.0`, remote 6465, local 6464 hears HERE;
   then `$0A` to the host, 6464 ↔ 6464. The host's IP can also be typed in.
 - On START_ACK the host starts its game as slot 0, the joiner on START as slot 1.
+- Games with more than two seats (M.U.L.E.): the server's relay puts the sender's slot in the
+  INPUT type (`$80 + slot`); head-to-head the game does it itself (handoff flags bits 1-2).
+  A server still receives `$80` only.
   The handoff block carries the socket to the other C64 (Ultimate) or its MAC
   as the "server" MAC (RR-Net).
 - A joiner that hears nothing for 4 s after a HERE searches again (an old HERE);

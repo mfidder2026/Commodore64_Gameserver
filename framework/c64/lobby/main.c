@@ -92,6 +92,7 @@ static unsigned char auto_option;        /* config "option": the option of that 
 #endif
 static unsigned char cfg_dirty;
 static unsigned char direct_role;        /* 'h' / 'j': the last game was head-to-head (direct.c) */
+static unsigned char direct_session;     /* 1: this session is head-to-head (handoff flags bits 1-2) */
 
 static unsigned char drv;                /* DRV_* */
 static unsigned char msg[256];
@@ -355,7 +356,7 @@ static void start_session(void)
     HB[HB_SEED + 1] = params[1];
     HB[HB_DELAY] = params[2];
     HB[HB_SOCKET] = net_socket();
-    HB[HB_FLAGS] = bot;
+    HB[HB_FLAGS] = bot | (direct_session ? slot << 1 : 0);    /* head-to-head: our slot (net.s) */
     HB[HB_DEVICE] = PEEK(0xBA) ? PEEK(0xBA) : 8;
     HB[HB_PLAYERS] = (msg[3] & 15) | (msg[4] >= 4 ? params[3] << 4 : 0);   /* start parameter 3: the option */
     memcpy(HB + HB_DSTMAC, net_server_mac(), 6);

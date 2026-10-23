@@ -35,4 +35,8 @@
 #define SLOT0_NAME    "the light side"
 #define SLOT1_NAME    "the dark side"
 
+/* head-to-head without the server (menu key H): the input delay in ticks, as the
+   server's inputDelay; leave undefined for a game without it */
+#define DIRECT_DELAY  3
+
 #endif

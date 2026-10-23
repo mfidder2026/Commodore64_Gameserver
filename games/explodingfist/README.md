@@ -22,9 +22,10 @@ instead of the boot picture and the scream.
 
 1. Start the [game server](../../server/README.md), or use someone else's (`RELEASE/start-server.bat`).
 2. Start the disk `RELEASE/games/explodingfist.d64` on each C64. In VICE: `RELEASE/vice-wic64.bat`, game 3.
-3. The first start asks for your name and, for the Ultimate and the WiC64, the server's IP address.
+3. Press **RETURN** (online, via a game server) in the start menu; it asks for your name and, for the
+   Ultimate and the WiC64, the server's IP address.
    - C64 Ultimate: first enable the [Command Interface](../../README.md#c64-ultimate-turn-on-the-command-interface).
-   - Later starts go straight to the lobby.
+   - Once a server is set, later starts go straight to the lobby.
 4. Choose an opponent, a person or a bot (BRUCE, CHUCK), and press FIRE. The other accepts with FIRE or Y.
 5. Both C64s load the game and play the original **two-player match: four bouts**, one per backdrop.
    - The player who invited is **white** (left), the one who accepted is **red** (right).
@@ -32,8 +33,10 @@ instead of the boot picture and the scream.
    - **Q** ends the match for both.
 6. After the match both C64s go back to the lobby.
 
-In the lobby, **F1** opens the setup (name, server), and **L** starts the original game on one
+In the lobby, **F1** goes back to the start menu; there **L** starts the original game on one
 C64 (one player against the computer, or two players with two joysticks).
+
+**Head-to-head, without a server:** two C64s on the same network can play without the game server. In the start menu one presses **H** and **1** (host), the other **H** and **2**: it finds the host on the LAN by itself. The host is **white**, the other **red**. Works on two C64 Ultimates whose firmware has the Command Interface command `$0A` ([GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962)) and between two VICEs with RR-Net; see the [standard lobby](../../framework/c64/lobby/README.md#head-to-head-directc). Test: `python ../../framework/tools/nettest.py . 60 --direct`.
 
 ## How it was done
 

@@ -42,7 +42,8 @@
 ;                                    piece: NET (the lockstep, net_hb),
 ;                                    NETRX (receiving, net_end), NETDRV (the
 ;                                    driver), NETBSS (state and buffers, never
-;                                    loaded: may lie below $0400)
+;                                    loaded: may lie below $0400); test builds
+;                                    (NETBOT) also NETBOT, the bot
 ; and calls:
 ;   net_start   when a session game starts (C=1: no handoff, a local game)
 ;   net_step    once per tick (session only)
@@ -87,7 +88,8 @@ HB_SESSION      = 4
 HB_SEED         = 5                     ; 2 bytes
 HB_DELAY        = 7                     ; input delay in ticks (1-4)
 HB_SOCKET       = 8                     ; UCI socket
-HB_FLAGS        = 9                     ; bit 0: test bot plays
+HB_FLAGS        = 9                     ; bit 0: test bot plays; bits 1-2: head-to-head,
+                                        ; our slot (no server sets it in INPUT)
 HB_DEVICE       = 10                    ; drive the lobby was loaded from
 HB_PLAYERS      = 11                    ; bits 0-3: players in the session (START;
                                         ; 0 = 2), 4-7: a table's option
@@ -465,6 +467,9 @@ read_local:
         rts
 
 .ifdef NETBOT
+.ifdef NET_SPLIT
+.segment "NETBOT"                       ; test builds only: its own place
+.endif
 ; test bot: a walk that differs per slot, fire every 4th tick
 netbot:
 .ifdef NET_BOT_PERSON
@@ -519,11 +524,20 @@ nb_pdirs:       .byte   $1E, $1D, $1B, $17, $1A, $16, $19, $15 ; all eight
         rts
 .endif
 nb_dirs:        .byte   $1F, $1B, $17, $1E, $1A, $16, $1B, $17
+.ifdef NET_SPLIT
+.segment "NET"
+.endif
 .endif
 
 ; --- INPUT packet -----------------------------------------------------------
 send_input:
+.if NET_PLAYERS > 2                     ; head-to-head (no server): the type
+        lda     net_hb+HB_FLAGS         ; carries our slot ($80 + slot), as
+        lsr     a                       ; the server's relay sets it; with a
+        ora     #MSG_INPUT              ; server bits 1-2 are 0 ($80 only)
+.else
         lda     #MSG_INPUT
+.endif
         sta     tx_buf
         lda     net_hb+HB_SESSION
         sta     tx_buf+1

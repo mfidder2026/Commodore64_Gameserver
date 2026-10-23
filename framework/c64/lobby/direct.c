@@ -18,9 +18,13 @@
  * Messages (docs/protocol.md, "Head-to-head"):
  *   HERE      $18 proto game version ip(4) n nick       host -> broadcast
  *   HELLO     $01 proto game version n nick ip(4)      joiner -> host
- *   START     $08 session slot(1) players(2) 3 seed(2) delay   host -> joiner
+ *   START     $08 session slot(1) players(2) n seed(2) delay [option]   host -> joiner
  *   START_ACK $09 session                              joiner -> host
- * The host's game is slot 0, the joiner's slot 1.
+ * The host's game is slot 0, the joiner's slot 1. Games with tables: the host
+ * chooses the table's option first (start parameter 3, n = 4); the other seats
+ * are the game's own (computer players). The handoff flags' bits 1-2 carry our
+ * slot in a head-to-head game (net.s: with more than two seats the INPUT type
+ * carries the sender's slot, which the server's relay would otherwise set).
  */
 
 #define M_HERE        0x18
@@ -29,6 +33,7 @@
 
 static char peer_nick[NICK_MAX + 1];
 static char peer_ip[16];
+static unsigned char session, seed0, seed1, d_option;
 
 static void ipstr(char *s, const unsigned char *ip)
 {
@@ -77,22 +82,74 @@ static unsigned char any_key(void)
     return 1;
 }
 
+/* START for the joiner (slot 1) or for our own game (slot 0): 8 or 9 bytes */
+static unsigned char put_start(unsigned char slot)
+{
+    msg[0] = M_START; msg[1] = session; msg[2] = slot; msg[3] = 2; msg[4] = 3;
+    msg[5] = seed0; msg[6] = seed1; msg[7] = DIRECT_DELAY;
+#ifdef GAME_TABLES
+    msg[4] = 4;
+    msg[8] = d_option;
+    return 9;
+#else
+    return 8;
+#endif
+}
+
 /* the game: the same handoff as a server's START (msg holds a START) */
 static void direct_start(unsigned char role)
 {
     if (direct_role != role) { direct_role = role; cfg_dirty = 1; }
+    direct_session = 1;
     start_session();                            /* does not return */
 }
+
+#ifdef GAME_TABLES
+/* the host chooses the table's option (TABLE_OPTION_NAME); 0 = back */
+static unsigned char choose_option(void)
+{
+    unsigned char key, joy, lastjoy = 0xFF;
+    if (auto_mode == 'h') { d_option = auto_option < NOPTIONS ? auto_option : 0; return 1; }
+    if (d_option >= NOPTIONS) d_option = 0;
+    title();
+    cputs("Head-to-head: hosting\r\n\r\n");
+    cputs(TABLE_OPTION_NAME ":\r\n\r\n");
+    dline(23, COLOR_YELLOW, "Cursor/joystick: change  RETURN/FIRE: ok");
+    for (;;) {
+        cclearxy(0, 5, 40);
+        gotoxy(2, 5);
+        textcolor(COLOR_LIGHTGREEN);
+        cprintf("< %s >", option_text[d_option]);
+        textcolor(COLOR_WHITE);
+        do {
+            key = kbhit() ? cgetc() : 0;
+            joy = joy2();
+            if (joy & ~lastjoy & 4) key = CH_CURS_LEFT;
+            if (joy & ~lastjoy & 8) key = CH_CURS_RIGHT;
+            if (joy & ~lastjoy & 1) key = CH_CURS_UP;
+            if (joy & ~lastjoy & 2) key = CH_CURS_DOWN;
+            if (joy & ~lastjoy & 16) key = CH_ENTER;
+            lastjoy = joy;
+        } while (!key);
+        if (key == CH_CURS_LEFT || key == CH_CURS_UP) d_option = d_option ? d_option - 1 : NOPTIONS - 1;
+        if (key == CH_CURS_RIGHT || key == CH_CURS_DOWN) d_option = (d_option + 1) % NOPTIONS;
+        if (key == CH_ENTER || key == ' ') return 1;
+        if (key == 0x5F) return 0;                                    /* left arrow */
+    }
+}
+#endif
 
 /* ------------------------------------------------------------------- host */
 
 static void direct_host(void)
 {
-    unsigned char ann = 0xFF, lst = 0xFF, peer = 0xFF, linked = 0;
-    unsigned char session, seed0, seed1, n;
+    unsigned char ann = 0xFF, lst = 0xFF, peer = 0xFF, linked = 0, n;
     clock_t last = 0, since = 0;
     char line[40];
 
+#ifdef GAME_TABLES
+    if (!choose_option()) return;
+#endif
     title();
     cputs("Head-to-head: hosting\r\n\r\n");
     if (drv == DRV_UCI) {
@@ -114,6 +171,9 @@ static void direct_host(void)
         net_use_socket(lst);
     }
     net_direct_begin();
+#ifdef GAME_TABLES
+    cprintf("%s: %s\r\n", TABLE_OPTION_NAME, option_text[d_option]);
+#endif
     dline(23, COLOR_YELLOW, "Waiting for the other C64. Key: back");
 
     session = (PEEK(0xD012) ^ PEEK(0xDC04) ^ (unsigned char)clock()) | 1;
@@ -133,9 +193,7 @@ static void direct_host(void)
         }
         if (linked && elapsed(last, CLOCKS_PER_SEC / 4)) {           /* START every 0.25 s */
             last = now();
-            msg[0] = M_START; msg[1] = session; msg[2] = 1; msg[3] = 2; msg[4] = 3;
-            msg[5] = seed0; msg[6] = seed1; msg[7] = DIRECT_DELAY;
-            send(8);
+            send(put_start(1));
             if (elapsed(since, CLOCKS_PER_SEC * 5)) {                 /* no answer: wait again */
                 linked = 0;
                 dline(21, COLOR_ORANGE, "No answer, waiting again.");
@@ -178,8 +236,7 @@ static void direct_host(void)
         }
         if (linked && msg[0] == M_START_ACK && msg[1] == session) {
             net_close_socket(ann);
-            msg[0] = M_START; msg[1] = session; msg[2] = 0; msg[3] = 2; msg[4] = 3;
-            msg[5] = seed0; msg[6] = seed1; msg[7] = DIRECT_DELAY;
+            put_start(0);
             direct_start('h');
         }
     }

@@ -37,4 +37,8 @@
 #define TABLE_OPTIONS     "Beginner", "Standard", "Tournament"
 #define SEAT_NAME         "colonist"
 
+/* head-to-head without the server (menu key H): the input delay in ticks, as the
+   server's inputDelay; the host chooses the table's option, the other seats are the game's */
+#define DIRECT_DELAY  3
+
 #endif

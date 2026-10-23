@@ -33,8 +33,10 @@ Load the disk's first file (`LOAD"*",8,1` / `RUN`): the framework's standard lob
 - Alone at the table, the host plays white against the computer's black spy.
 - `Q` (either player) ends the game for both. After the game the result stays on the
   screen for three seconds, then both C64s go back to the lobby.
-- Key `L` in the lobby loads the **original game** (`spyl`: the options screen, one or two
+- Key `L` in the start menu loads the **original game** (`spyl`: the options screen, one or two
   players on one C64, the demo; without the cracker's line).
+
+**Head-to-head, without a server:** two C64s on the same network can play without the game server. In the start menu one presses **H** and **1** (host), the other **H** and **2**: it finds the host on the LAN by itself. The host chooses the level and the screen (also **private**) first and plays **the white spy**, the other **the black spy**. Works on two C64 Ultimates whose firmware has the Command Interface command `$0A` ([GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962)) and between two VICEs with RR-Net; see the [standard lobby](../../framework/c64/lobby/README.md#head-to-head-directc). Test: `python ../../framework/tools/nettest.py . 60 --direct`.
 
 ## Status
 
