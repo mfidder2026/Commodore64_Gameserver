@@ -1927,8 +1927,9 @@ net_menu
 	BNE +
 	JSR print_inline
 	.null C_CYAN, "NETWORK: ", C_WHITE, "C64 ULTIMATE", 13, C_CYAN, "MY IP:   ", C_WHITE
-	JSR uci.net_get_ip
+	JSR direct_get_ip ; the first interface with an address (direct_hi.asm)
 	JSR print_ip
+	JSR direct_status ; DIRECT GAMES: YES / NO (STATUS nn)
 	JMP _items
 +	CMP #BACKEND_RRNET
 	BNE +
@@ -2411,5 +2412,6 @@ net_tmp		.byte 0
 local_in	.fill 256 ; inputs by tick (low byte)
 remote_in	.fill 256
 uci_resp	.fill uci.UCI_RESP_MAX
+	.include "direct_hi.asm" ; after the aligned buffers: does not move them
 
 	.cerror * > $8000, "the network code must end below $8000"

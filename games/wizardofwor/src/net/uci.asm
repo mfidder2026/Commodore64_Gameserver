@@ -337,7 +337,7 @@ net_get_ip .proc
 	STA UCI_CMD
 	LDA #NET_CMD_GET_IPADDR
 	STA UCI_CMD
-	LDA #$00 ; interface 0
+	LDA net_if ; the interface (0 = LAN, 1 = WiFi on a C64 Ultimate)
 	STA UCI_CMD
 	JSR uci_push
 	JSR uci_wait

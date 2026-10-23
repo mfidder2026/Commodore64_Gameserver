@@ -1277,6 +1277,7 @@ host_len	.fill 1
 ip_idx		.fill 1
 ip_cnt		.fill 1
 net_ipcfg	.fill 12 ; ip, netmask, gateway
+net_if		.byte 0 ; the interface of net_get_ip (uci.asm)
 
 	; used by net_rrnet.asm
 net_peer_ip	.fill 4
