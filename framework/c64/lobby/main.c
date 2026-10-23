@@ -519,7 +519,22 @@ static void lobby(void)
 /* the server's address is needed for the Ultimate and the WiC64; RR-Net finds the server itself */
 #define NEEDS_SERVER (drv == DRV_UCI || drv == DRV_WIC)
 #if GAME_PAL_ONLY
-#define PAL_OK (PEEK(0x02A6) != 0)
+/* PAL or NTSC, measured on the VIC: a PAL frame has 312 raster lines (the last
+   one $137), NTSC 263 ($106). Not the KERNAL's flag $02A6: some machines (a
+   C64 Ultimate) leave it 0 on PAL */
+static unsigned char pal;
+static unsigned char measure_pal(void)
+{
+    unsigned char top = 0, l;
+    unsigned int i;
+    for (i = 0; i < 4000; ++i)                  /* a few frames */
+        if (PEEK(0xD011) & 0x80) {
+            l = PEEK(0xD012);
+            if (l > top) top = l;
+        }
+    return top > 0x20;
+}
+#define PAL_OK pal
 #else
 #define PAL_OK 1
 #endif
@@ -535,6 +550,9 @@ int main(void)
         RESULT[0] = 0;
     }
     cfg_load();
+#if GAME_PAL_ONLY
+    pal = measure_pal();
+#endif
 
     title();
     cputs("Looking for network hardware...\r\n\r\n");
@@ -545,7 +563,7 @@ int main(void)
     for (;;) {
         title();
 #if GAME_PAL_ONLY
-        if (PEEK(0x02A6) == 0)
+        if (!pal)
             cputs("NTSC C64: the online game needs PAL.\r\n\r\n");
 #endif
         switch (drv) {
@@ -583,6 +601,13 @@ int main(void)
         if (!key) key = cgetc();
 
         if (key == 's') { settings(NEEDS_SERVER); cfg_save(); continue; }
+#if GAME_PAL_ONLY
+        if (!PAL_OK && (key == CH_ENTER || key == CH_F1 || key == 'h')) {
+            status(drv == DRV_UCI ? "Set the Ultimate to PAL (F2 menu)." : "Online play needs a PAL C64.");
+            sleep(3);
+            continue;
+        }
+#endif
 #ifdef DIRECT_DELAY
         if (key == 'h' && DIRECT_OK && PAL_OK) {
             if (!*nick) { settings(0); cfg_save(); }

@@ -299,6 +299,10 @@ net_step:
         lda     $D012
         sta     ls_line
 @poll:
+.ifdef NET_UCI                          ; Ultimate: our input waits while a
+        lda     uci_pend                ; command runs; poll until it is out,
+        bne     @net                    ; or it leaves a tick late
+.endif
 .if NET_PLAYERS > 2
         jsr     all_ready               ; all others' inputs for this tick?
         bcs     @ready                  ; (only poll when one is missing)
@@ -309,7 +313,7 @@ net_step:
         sbc     net_tick+1
         bcs     @ready
 .endif
-        jsr     net_poll                ; may end the session (no return)
+@net:   jsr     net_poll                ; may end the session (no return)
         lda     $D012                   ; a raster wrap (twice a frame)?
         cmp     ls_line
         sta     ls_line

@@ -164,17 +164,27 @@ net_tick:
 .endif
 @wait:  lda     bb_rframe
         sta     ls_rf
-@poll:  lda     ls_rnew                 ; the other's input for this tick?
+@poll:
+.ifdef NET_UCI                          ; Ultimate: our input waits while a
+        lda     uci_pend                ; command runs; poll until it is out,
+        bne     @net                    ; or it leaves a tick late
+.endif
+        lda     ls_rnew                 ; the other's input for this tick?
         cmp     bb_tick                 ; (only poll when it is missing:
         lda     ls_rnew+1               ; a WiC64 poll costs frames)
         sbc     bb_tick+1
         bcs     @ready
-        jsr     net_poll                ; may end the session (no return)
+@net:   jsr     net_poll                ; may end the session (no return)
         lda     bb_rframe
         cmp     ls_rf
         beq     @poll
-        jsr     send_input              ; resend every real frame
-        inc     ls_wait
+.ifdef NET_UCI                          ; Ultimate: resend every 4th frame
+        lda     ls_wait                 ; (more only queues up at the other
+        and     #3                      ; C64, which reads one per command)
+        bne     :+
+.endif
+        jsr     send_input              ; resend every real frame (see above)
+:       inc     ls_wait
         bne     :+
         inc     ls_wait+1
 :
