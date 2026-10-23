@@ -15,8 +15,9 @@
 ;         Controls player 1 (actor 1).
 ;   join  C64 Ultimate or RR-Net: UDP to host:6464. Controls
 ;         player 2 (actor 0).
-;   The Ultimate firmware cannot listen or open a fixed local
-;   port (docs/netcode.md), so an Ultimate always joins.
+;   An Ultimate hosts too when its firmware has OPEN_UDP_LOCAL
+;   ($0A): net/direct.asm. Older firmware cannot listen or open a
+;   fixed local port (docs/netcode.md): then an Ultimate joins.
 ;   server  via the C64 Game Server (server/, UDP 6465; WiC64: TCP 6466):
 ;         nickname, lobby on the title screen, the server pairs the players.
 ;         Slot 0 = player 1 (actor 1), slot 1 = player 2 (actor 0).
@@ -277,7 +278,7 @@ netio_detect .proc
 	JSR uci.uci_reset
 	LDA #BACKEND_UCI
 	STA net_backend
-	RTS
+	JMP direct_probe ; firmware with $0A: an Ultimate can host (direct.asm)
 _no_uci
 	LDA mac_last
 	#rr_call rr.net_detect
@@ -434,6 +435,7 @@ rx_hello .proc
 	LDA net_role
 	CMP #ROLE_HOST
 	BNE +
+	JSR direct_hello ; an Ultimate host: a socket to the player (direct.asm)
 	LDA #$01
 	STA net_connected
 	JMP send_welcome
@@ -597,10 +599,11 @@ packet_header .proc
 
 send_hello .proc
 	LDA #PT_HELLO
-	LDX #4
+	LDX #8 ; version, our ip (an Ultimate host needs it)
 	JSR packet_header
 	LDA #PROTO_VERSION
 	STA net_tx_buf+3
+	JSR hello_add_ip
 	JMP netio_send
 .pend
 
@@ -1945,8 +1948,7 @@ net_menu
 _items
 	JSR print_inline
 	.null 13, C_CYAN, "CONTROLS: ", C_WHITE, "JOYSTICK 2 OR W A S D + SPACE", 13, C_LGREY, "(LOCAL GAME: KEYBOARD OR PORT 1 = PL. 1)", 13, 13, C_YELLOW, "1  ", C_LBLUE, "LOCAL GAME", 13
-	LDA net_backend
-	CMP #BACKEND_RRNET
+	JSR can_host ; RR-Net, or an Ultimate with $0A
 	BNE +
 	JSR print_inline
 	.null C_YELLOW, "2  ", C_LBLUE, "HOST A NETWORK GAME", 13
@@ -1973,11 +1975,11 @@ _wic_items
 +
 	CMP #'4'
 	BEQ _server
-	CPX #BACKEND_RRNET
-	BNE -
 	CMP #'2'
 	BNE -
-	JMP setup_host
+	JSR can_host
+	BNE -
+	JMP direct_setup_host ; setup_host, or first the Ultimate's socket (direct.asm)
 _local
 	LDA #ROLE_LOCAL
 	STA net_role
@@ -2040,12 +2042,14 @@ _ok
 ; -----------------------------------------
 
 setup_host .proc
+	; RR-Net; an Ultimate with $0A comes in at "listening" (direct_setup_host, direct.asm)
 	JSR setup_my_ip_rrnet
 	BCC +
 	JMP wait_key_menu
-+	LDA #ROLE_HOST
++	#rr_call rr.net_listen
+listening
+	LDA #ROLE_HOST
 	STA net_role
-	#rr_call rr.net_listen
 	JSR print_inline
 	.null 13, 13, C_YELLOW, "WAITING FOR PLAYER 2 ON PORT 6464", 13, C_LGREY, "(ANY KEY = BACK)", 13, C_WHITE
 -	JSR GETIN
@@ -2086,8 +2090,7 @@ setup_join .proc
 	LDA net_backend
 	CMP #BACKEND_UCI
 	BNE _rr
-	LDA #uci.NET_CMD_OPEN_UDP
-	JSR uci.net_open
+	JSR direct_join_open ; $0A from port 6464 when the firmware has it (direct.asm)
 	JMP _opened
 _rr
 	#rr_call rr.net_open
