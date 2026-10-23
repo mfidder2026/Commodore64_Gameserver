@@ -68,6 +68,10 @@ unsigned long timer_now(void);
 #define T_DATA  6
 #define HDR     21              /* bytes before the data */
 
+#define R_FAIL  0               /* master(), slave(), manual() */
+#define R_OK    1
+#define R_BACK  2
+
 #define DRV_NONE 0
 #define DRV_UCI  1
 #define DRV_RR   2
@@ -246,7 +250,37 @@ static unsigned char sock_recv(unsigned char s)
         memcpy(rx, uci_resp + 2, n);
         rxlen = (unsigned char)n;
     }
-    return rxlen >= HDR && rx[0] == 'L' && rx[1] == 'T';
+    if (rxlen < HDR || rx[0] != 'L' || rx[1] != 'T') return 0;
+    if (drv == DRV_RR ? !memcmp(rr_from, mymac, 6) : !memcmp(rx + 9, myip, 4)) return 0;
+    return 1;
+}
+
+/* forget what arrived before: an old HELLO must not start a link (RR-Net: the
+   chip's buffer; an Ultimate socket was just opened, it has nothing old) */
+static void flush(unsigned char s)
+{
+    unsigned char n = 0;
+    (void)s;
+    if (drv == DRV_RR)
+        while (rr_poll() && ++n < 200) ;
+}
+
+/* RR-Net: a MAC address of our own, made when a key starts the search (two
+   VICEs started the same way would otherwise make the same one) */
+static void rr_newmac(void)
+{
+    unsigned long t;
+    if (drv != DRV_RR) return;
+    t = timer_now();
+    rr_mymac[0] = 0x02;                         /* locally administered, unicast */
+    rr_mymac[1] = 0x4C;
+    rr_mymac[2] = (unsigned char)t ^ PEEK(0xD012);
+    rr_mymac[3] = (unsigned char)(t >> 8) ^ PEEK(0xDC04);
+    rr_mymac[4] = (unsigned char)(t >> 16) ^ (unsigned char)t;
+    rr_mymac[5] = (unsigned char)(t >> 24) ^ PEEK(0xDC05) ^ (unsigned char)(t >> 3);
+    rr_init();
+    memcpy(mymac, rr_mymac, 6);
+    sprintf(myname, "C64-%02X%02X", mymac[4], mymac[5]);
 }
 
 /* --- messages ---------------------------------------------------------------- */
@@ -429,15 +463,16 @@ static unsigned char master(void)
         for (i = 0; i < 4; ++i) b[i] = myip[i] | (unsigned char)~mymask[i];
         strcpy(host, ipstr(b));
         sprintf(tmp, "SEND TO %s:%u", host, PORT_LINK);
-        if (!step(tmp, (sock2 = open_local(host, PORT_LINK, PORT_HELLO)) != 0xFF)) return 0;
+        if (!step(tmp, (sock2 = open_local(host, PORT_LINK, PORT_HELLO)) != 0xFF)) return R_FAIL;
         if (!step("LISTEN ON 0.0.0.0:6464", (sock = open_local("0.0.0.0", PORT_LINK, PORT_LINK)) != 0xFF)) {
             close_socket(&sock2);
-            return 0;
+            return R_FAIL;
         }
     } else {
         memcpy(rr_dst, bcast_mac, 6);
         step("ETHERNET BROADCAST", 1);
     }
+    flush(sock);
     logline(COLOR_YELLOW, "SENDING HELLO...");
     for (;;) {
         if (key_q()) break;
@@ -459,12 +494,12 @@ static unsigned char master(void)
                 close_socket(&sock2);
                 return connect_peer();
             }
-            return 1;
+            return R_OK;
         }
     }
     close_socket(&sock);
     close_socket(&sock2);
-    return 0;
+    return R_BACK;
 }
 
 static unsigned char slave(void)
@@ -474,12 +509,13 @@ static unsigned char slave(void)
     logy = 4;
     if (drv == DRV_UCI) {
         if (!step("LISTEN ON 0.0.0.0:6464", (sock = open_local("0.0.0.0", PORT_HELLO, PORT_LINK)) != 0xFF))
-            return 0;
+            return R_FAIL;
         sprintf(tmp, "THIS C64: %s", ipstr(myip));
         logline(COLOR_YELLOW, tmp);
     } else {
         step("ETHERNET BROADCAST", 1);
     }
+    flush(sock);
     logline(COLOR_YELLOW, "WAITING FOR A HELLO...");
     for (;;) {
         if (key_q()) break;
@@ -490,7 +526,7 @@ static unsigned char slave(void)
             if (drv == DRV_UCI) {
                 logline(COLOR_LIGHTGREEN, ipstr(peerip));
                 close_socket(&sock);
-                if (!connect_peer()) return 0;
+                if (!connect_peer()) return R_FAIL;
             }
             {                                   /* the ACK three times: */
                 unsigned char k;                /* the MASTER needs one */
@@ -502,11 +538,11 @@ static unsigned char slave(void)
                     while (timer_now() - t < cps / 10) ;
                 }
             }
-            return 1;
+            return R_OK;
         }
     }
     close_socket(&sock);
-    return 0;
+    return R_BACK;
 }
 
 static unsigned char manual(void)
@@ -531,7 +567,7 @@ static unsigned char manual(void)
         cursor(1);
         c = key();
         cursor(0);
-        if (c == 'q') return 0;
+        if (c == 'q') return R_BACK;
         if (c == CH_DEL && n) line[--n] = 0;
         else if (((c >= '0' && c <= '9') || c == '.') && n < 15) { line[n++] = c; line[n] = 0; }
         else if (c == CH_ENTER) break;
@@ -539,10 +575,10 @@ static unsigned char manual(void)
     p = line;
     for (i = 0; i < 4; ++i) {
         v = atoi(p);
-        if (v > 255) return 0;
+        if (v > 255) return R_FAIL;
         ip[i] = v;
         p = strchr(p, '.');
-        if (!p && i < 3) return 0;
+        if (!p && i < 3) return R_FAIL;
         if (p) ++p;
     }
     memcpy(peerip, ip, 4);
@@ -734,11 +770,13 @@ int main(void)
             cgetc();
             continue;
         }
+        if (c == 'm' || c == 's') rr_newmac();
         if (c == 'm') ok = master();
         else if (c == 's') ok = slave();
         else if (c == 'i' && drv == DRV_UCI) ok = manual();
-        if (ok) link();
-        else if (c == 'm' || c == 's' || c == 'i') {
+        else continue;
+        if (ok == R_OK) link();
+        else if (ok == R_FAIL) {
             footer("PRESS A KEY");
             cgetc();
         }
