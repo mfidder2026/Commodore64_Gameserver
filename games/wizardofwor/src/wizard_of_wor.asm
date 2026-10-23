@@ -6961,7 +6961,26 @@ kernal_ioinit_prg
 	.include "net/game_net.asm"
 	.include "net/lobby.asm"
 	.include "net/config.asm"
+	.if !DETTEST
 	.include "net/direct.asm" ; Ultimate <-> Ultimate without the server (firmware with $0A)
+	.else ; determinism tests: no room, and no network game; the old behaviour
+direct_ok	.byte 0
+direct_lport	.word 0
+direct_probe
+direct_hello
+	RTS
+direct_open
+	LDA #$FF
+	SEC
+	RTS
+direct_setup_host
+	JMP setup_host
+direct_join_open
+	LDA #uci.NET_CMD_OPEN_UDP
+	JMP uci.net_open
+direct_search
+	JMP net_setup.net_menu
+	.fi
 	.cerror * > $D000, "the network code must end below $D000"
 
 	.include "net/netgame.asm" ; $4000-$7FFF: ip65, setup menu, network I/O, lockstep

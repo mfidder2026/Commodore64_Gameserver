@@ -7,7 +7,8 @@
 version of Bubble Bobble into a two-player network game. Each player uses
 their own machine: **VICE**, a **C64 Ultimate / Ultimate 64**, or a C64 with
 a **WiC64**, in any combination. A small game server on the LAN brings them
-together.
+together. Two **C64 Ultimates** (firmware with `$0A`) or two VICEs with RR-Net can also
+play **head-to-head**, without a server: one hosts, the other finds it on the LAN.
 
 <p align="center">
   <img src="docs/images/game-alice-2.png" width="45%" alt="Bub's C64">
@@ -50,6 +51,30 @@ Plus:
 No second player? The server has two **bots**, BUBBLUN and BOBBLUN. They sit in
 the lobby and accept every invitation.
 
+### Head-to-head, without a server
+
+Two C64s on the same LAN can play without the server:
+
+| | |
+|---|---|
+| ![Setup with head-to-head](docs/images/lobby-setup-h2h.png) | ![Head-to-head menu](docs/images/lobby-h2h.png) |
+
+1. On both C64s: `LOAD "BBLAN",8` and `RUN`. In the setup screen press **H** (`F1` in the lobby first
+   when it is connecting to a server).
+2. One C64 presses **1** (host): it announces itself on the LAN and waits.
+3. The other presses **2**: it searches the LAN, finds the host and both load the game.
+   On a C64 Ultimate **3** lets you type the host's IP instead.
+
+The host plays Bub (green), the joiner Bob (blue). After the game both come back to
+the head-to-head menu; the left arrow goes back to the setup.
+
+- **C64 Ultimate:** needs firmware with the Command Interface command `OPEN_UDP_LOCAL` (`$0A`,
+  [GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962), pull request #1016;
+  a test build is linked in the issue). With older firmware the setup shows no **H**.
+  The [link test](../../framework/c64/linktest/README.md) (`RELEASE/tools/linktest.d64`) checks your network.
+- **VICE with RR-Net:** works between two VICEs (two PCs, or two VICEs on one PC).
+- **WiC64:** only via the server (it talks TCP to a server).
+
 ## Quick start
 
 1. **Start the server** on a PC on the LAN: [`RELEASE/start-server.bat`](../../RELEASE/start-server.bat)
@@ -77,6 +102,9 @@ configuration and troubleshooting, is in **[docs/MANUAL.md](docs/MANUAL.md)**.
 | Setup | `RETURN` | Play online (connect to the lobby) |
 | Setup | `L` | Local game, two joysticks, as the original |
 | Setup | `S` | Name and server |
+| Setup | `H` | Head-to-head, without a server (Ultimate with `$0A`, RR-Net) |
+| Head-to-head | `1` / `2` / `3` | Host / search and join / join by IP (Ultimate) |
+| Head-to-head | `←` | Back to the setup |
 | Lobby | joystick up/down or cursor keys | Choose a player |
 | Lobby | `FIRE` / `RETURN` | Invite |
 | Lobby | `N` | Withdraw or decline an invitation |

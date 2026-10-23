@@ -44,10 +44,14 @@ unsigned char rr_poll(void);
 #define UCI_CLOSE   0x09
 #define UCI_READ    0x10
 #define UCI_WRITE   0x11
+#define UCI_OPENLOCAL 0x0A  /* UDP from a fixed local port (firmware with GideonZ/1541ultimate#1016) */
 
 static unsigned char drv;
 static unsigned char sock = 0xFF;
 static unsigned char server_known;
+static unsigned char direct;            /* head-to-head: RR-Net takes frames from any C64 */
+static unsigned char direct_ok;         /* the Ultimate's firmware has $0A */
+static unsigned char ipcfg[8];          /* the Ultimate's IP address and netmask */
 static char info[20];
 static const unsigned char broadcast[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -79,11 +83,22 @@ unsigned char net_init(unsigned char *mac, const char *server)
 {
     (void)server;
     if (uci_detect()) {
+        unsigned char i;
         drv = DRV_UCI;
-        if (uci(UCI_GETIP, 0) == 0 && uci_resplen >= 4)
-            sprintf(info, "%u.%u.%u.%u", uci_resp[0], uci_resp[1], uci_resp[2], uci_resp[3]);
-        else
-            strcpy(info, "?");
+        strcpy(info, "?");
+        for (i = 0; i < 3; ++i)                 /* the first interface with an address (C64 Ultimate: 0 LAN, 1 Wi-Fi) */
+            if (uci(UCI_GETIP, i) == 0 && uci_resplen >= 8 && uci_resp[0]) {
+                memcpy(ipcfg, uci_resp, 8);
+                sprintf(info, "%u.%u.%u.%u", uci_resp[0], uci_resp[1], uci_resp[2], uci_resp[3]);
+                break;
+            }
+        /* $0A with remote port 0: new firmware answers 82, old firmware 21 (unknown command) */
+        uci_cmd[0] = UCI_NET;
+        uci_cmd[1] = UCI_OPENLOCAL;
+        uci_cmd[2] = uci_cmd[3] = uci_cmd[4] = uci_cmd[5] = 0;
+        uci_cmd[6] = '0';
+        uci_cmdlen = 7;
+        direct_ok = uci_exec() == 0 && uci_code() == 82;
         return drv;
     }
     if (!mac[0]) {                              /* make up a MAC address, once */
@@ -154,6 +169,7 @@ void net_disconnect(void)
     if (drv == DRV_WIC) wic(WIC_TCP_CLOSE, 0);
     net_close_socket(sock);
     sock = 0xFF;
+    direct = 0;
 }
 
 void net_send(const unsigned char *data, unsigned char len)
@@ -181,7 +197,9 @@ unsigned char net_recv(unsigned char *buf)
     unsigned int n;
     if (drv == DRV_RR) {
         if (!rr_poll()) return 0;
-        if (!server_known) {
+        if (direct) {
+            if (!memcmp(rr_from, rr_mymac, 6)) return 0;    /* our own broadcast */
+        } else if (!server_known) {
             /* only the server's answer to our HELLO tells us where it is;
                other C64s broadcast their HELLOs too */
             if (rr_rxbuf[0] != 0x02 && rr_rxbuf[0] != 0x03) return 0;
@@ -228,5 +246,39 @@ unsigned char net_recv(unsigned char *buf)
 }
 
 unsigned char net_socket(void) { return sock; }
+
+/* ---------------------------------------------- head-to-head (direct.c) */
+
+unsigned char net_direct_ok(void) { return drv == DRV_RR || (drv == DRV_UCI && direct_ok); }
+
+const unsigned char *net_ipcfg(void) { return ipcfg; }
+
+void net_direct_begin(void)
+{
+    direct = 1;
+    memcpy(rr_dst, broadcast, 6);
+}
+
+unsigned char net_open_local(const char *host, unsigned int rport, unsigned int lport)
+{
+    unsigned char n = strlen(host);
+    uci_cmd[0] = UCI_NET;
+    uci_cmd[1] = UCI_OPENLOCAL;
+    uci_cmd[2] = rport & 0xFF;
+    uci_cmd[3] = rport >> 8;
+    uci_cmd[4] = lport & 0xFF;
+    uci_cmd[5] = lport >> 8;
+    memcpy(uci_cmd + 6, host, n);
+    uci_cmd[6 + n] = 0;
+    uci_cmdlen = 7 + n;
+    if (uci_exec() || uci_code() != 0 || uci_resplen < 1) return 0xFF;
+    return uci_resp[0];
+}
+
+void net_use_socket(unsigned char s) { sock = s; }
+
+void net_set_peer_mac(const unsigned char *mac) { memcpy(rr_dst, mac, 6); }
+
+const unsigned char *net_from_mac(void) { return rr_from; }
 
 const unsigned char *net_server_mac(void) { return rr_dst; }

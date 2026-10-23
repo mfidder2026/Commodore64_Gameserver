@@ -97,6 +97,8 @@ Wor) and the game still meets the standard above.
 - Memory is almost full: RR build 2 bytes free, UCI 26, WiC64 37
   (`python tools/build.py` prints it). The packed PRG must stay below `$D000`.
 - Determinism: `python tools/dettest.py` must PASS after every change to `src/`.
+- Head-to-head without the server (lobby key H, `DIRECT_DELAY` in `lobby/game.h`):
+  `python tools/directtest.py 80` (two VICEs with RR-Net, host and joiner, no server).
 - The lobby ↔ game handoff block at `$03C0` and the result at `$033C` are described in
   `docs/TECHNICAL.md`; the lobby and the game must agree on them.
 

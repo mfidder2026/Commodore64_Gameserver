@@ -23,6 +23,16 @@ unsigned char net_socket(void);
 const unsigned char *net_server_mac(void);
 void net_close_socket(unsigned char socket);
 
+/* head-to-head, two C64s without the server (direct.c) */
+unsigned char net_direct_ok(void);              /* RR-Net, or an Ultimate whose firmware has $0A */
+const unsigned char *net_ipcfg(void);           /* Ultimate: IP address (4) and netmask (4) */
+void net_direct_begin(void);                    /* RR-Net: broadcast, and hear every C64 */
+/* Ultimate $0A: a UDP socket from local port lport to host:rport, 0xFF = failed */
+unsigned char net_open_local(const char *host, unsigned int rport, unsigned int lport);
+void net_use_socket(unsigned char s);           /* net_send / net_recv use this socket */
+void net_set_peer_mac(const unsigned char *mac);/* RR-Net: send to this C64 (also the game's) */
+const unsigned char *net_from_mac(void);        /* RR-Net: the sender of the last message */
+
 /* loader.s */
 void __fastcall__ start_game(const char *name);
 

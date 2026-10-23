@@ -13,6 +13,8 @@ the same lobby (see the lobby standard in [AI_AGENT.md](../../../AI_AGENT.md)):
    F1 opens the setup screen: name and server, a local game (`LOCAL_GAME_TEXT`), play online.
 5. When the server starts the session, the lobby writes a **handoff block** and **loads the game file**. The game takes over the network connection.
 6. After the game, the game loads the lobby again. The lobby shows how the game ended and reconnects.
+7. **Head-to-head** (key **H** in the setup, games with `DIRECT_DELAY`): two C64s on the same LAN
+   play without a server. One hosts, the other searches the LAN and joins (see below).
 
 | Start | Lobby | Invited |
 |---|---|---|
@@ -28,6 +30,7 @@ the same lobby (see the lobby standard in [AI_AGENT.md](../../../AI_AGENT.md)):
 | `wic64.s` | WiC64 firmware 2.x (TCP, `[length][message]`) |
 | `rrnet.s` | CS8900a / RR-Net, raw Ethernet frames with EtherType `$88B5` |
 | `loader.s` | Loads the game file from a stub at `$033C` and starts it |
+| `direct.c` | Head-to-head without the server (included by `main.c` when `game.h` defines `DIRECT_DELAY`) |
 
 ## Per game: `game.h`
 
@@ -48,6 +51,7 @@ build compiles this folder with `-I games/<game>/lobby`:
 /* #define LOCAL_GAME_FILE "bbl"            optional: key L loads this file (default: the game file) */
 #define SLOT0_NAME    "BUB (green)"       /* slot 0 = the inviter */
 #define SLOT1_NAME    "BOB (blue)"
+#define DIRECT_DELAY  2                   /* optional: head-to-head (key H), the input delay */
 ```
 
 A game with more than two seats has **tables** instead of invitations (`tables.c`, see
@@ -124,6 +128,26 @@ The game continues on the connection the lobby opened, and sends no HELLO:
 The server's game module must allow a silent period while the game loads.
 For Bubble Bobble that is `loadTimeoutSeconds`, through `IGameModule.IdleTimeout`.
 
+## Head-to-head (`direct.c`)
+
+With `DIRECT_DELAY` in `game.h` the setup screen offers **H: head-to-head (no server)** on a
+C64 Ultimate whose firmware has `OPEN_UDP_LOCAL` (`$0A`, GideonZ/1541ultimate#962, pull
+request #1016) and on VICE with RR-Net. Its menu:
+
+- **1 host a game:** the C64 announces itself on the LAN and waits.
+- **2 join: search the host:** finds a host of the same game on the LAN and joins it.
+- **3 join: type the host's IP** (Ultimate): when the two are on different subnets.
+
+The host plays slot 0, the joiner slot 1. The lobbies agree on a session id, a seed
+and the input delay (`DIRECT_DELAY`, as the server's `inputDelay` for that game) and
+start the game through the normal handoff block: socket to the other C64 (Ultimate),
+or its MAC as the server MAC (RR-Net). The game needs no change. Messages and ports:
+[docs/protocol.md](../../../docs/protocol.md#head-to-head-two-c64s-without-the-server).
+
+The configuration file remembers `direct=h` / `direct=j`, so after a head-to-head
+game the lobby comes back to the head-to-head menu; left arrow there goes back to
+the setup (and online play next time).
+
 ## Configuration file
 
 `CFG_FILE` on the disk, written by the lobby. These lines are for testing:
@@ -133,7 +157,8 @@ name=ALICE
 server=192.168.1.10
 mac=021111111101
 auto=i       tests: i = invite the first free person, b = invite the first free bot, a = accept
-             (games with tables: i opens a table, a sits down)
+             (games with tables: i opens a table, a sits down); h = host head-to-head, j = join it
+direct=h     written by the lobby: the last game was head-to-head (h host, j joiner)
 seats=n      tests, games with tables: auto=i starts its table when n players sit there
 option=n     tests, games with tables: auto=i opens its table with option n
 bot=1        tests: the game's test bot plays instead of the joystick

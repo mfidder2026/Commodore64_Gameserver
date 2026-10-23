@@ -322,6 +322,42 @@ SESSION_END (1) --------->                 <------------ SESSION_END (1)
        <------------------ LOBBY           LOBBY -------->
 ```
 
+## Head-to-head: two C64s without the server
+
+The standard lobby can also start a session between two C64s on the same LAN
+without a server (key **H** in its setup, for games whose `game.h` defines
+`DIRECT_DELAY`; see [framework/c64/lobby](../framework/c64/lobby/README.md)). The two
+lobbies agree on the session themselves and hand it to the game exactly as a
+server's START would. The game then sends its INPUTs straight to the other C64;
+with two players the server relays them unchanged anyway, so the game does not
+know the difference. There is no checksum compare in a head-to-head game.
+
+| Network | How the two C64s talk |
+|---|---|
+| C64 Ultimate | UDP 6464 ↔ 6464 with `OPEN_UDP_LOCAL` (`$0A`, firmware with [GideonZ/1541ultimate#962](https://github.com/GideonZ/1541ultimate/issues/962), pull request #1016). Older firmware: no head-to-head |
+| VICE RR-Net | raw Ethernet: HERE to the broadcast MAC, everything else to the other C64's MAC |
+| WiC64 | not possible (TCP to a server only) |
+
+| Type | Name | Contents | Direction |
+|---|---|---|---|
+| `$18` | HERE | `$18`, proto, game id, game version, IP (4), name length, name | host → broadcast, every 0.5 s |
+| `$01` | HELLO | as the server's HELLO, followed by the joiner's IP (4) | joiner → host, every 0.5 s |
+| `$08` | START | session id (random), slot 1, 2 players, 3, seed (2), `DIRECT_DELAY` | host → joiner, every 0.25 s |
+| `$09` | START_ACK | session id | joiner → host, three times |
+
+- **C64 Ultimate host:** `$0A` from local port 6465 to the subnet's broadcast address
+  (IP | ~netmask), port 6464, for HERE; and `$0A` to `0.0.0.0`, remote 6464, local
+  6464, which hears every sender (lwIP matches a connected socket with an "any"
+  remote against all of them). A READ does not tell the sender, so HELLO carries
+  the joiner's IP; the host then opens `$0A` to the joiner, 6464 ↔ 6464.
+- **C64 Ultimate joiner:** `$0A` to `0.0.0.0`, remote 6465, local 6464 hears HERE;
+  then `$0A` to the host, 6464 ↔ 6464. The host's IP can also be typed in.
+- On START_ACK the host starts its game as slot 0, the joiner on START as slot 1.
+  The handoff block carries the socket to the other C64 (Ultimate) or its MAC
+  as the "server" MAC (RR-Net).
+- A joiner that hears nothing for 4 s after a HERE searches again (an old HERE);
+  a host whose START is not answered for 5 s waits again.
+
 ## The lockstep pattern (both games)
 
 Both games use the same scheme. A new lockstep game should copy it, so the

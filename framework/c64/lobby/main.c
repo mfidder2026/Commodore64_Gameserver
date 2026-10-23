@@ -19,8 +19,10 @@
  *   name=...   your name (A-Z, 0-9, max 8)
  *   server=... IP address of the game server (Ultimate and WiC64)
  *   mac=...    MAC address of the RR-Net (made up once, RR-Net only)
+ *   direct=h|j head-to-head was played last, as host or joiner (games with DIRECT_DELAY)
  *   auto=...   tests: "invite" (a person), "bot" (invite a bot) or "accept"
- *              (games with tables: "invite" opens a table, "accept" sits down)
+ *              (games with tables: "invite" opens a table, "accept" sits down);
+ *              head-to-head: "h" hosts, "j" searches and joins
  *   seats=n    tests, games with tables: "invite" starts with n players
  *   option=n   tests, games with tables: "invite" opens its table with option n
  *   bot=1      tests: a bot plays instead of the joystick (test game files)
@@ -89,6 +91,7 @@ static unsigned char auto_seats = 2;     /* config "seats": auto=i starts its ta
 static unsigned char auto_option;        /* config "option": the option of that table */
 #endif
 static unsigned char cfg_dirty;
+static unsigned char direct_role;        /* 'h' / 'j': the last game was head-to-head (direct.c) */
 
 static unsigned char drv;                /* DRV_* */
 static unsigned char msg[256];
@@ -206,6 +209,7 @@ static void cfg_load(void)
         }
         else if (!strcmp(line, "auto")) auto_mode = v[0];
         else if (!strcmp(line, "bot")) bot = v[0] == '1';
+        else if (!strcmp(line, "direct")) direct_role = v[0];
 #ifdef GAME_TABLES
         else if (!strcmp(line, "seats")) auto_seats = v[0] - '0';
         else if (!strcmp(line, "option")) auto_option = (unsigned char)atoi(v);
@@ -227,6 +231,7 @@ static void cfg_save(void)
         fprintf(f, "mac=%02x%02x%02x%02x%02x%02x\r", mymac[0], mymac[1], mymac[2], mymac[3], mymac[4], mymac[5]);
     if (auto_mode) fprintf(f, "auto=%c\r", auto_mode);
     if (bot) fprintf(f, "bot=1\r");
+    if (direct_role) fprintf(f, "direct=%c\r", direct_role);
     fclose(f);
     cfg_dirty = 0;
 }
@@ -498,6 +503,16 @@ static void lobby(void)
 #ifdef GAME_TABLES
 #include "tables.c"
 #endif
+#ifdef DIRECT_DELAY
+#include "direct.c"
+#endif
+
+/* head-to-head: offered when the game has it and the network can (Ultimate with $0A, RR-Net) */
+#ifdef DIRECT_DELAY
+#define DIRECT_OK net_direct_ok()
+#else
+#define DIRECT_OK 0
+#endif
 
 /* --------------------------------------------------------------- main */
 
@@ -551,18 +566,32 @@ int main(void)
               "  L          " LOCAL_GAME_TEXT "\r\n"
 #endif
               "  S          name and server\r\n");
+        if (DIRECT_OK) cputs("  H          head-to-head (no server)\r\n");
 
         /* at the start (and back from a game) straight into the lobby; the first time ask the settings */
         key = 0;
         if ((autostart || auto_mode) && drv != DRV_NONE && PAL_OK) {
-            if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
-            key = CH_ENTER;
+            if (DIRECT_OK && (auto_mode ? auto_mode == 'h' || auto_mode == 'j' : direct_role != 0))
+                key = 'h';                          /* back to head-to-head */
+            else {
+                if (!*nick || (NEEDS_SERVER && !*server)) { settings(NEEDS_SERVER); cfg_save(); }
+                key = CH_ENTER;
+            }
         }
         if (came_back && reason < 7) last_reason = reason;
         autostart = came_back = 0;
         if (!key) key = cgetc();
 
         if (key == 's') { settings(NEEDS_SERVER); cfg_save(); continue; }
+#ifdef DIRECT_DELAY
+        if (key == 'h' && DIRECT_OK && PAL_OK) {
+            if (!*nick) { settings(0); cfg_save(); }
+            direct_menu();
+            if (direct_role) { direct_role = 0; cfg_dirty = 1; cfg_save(); }   /* back to the setup: online next time */
+            auto_mode = 0;
+            continue;
+        }
+#endif
 #ifdef LOCAL_GAME_TEXT
 #ifdef LOCAL_GAME_FILE
         if (key == 'l') { memset(HB, 0, HB_SIZE); start_game(LOCAL_GAME_FILE); }
