@@ -198,6 +198,12 @@ log_event_a .macro code
 	.cerror IP65_BLOB_START != $4000, "the ip65 blob must be linked for $4000"
 	.cerror IP65_BSS_END > NET_ENTRY, "the ip65 blob and its buffers overlap NET_ENTRY"
 
+	DIRECT_SCAN = $5C10 ; free between the ip65 buffers and NET_ENTRY
+	.cerror IP65_BSS_END > DIRECT_SCAN, "the ip65 buffers overlap direct_scan.asm"
+	* = DIRECT_SCAN
+	.include "direct_scan.asm" ; finding a direct host without its ip
+	.cerror * > NET_ENTRY, "direct_scan.asm overlaps NET_ENTRY"
+
 	* = NET_ENTRY
 	JMP net_setup ; the loader jumps here
 
@@ -1986,7 +1992,7 @@ _local
 	STA net_role
 	JMP start_the_game
 _join
-	JMP setup_join
+	JMP direct_join_hint ; setup_join, on an Ultimate with $0A after a hint (direct_scan.asm)
 _server
 	JMP setup_server
 .pend
@@ -2056,7 +2062,7 @@ listening
 -	JSR GETIN
 	BEQ +
 	JMP net_setup.net_menu
-+	JSR netio_poll
++	JSR direct_announce ; netio_poll; an Ultimate host first sends HERE (direct_scan.asm)
 	BCS -
 	JSR proto_rx
 	LDA net_connected
@@ -2064,6 +2070,25 @@ listening
 	JSR print_inline
 	.null 13, C_YELLOW, "PLAYER 2 IS HERE.", 13, C_WHITE, "YOU ARE PLAYER 1 (YELLOW).", 13, "PRESS FIRE ON THE TITLE SCREEN TO START.", 13
 	JMP start_after_key
+.pend
+
+; -----------------------------------------
+
+can_host .proc ; (direct games, direct.asm)
+	; Z=1: this machine can host a direct game (RR-Net, or an Ultimate with $0A)
+	LDA net_backend
+	CMP #BACKEND_RRNET
+	BEQ _yes
+	CMP #BACKEND_UCI
+	BNE _no
+	LDA direct_ok
+	BEQ _no
+_yes
+	LDA #$00
+	RTS
+_no
+	LDA #$01
+	RTS
 .pend
 
 ; -----------------------------------------
@@ -2079,13 +2104,15 @@ setup_join .proc
 	.null 13, 13, C_CYAN, "IP OF THE HOST: ", C_WHITE
 	JSR read_line
 	LDA host_len
-	BNE +
-	JMP net_setup.net_menu
-+	LDX host_len
+	BNE found
+	JMP direct_search ; no ip: search the host (direct.asm), or back to the menu
+found
+	LDX host_len
 -	LDA host_input,X
 	STA net_host,X
 	DEX
 	BPL -
+have_host ; direct_search: net_host is set
 	LDA #ROLE_JOIN
 	STA net_role
 	LDA net_backend

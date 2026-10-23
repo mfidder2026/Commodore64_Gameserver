@@ -62,25 +62,6 @@ direct_probe .proc
 
 ; -----------------------------------------
 
-can_host .proc
-	; Z=1: this machine can host a direct game (RR-Net, or an Ultimate with $0A)
-	LDA net_backend
-	CMP #BACKEND_RRNET
-	BEQ _yes
-	CMP #BACKEND_UCI
-	BNE _no
-	LDA direct_ok
-	BEQ _no
-_yes
-	LDA #$00
-	RTS
-_no
-	LDA #$01
-	RTS
-.pend
-
-; -----------------------------------------
-
 direct_open .proc
 	; $0A: UDP from local port direct_lport to net_host:net_port -> A and net_socket, C=1 on error
 	JSR uci.uci_begin
@@ -139,21 +120,6 @@ direct_join_open .proc
 
 ; -----------------------------------------
 
-hello_add_ip .proc
-	; the HELLO's bytes 4-7: our ip (net_ipcfg), for an Ultimate host
-	LDX #3
--	LDA net_ipcfg,X
-	STA net_tx_buf+4,X
-	DEX
-	BPL -
-	RTS
-.pend
-
-; -----------------------------------------
-
-
-; -----------------------------------------
-
 direct_setup_host .proc
 	; the menu's HOST: RR-Net as before; an Ultimate listens with $0A, then the same wait
 	LDA net_backend
@@ -173,15 +139,8 @@ direct_listen .proc
 	JSR print_inline
 	.null 13, 13, C_CYAN, "MY IP: ", C_WHITE
 	JSR print_ip
-	LDX #7
--	LDA direct_any,X
-	STA net_host,X
-	DEX
-	BPL -
-	LDA #<GAME_PORT
-	STA direct_lport
-	LDA #>GAME_PORT
-	STA direct_lport+1
+	JSR direct_announce_open ; HERE to the network, so a player can search (direct_scan.asm)
+	JSR direct_any_6464
 	LDA #$00
 	STA direct_linked
 	JSR direct_open
@@ -203,18 +162,73 @@ direct_hello .proc
 	LDA net_rx_len
 	CMP #8
 	BCC +
-	LDY #7
--	LDA (net_rx_ptr),Y
-	STA direct_ip-4,Y
-	DEY
-	CPY #4
-	BCS -
-	JSR ip_to_host
+	JSR direct_rx_ip
 	JSR uci.net_close
 	JSR direct_open
 	BCS +
 	INC direct_linked
+	JSR direct_close_announce
 +	RTS
 .pend
 
 direct_linked	.byte 0
+
+; -----------------------------------------
+
+direct_search .proc
+	; join without an ip (an Ultimate with $0A): listen with $0A to 0.0.0.0, remote 6465,
+	; local 6464 for a host's HERE, then join it as if its ip was typed in
+	LDA net_backend
+	CMP #BACKEND_UCI
+	BNE _menu
+	LDA direct_ok
+	BNE +
+_menu
+	JMP net_setup.net_menu
++	JSR print_inline
+	.null 13, C_YELLOW, "SEARCHING THE HOST (ANY KEY = BACK)", 13
+	JSR direct_any_6464
+	LDA #<ANNOUNCE_PORT
+	STA net_port
+	JSR direct_open
+	LDA #<GAME_PORT ; net_port back to 6464 (the high bytes of 6464 and 6465 are the same)
+	STA net_port
+	BCS _menu
+	INC net_is_open
+_wait
+	JSR GETIN
+	BNE _menu
+	JSR netio_poll
+	BCS _wait
+	LDA net_rx_len
+	CMP #8
+	BCC _wait
+	LDY #2
+	LDA (net_rx_ptr),Y
+	CMP #PT_HERE
+	BNE _wait
+	JSR direct_rx_ip ; the host's ip in net_host, as if it was typed in
+	JSR uci.net_close
+	JSR print_inline
+	.null C_CYAN, "HOST: ", C_WHITE
+	LDA #<net_host
+	LDY #>net_host
+	JSR print_string
+	JMP setup_join.have_host
+.pend
+
+; -----------------------------------------
+
+direct_any_6464 .proc
+	; net_host "0.0.0.0", local port 6464
+	LDX #7
+-	LDA direct_any,X
+	STA net_host,X
+	DEX
+	BPL -
+	LDA #<GAME_PORT
+	STA direct_lport
+	LDA #>GAME_PORT
+	STA direct_lport+1
+	RTS
+.pend
